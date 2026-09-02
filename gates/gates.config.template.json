@@ -1,0 +1,33 @@
+{
+  "_comment": "Copy to gates.config.json at INIT. Fill suiteCmd (project-details #TOOL-3) and unitIdRegex (project-details #CL-2). All gate scripts read this flat config; nothing is hardcoded to a stack.",
+  "clauseIdRegex": "\\b[A-Z]{2,}\\.\\d+\\b",
+  "testClauseTag": "@clause:",
+  "paths": {
+    "spec": "spec/**/*.body.md",
+    "tests": "tests/**",
+    "code": "src/**"
+  },
+  "testGlobs": ["tests/**", "**/*.test.*", "**/*.spec.*", "**/*Tests.cs"],
+  "baseRef": "main",
+  "suiteCmd": "<from project-details #TOOL-3 — e.g. dotnet test or npm test>",
+  "unitIdRegex": "\\b[A-Z]{2,}-\\d+\\b",
+  "foldCheck": {
+    "_comment": "Mode B: backlogRoot is searched for <unit-id>* files. Mode A: set resolveCmd with {unit} placeholder, e.g. 'scripts/jira.sh get {unit}'. Omit both to degrade to syntactic pin validation.",
+    "backlogRoot": "backlog",
+    "resolveCmd": null
+  },
+  "proseCheck": {
+    "_comment": "SDD-PROP-09 spec form (prose_check). mode: warn (default) | strict (violations FAIL; migrate-on-contact) | off. maxParaShare = max fraction of a shard's words in paragraph text; maxParaWords = longest single paragraph; minWords = shards below this skip the share test (the paragraph test still applies); excludeGlobs = generated shards to ignore.",
+    "mode": "warn",
+    "maxParaShare": 0.35,
+    "maxParaWords": 100,
+    "minWords": 120,
+    "excludeGlobs": []
+  },
+  "_constitutionRules_comment": "Example: {id:'no-hardcoded-ui', kind:'must_not_match', paths:'src/**/*.tsx', pattern:'>[A-Z][a-z]+ ', message:'...'}. Author one rule per project principle. See gates/README.md.",
+  "constitutionRules": [],
+  "_seamRules_comment": "Example: {id:'SEAM-1-audit', kind:'pair_requires', paths:'src/**/Handlers/**/*.cs', pattern:'ICommandHandler', expect:'IAuditSink', message:'...'}. Author one rule per Project Details SEAM-N. See gates/README.md.",
+  "seamRules": [],
+  "_qaImportRules_comment": "Example: {id:'qa-no-impl-import', kind:'must_not_match', paths:'tests/**/*.cs', pattern:'using\\s+MyApp\\.Internal', message:'QA tests may not import production internals'}. (In the real rule, write the pattern as JSON: \"using\\\\s+MyApp\\\\.Internal\".) Read by qa_import_ban (copy qa_import_ban.template.* to a concrete name). Same rule shape as constitutionRules/seamRules. See gates/README.md.",
+  "qaImportRules": []
+}

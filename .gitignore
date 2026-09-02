@@ -1,0 +1,6 @@
+# per-box, never committed (INIT §1a/§1b)
+project-config/box-role.local
+# host-local settings
+.claude/settings.local.json
+# release archives are built by CI, not committed
+*.zip

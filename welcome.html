@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SDD — Spec-Driven Development · start here</title>
+<style>
+  :root{
+    --bg:#0c0e13; --bg2:#12151c; --card:#161a23; --line:rgba(255,255,255,.09);
+    --ink:#e9ecf3; --mut:#9aa3b2; --dim:#6b7383;
+    --violet:#8b7bff; --teal:#39d3b0; --amber:#f2b34b; --pink:#ff7eb6; --blue:#5aa9ff;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:var(--teal);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:980px;margin:0 auto;padding:0 24px}
+  .mono{font-family:var(--mono)}
+  .reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}
+  .reveal.in{opacity:1;transform:none}
+
+  /* hero */
+  header.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+  .hero .bgblob{position:absolute;inset:-40% -10% auto -10%;height:120%;
+    background:radial-gradient(60% 60% at 20% 10%,rgba(139,123,255,.20),transparent 60%),
+               radial-gradient(50% 50% at 85% 20%,rgba(57,211,176,.16),transparent 60%);
+    filter:blur(8px);pointer-events:none;animation:drift 18s ease-in-out infinite alternate}
+  @keyframes drift{to{transform:translate3d(0,24px,0) scale(1.05)}}
+  .hero .wrap{position:relative;padding:88px 24px 72px}
+  .pill{display:inline-flex;gap:8px;align-items:center;font-family:var(--mono);font-size:12.5px;
+    color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:6px 13px;background:rgba(255,255,255,.02)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 4px rgba(57,211,176,.15)}
+  h1{font-size:clamp(38px,6vw,68px);line-height:1.02;margin:22px 0 0;letter-spacing:-.02em;font-weight:800}
+  h1 .grad{background:linear-gradient(92deg,var(--violet),var(--teal) 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{font-size:clamp(17px,2.4vw,22px);color:var(--mut);max-width:660px;margin:18px 0 0}
+  .tag b{color:var(--ink);font-weight:600}
+  .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px}
+  .btn{font-family:var(--mono);font-size:14px;padding:12px 18px;border-radius:11px;border:1px solid var(--line);
+    color:var(--ink);background:rgba(255,255,255,.03);transition:.18s;cursor:pointer}
+  .btn:hover{text-decoration:none;border-color:rgba(255,255,255,.25);transform:translateY(-1px)}
+  .btn.go{background:linear-gradient(92deg,rgba(139,123,255,.22),rgba(57,211,176,.22));border-color:rgba(139,123,255,.4)}
+
+  section{padding:64px 0;border-bottom:1px solid var(--line)}
+  .kquote{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);font-family:var(--mono)}
+  h2{font-size:clamp(26px,3.4vw,36px);margin:10px 0 8px;letter-spacing:-.01em;font-weight:800}
+  .lead{color:var(--mut);max-width:680px;font-size:17px}
+
+  .grid{display:grid;gap:16px;margin-top:28px}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+  .g4{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px}
+  .card h3{margin:0 0 6px;font-size:17px;font-weight:700}
+  .card p{margin:0;color:var(--mut);font-size:14.5px}
+  .num{font-family:var(--mono);font-size:13px;color:var(--violet);font-weight:600}
+
+  /* flow */
+  .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:30px}
+  @media(max-width:720px){.flow{grid-template-columns:repeat(2,1fr)}}
+  .stage{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 15px;transition:.2s;cursor:pointer;outline:none}
+  .stage:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.22)}
+  .stage::after{content:"+";position:absolute;top:9px;right:13px;font-family:var(--mono);font-size:15px;line-height:1;color:var(--dim);transition:.2s}
+  .stage:hover::after{color:var(--mut)}
+  .stage:focus-visible{border-color:rgba(255,255,255,.3)}
+  .stage.active{border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c);transform:translateY(-3px)}
+  .stage.active::after{content:"×";color:var(--ink)}
+  .stagedetail{overflow:hidden;max-height:0;opacity:0;margin-top:0;transition:max-height .38s ease,opacity .3s ease,margin .38s ease}
+  .stagedetail.open{max-height:640px;opacity:1;margin-top:16px}
+  .stagedetail .inner{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--violet);border-radius:14px;padding:21px 24px}
+  .stagedetail .st{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.04em}
+  .stagedetail h3{margin:4px 0 9px;font-size:20px;font-weight:700}
+  .stagedetail p{margin:0;color:var(--mut);font-size:15px;line-height:1.66}
+  .stagedetail .gate{margin-top:15px;font-family:var(--mono);font-size:12px;color:var(--mut)}
+  .stagedetail .gate b{color:var(--ink);font-weight:600}
+  .stage .s{font-family:var(--mono);font-size:11px;color:var(--dim)}
+  .stage .t{font-weight:700;margin:3px 0 7px;font-size:15px}
+  .stage .gate{font-family:var(--mono);font-size:11px;color:var(--mut);display:flex;align-items:center;gap:6px}
+  .stage .gate::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--c)}
+  .ph-spec{--c:var(--violet)} .ph-test{--c:var(--teal)} .ph-ship{--c:var(--amber)}
+  .stage .bar{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:14px 0 0 14px;background:var(--c)}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:18px;font-family:var(--mono);font-size:12px;color:var(--mut)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .legend i{width:9px;height:9px;border-radius:3px;display:inline-block}
+
+  /* 2x2 */
+  .matrix{display:grid;grid-template-columns:120px 1fr 1fr;grid-template-rows:auto 1fr 1fr;gap:10px;margin-top:26px}
+  .mh{font-family:var(--mono);font-size:12px;color:var(--mut);display:flex;align-items:center;justify-content:center;text-align:center;padding:6px}
+  .mside{writing-mode:vertical-rl;transform:rotate(180deg);justify-self:center}
+  .cell{position:relative;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:16px;transition:.18s;cursor:pointer}
+  .cell:hover{border-color:rgba(255,255,255,.28);background:#1b202b}
+  .cell::after{content:"+";position:absolute;top:8px;right:12px;font-family:var(--mono);font-size:14px;line-height:1;color:var(--dim);transition:.2s}
+  .cell:hover::after{color:var(--mut)}
+  .cell.active::after{content:"×";color:var(--ink)}
+  .cell.active{transform:translateY(-2px)}
+  .cell b{display:block;font-size:14.5px;margin-bottom:3px}
+  .cell span{font-size:12.5px;color:var(--mut);font-family:var(--mono)}
+  .effort{display:flex;align-items:center;gap:9px;margin:2px 0 13px;font-family:var(--mono);font-size:11.5px;color:var(--mut)}
+  .effort .bars{display:inline-flex;gap:4px}
+  .effort .bars i{width:22px;height:6px;border-radius:3px;background:rgba(255,255,255,.1)}
+  .effort .bars i.on{background:var(--ec,#8b7bff)}
+
+  /* token bar */
+  .tok{margin-top:26px}
+  .tokbar{height:46px;border-radius:12px;overflow:hidden;display:flex;border:1px solid var(--line);font-family:var(--mono);font-size:12.5px;font-weight:600}
+  .tokbar .a{flex:0 0 13%;background:linear-gradient(92deg,var(--violet),#a99bff);color:#1a1530;display:flex;align-items:center;justify-content:center;min-width:120px}
+  .tokbar .b{flex:1;background:rgba(255,255,255,.04);color:var(--mut);display:flex;align-items:center;justify-content:center}
+  .tokcap{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--dim);margin-top:8px}
+
+  /* roles */
+  .roles{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:26px}
+  @media(max-width:720px){.roles{grid-template-columns:1fr}}
+  .role{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px}
+  .role .h{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .badge{font-family:var(--mono);font-size:11px;padding:4px 9px;border-radius:7px}
+  .badge.po{background:rgba(139,123,255,.16);color:#c7bfff}
+  .badge.wk{background:rgba(57,211,176,.14);color:#7ef0d4}
+  .role ul{margin:8px 0 0;padding-left:18px;color:var(--mut);font-size:14px}
+  .surface{margin-top:18px;background:rgba(255,126,182,.06);border:1px solid rgba(255,126,182,.22);border-radius:13px;padding:16px;font-size:14px;color:#ffd7e8}
+  .surface code{font-family:var(--mono);background:rgba(0,0,0,.3);padding:2px 6px;border-radius:6px;color:#ff9ec8}
+
+  /* steps */
+  ol.steps{counter-reset:s;list-style:none;padding:0;margin:28px 0 0;display:grid;gap:12px}
+  ol.steps li{counter-increment:s;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:16px 18px 16px 56px;position:relative;color:var(--mut);font-size:14.5px}
+  ol.steps li::before{content:counter(s);position:absolute;left:16px;top:14px;width:26px;height:26px;border-radius:8px;
+    background:linear-gradient(92deg,var(--violet),var(--teal));color:#0c0e13;font-family:var(--mono);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+  ol.steps li b{color:var(--ink)}
+  code.k{font-family:var(--mono);color:var(--teal);background:rgba(57,211,176,.08);padding:1px 6px;border-radius:6px;font-size:13px}
+
+  .stub{position:relative;background:#0a0c11;border:1px solid var(--line);border-radius:14px;padding:18px 18px 18px;margin-top:22px;font-family:var(--mono);font-size:13px;color:#cdd6e6;overflow:auto}
+  .stub .cp{position:absolute;top:12px;right:12px;font-size:11px;padding:5px 10px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--mut);cursor:pointer}
+  .stub .cp:hover{color:var(--ink);border-color:rgba(255,255,255,.25)}
+  .stub .c{color:var(--dim)}.stub .v{color:var(--violet)}.stub .g{color:var(--teal)}
+
+  .map{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:24px}
+  .map a{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 15px;display:flex;justify-content:space-between;align-items:center;color:var(--ink);font-size:14px;transition:.16s}
+  .map a:hover{text-decoration:none;border-color:rgba(57,211,176,.4);transform:translateY(-2px)}
+  .map a span{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+
+  /* compare */
+  .cmpwrap{margin-top:28px;overflow-x:auto;border:1px solid var(--line);border-radius:14px}
+  .cmp{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
+  .cmp th,.cmp td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  .cmp thead th{font-family:var(--mono);font-size:11.5px;color:var(--mut);font-weight:600}
+  .cmp tbody th{font-family:var(--mono);font-size:11.5px;color:var(--dim);font-weight:500;white-space:nowrap}
+  .cmp td{color:var(--mut)}
+  .cmp td code{font-family:var(--mono);font-size:11.5px;color:var(--teal)}
+  .cmp .sdd{background:rgba(139,123,255,.07)}
+  .cmp thead th.sdd{color:var(--violet)}
+  .cmp b{color:var(--ink);font-weight:600}
+  .cmp tbody tr:last-child th,.cmp tbody tr:last-child td{border-bottom:none}
+
+  footer{padding:40px 0 64px;color:var(--dim);font-family:var(--mono);font-size:12.5px;text-align:center}
+  footer b{color:var(--mut)}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="bgblob"></div>
+  <div class="wrap">
+    <span class="pill"><span class="dot"></span> v1.5 · a dogfooded spec · for humans <b style="color:var(--ink)">&amp;</b> AI agents</span>
+    <h1>Spec-Driven<br><span class="grad">Development</span></h1>
+    <p class="tag">The spec is the prompt. The code <b>conforms</b>. One copyable method that drops into any project and makes <b>intent drift</b> very hard to ship — token-efficient, persona-split, gated end to end.</p>
+    <div class="cta">
+      <a class="btn go" href="#start">Get started <span style="opacity:.6">↓</span></a>
+      <a class="btn" href="#flow">See the loop</a>
+      <a class="btn" href="README.md">Read the docs</a>
+    </div>
+  </div>
+</header>
+
+<section id="why" class="reveal">
+  <div class="wrap">
+    <p class="kquote">the whole thing in two ideas</p>
+    <h2>Why it works</h2>
+    <p class="lead">Everything else is a consequence of taking two ideas seriously.</p>
+    <div class="grid g2">
+      <div class="card"><div class="num">idea 01</div><h3>The spec is the source of truth</h3><p>Behaviour is decided in the spec first; the code conforms. When the spec and the code disagree, the code is the bug — never the other way around.</p></div>
+      <div class="card"><div class="num">idea 02</div><h3>Split the mind for risky work</h3><p>One author writing spec + tests + code transcribes a single misread into all three. So independently-scoped agents write each — a misread has to survive more than one reader to ship.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="flow" class="reveal">
+  <div class="wrap">
+    <p class="kquote">spec-first, action-second</p>
+    <h2>The loop, gated end to end</h2>
+    <p class="lead">Eight small stages. Each one is loaded on its own, does its work, passes a gate, and hands back. You never hold the whole thing in your head at once.</p>
+    <div class="flow">
+      <div class="stage ph-spec" data-st="0"><div class="bar"></div><div class="s">stage 0</div><div class="t">Triage</div><div class="gate">right-size · 2×2</div></div>
+      <div class="stage ph-spec" data-st="1"><div class="bar"></div><div class="s">stage 1–2</div><div class="t">Design + recon</div><div class="gate">PM approves</div></div>
+      <div class="stage ph-spec" data-st="2"><div class="bar"></div><div class="s">stage 3</div><div class="t">Spec-first (EARS)</div><div class="gate">link_check</div></div>
+      <div class="stage ph-test" data-st="3"><div class="bar"></div><div class="s">stage 4</div><div class="t">Test plan</div><div class="gate">coverage_check</div></div>
+      <div class="stage ph-test" data-st="4"><div class="bar"></div><div class="s">stage 5</div><div class="t">QA · spec-only</div><div class="gate">red, frozen</div></div>
+      <div class="stage ph-test" data-st="5"><div class="bar"></div><div class="s">stage 6</div><div class="t">Engineer</div><div class="gate">test_edit_ban</div></div>
+      <div class="stage ph-ship" data-st="6"><div class="bar"></div><div class="s">stage 7</div><div class="t">Gates + ship</div><div class="gate">run_all · validate</div></div>
+      <div class="stage ph-ship" data-st="7"><div class="bar"></div><div class="s">on done</div><div class="t">Fold + pin</div><div class="gate">spec = fold(ships)</div></div>
+    </div>
+    <div class="stagedetail" id="sd"><div class="inner"></div></div>
+    <div class="legend">
+      <span><i style="background:var(--violet)"></i> spec phase</span>
+      <span><i style="background:var(--teal)"></i> test phase</span>
+      <span><i style="background:var(--amber)"></i> ship phase</span>
+      <span class="mono" style="color:var(--dim)">QA writes tests blind to the code · the Engineer can't edit them</span>
+    </div>
+  </div>
+</section>
+
+<section id="size" class="reveal">
+  <div class="wrap">
+    <p class="kquote">don't pay for ceremony you don't need</p>
+    <h2>Match ceremony to risk</h2>
+    <p class="lead">Decided once, in Triage. The full persona loop is for work where a misread is expensive and not self-evident — not for a typo fix.</p>
+    <div class="matrix">
+      <div></div>
+      <div class="mh">misread cheap / obvious</div>
+      <div class="mh">misread expensive / non-obvious</div>
+      <div class="mh mside">not decomposable</div>
+      <div class="cell" data-cell="0"><b>Mechanical</b><span>single context · 0→3→4→7</span></div>
+      <div class="cell" data-cell="1"><b>Coupled + risky</b><span>full persona loop · 0–7</span></div>
+      <div class="mh mside">decomposable</div>
+      <div class="cell" data-cell="2"><b>Independent + simple</b><span>parallel worktree workers</span></div>
+      <div class="cell" data-cell="3"><b>Independent + risky</b><span>parallel · persona loop each</span></div>
+    </div>
+    <div class="stagedetail" id="md"><div class="inner"></div></div>
+  </div>
+</section>
+
+<section id="cheap" class="reveal">
+  <div class="wrap">
+    <p class="kquote">the headline feature</p>
+    <h2>It never loads itself wholesale</h2>
+    <p class="lead">The only thing in context on every single call is the constitution + PROCESS §0 — the boot protocol (router, load manifest, precedence, DoD summary). Everything that grows with your project — stages, gates, spec shards, the project details — loads only when a stage asks for it.</p>
+    <div class="tok">
+      <div class="tokbar">
+        <div class="a" id="tokA">≈1.6k always</div>
+        <div class="b">stages · gates · spec shards · project details · changelog — demand-loaded</div>
+      </div>
+      <div class="tokcap"><span>constitution + PROCESS §0</span><span>standing cost ≈ constant, whatever the project size</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="roles" class="reveal">
+  <div class="wrap">
+    <p class="kquote">one PO box, many worker boxes</p>
+    <h2>Box roles &amp; the surface-back protocol</h2>
+    <p class="lead">A box (a machine / session) has a standing role, separate from the per-feature personas. Run a PO box that files tickets; let worker boxes pick up ready work and run it to done.</p>
+    <div class="roles">
+      <div class="role">
+        <div class="h"><span class="badge po">PO box</span> <b>full authority</b></div>
+        <ul><li>triage, design, recon, spec authoring</li><li>files &amp; shapes tickets; decides forks</li><li>patches the canonical spec; owns the merge</li><li>a solo dev is a PO box</li></ul>
+      </div>
+      <div class="role">
+        <div class="h"><span class="badge wk">worker box</span> <b>execution only</b></div>
+        <ul><li>picks up a <b style="color:var(--ink)">Ready</b> (DoR-met) item</li><li>runs the implementation stages to Done</li><li>never authors the spec or decides forks</li><li>never edits scope or ACs</li></ul>
+      </div>
+    </div>
+    <div class="surface">
+      <b style="color:#fff">Hit an ambiguity?</b> A worker never guesses and never patches the spec. It writes <code>[NEEDS-PO]</code> / <code>[BLOCKED]</code> back to the ticket, flips it to the PO-attention state, and stops. The fix lands in the artifact, before code — every time. The ticket is the async channel between boxes.
+    </div>
+    <p style="margin-top:16px;color:var(--mut);font-size:14px;font-family:var(--mono)">Across machines the item is the only channel: a worker <b style="color:var(--ink)">claims</b> it (<code style="color:var(--teal)">claimed-by:&lt;box-id&gt;</code>), runs it to gates-green, flags <b style="color:var(--ink)">Ready-for-review</b> — never merges; the PO box reviews + owns the serialized merge. <span style="color:var(--dim)">Ready → Claimed → In-Progress → Ready-for-review → Done · polled every 15–30 min</span></p>
+  </div>
+</section>
+
+<section id="start" class="reveal">
+  <div class="wrap">
+    <p class="kquote">≈20 minutes to adopt</p>
+    <h2>Get started</h2>
+    <p class="lead">Drop the spine into a repo, wire one stub, answer three questions, smoke-test the gates. That's it.</p>
+    <ol class="steps">
+      <li><b>Copy the spine</b> into your repo (<code class="k">sdd/</code>) — never edited per project.</li>
+      <li><b>Wire the agent carrier</b> — <code class="k">AGENTS.md</code> holds the ~9-line stub (constitution + boot protocol + this box's role); <code class="k">CLAUDE.md</code> routes to it, Copilot via <code class="k">.github/copilot-instructions.md</code>. Cross-agent by design.</li>
+      <li><b>Choose a changelog mode</b> — external tracker (Jira / Linear) or a lighter on-disk backlog. The fold-on-ship invariant is identical either way.</li>
+      <li><b>Greenfield or brownfield?</b> New code → author the spec fresh. Existing code with no spec → reconstruct the slice you touch, or run <code class="k">discover-spec.md</code> to characterize a whole area.</li>
+      <li><b>Choose a spec format</b> — Markdown→HTML (default) or raw HTML. Either way each subsection is a content-only shard.</li>
+      <li><b>Instantiate the project details</b> &amp; register your architecture seams.</li>
+      <li><b>Fill <code class="k">gates.config.json</code></b> &amp; add your inline gate rules.</li>
+      <li><b>Smoke-test the gates</b> — green means adopted.</li>
+    </ol>
+    <div class="stub" id="stub">
+      <button class="cp" id="cp">copy</button>
+<pre style="margin:0;white-space:pre-wrap"><span class="c">## Spec-Driven Development (SDD)</span>
+This project uses SDD — a defined spec-first process. On your first action, say so, then:
+1. Obey <span class="g">@sdd/constitution.md</span> (always in effect).
+2. Read <span class="g">@sdd/PROCESS.md</span> §0 (the boot protocol / router) and load ONLY your current stage.
+3. Project specifics live in <span class="g">sdd/project-config/project-details.md</span> — load on demand.
+This box's SDD role: <span class="v">$SDD_BOX_ROLE</span> (default po). Workers surface concerns
+to the changelog item; they never author specs or decide forks — see sdd/box-roles.md.
+Do not continue ad-hoc work. If unsure of your stage, you are in Stage 0.</pre>
+    </div>
+  </div>
+</section>
+
+<section id="compare" class="reveal">
+  <div class="wrap">
+    <p class="kquote">how it compares</p>
+    <h2>SDD vs. the field</h2>
+    <p class="lead">All of these reject vibe-coding for structure; SDD, BMAD, and Spec Kit each center a spec and a <b style="color:var(--ink)">constitution</b>. Where SDD differs: it <b style="color:var(--ink)">mechanically enforces</b> the discipline with gates and an unbroken trace, and is built to stay <b style="color:var(--ink)">token-lean</b> — at the cost of being the newest (a zip + agent-run runbook, not a maintained CLI product).</p>
+    <div class="cmpwrap">
+      <table class="cmp">
+        <thead>
+          <tr><th></th><th class="sdd">SDD (this)</th><th>BMAD-METHOD</th><th>GitHub Spec Kit</th><th>Superpowers</th></tr>
+        </thead>
+        <tbody>
+          <tr><th>Core idea</th><td class="sdd">Spec is canon; <b>gated</b>, persona-split, token-lean</td><td>Multi-agent agile <b>team</b> (12+ roles)</td><td>Slash-command <b>spec→plan→tasks→code</b></td><td>Composable agent <b>skills</b>, TDD-centric</td></tr>
+          <tr><th>Source of truth</th><td class="sdd">EARS shards + traceability, folded from the changelog</td><td>PRD + architecture → <b>story files</b></td><td><code>spec/plan/tasks.md</code></td><td>Plan + TDD tests; skills, no canonical spec</td></tr>
+          <tr><th>Roles</th><td class="sdd">PM + Orchestrator + <b>QA⊥Engineer</b> + fresh Validation</td><td>Analyst / PM / Architect / SM / Dev / QA</td><td>You + your agent host</td><td>Subagents + a code-review subagent</td></tr>
+          <tr><th>Enforcement</th><td class="sdd"><b>Scriptable gates</b> (coverage, link, test-edit-ban, seam, fold)</td><td>Convention + prompt structure</td><td>Convention + a <code>constitution</code></td><td><b>TDD red/green</b>; no spec gates</td></tr>
+          <tr><th>Context</th><td class="sdd">Staged loading, <b>~1.6k always-loaded</b></td><td>Rich, front-loaded story files</td><td>Per-feature spec dirs</td><td>Skills on demand + subagent isolation</td></tr>
+          <tr><th>Testing</th><td class="sdd">4 layers, <b>spec-derived oracle</b>, mutation in Discover Spec</td><td>QA agent reviews (not gated)</td><td>Tests as tasks (not enforced)</td><td><b>TDD-first</b> is the core</td></tr>
+          <tr><th>Brownfield</th><td class="sdd"><b>Discover Spec</b> (reconstruct + coverage/mutation)</td><td>Analyst flows</td><td>Greenfield-leaning</td><td>TDD on existing code</td></tr>
+          <tr><th>Platform</th><td class="sdd">Cross-agent via <code>AGENTS.md</code> (Claude / Codex / Cursor / Gemini / Copilot); <b>PowerShell + Bash</b> gates</td><td>Any IDE/model, <b>domain-agnostic</b></td><td>CLI + many agent hosts</td><td>Claude Code + harnesses (plugin)</td></tr>
+          <tr><th>Install / adopt</th><td class="sdd"><b>Agent-driven runbook</b> — unzip, "follow the instructions" → INIT (3 questions) → gate smoke test. <b>No toolchain.</b></td><td><code>npx bmad-method install</code></td><td><code>uvx … specify init</code></td><td><code>/plugin install superpowers</code></td></tr>
+          <tr><th>Maturity</th><td class="sdd">Bespoke, dogfooded, new</td><td>~46k★, v6, large community</td><td>Official GitHub, growing</td><td>Dominant skills framework</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:18px;color:var(--mut);font-size:14px"><b style="color:var(--ink)">Pick SDD</b> for enforced traceability + a token-lean, multi-box, cross-agent process. <b style="color:var(--ink)">Pick the others</b> for a packaged product (Spec Kit), cross-domain multi-agent planning with no lock-in (BMAD), or a TDD-first skills library (Superpowers). They also <b style="color:var(--ink)">compose</b> — e.g. SDD's gates over Superpowers-style TDD.</p>
+  </div>
+</section>
+
+<section id="map" class="reveal">
+  <div class="wrap">
+    <p class="kquote">the package</p>
+    <h2>Read on</h2>
+    <div class="map">
+      <a href="constitution.md">constitution.md <span>10 invariants</span></a>
+      <a href="PROCESS.md">PROCESS.md <span>the router</span></a>
+      <a href="box-roles.md">box-roles.md <span>PO vs worker</span></a>
+      <a href="changelog-conventions.md">changelog-conventions.md <span>ticket standard</span></a>
+      <a href="definition-of-done.md">definition-of-done.md <span>DoR + DoD</span></a>
+      <a href="greenfield-vs-brownfield.md">greenfield-vs-brownfield.md <span>new vs existing code</span></a>
+      <a href="discover-spec.md">discover-spec.md <span>characterize brownfield</span></a>
+      <a href="lifecycle-states.md">lifecycle-states.md <span>retire things safely</span></a>
+      <a href="gates/README.md">gates/ <span>the gate bank (ps1 + sh)</span></a>
+      <a href="spec-format/README.md">spec-format/ <span>shards → HTML</span></a>
+      <a href="START_HERE.md">START_HERE.md <span>the front door</span></a>
+      <a href="project-config/INIT.md">project-config/INIT.md <span>adopt it</span></a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <b>SDD v1.5</b> — merged from Mistwright &amp; Polars + SOTA · the spec is boss · trust artifacts, not narratives
+</footer>
+
+<script>
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+  const cp=document.getElementById('cp');
+  if(cp){cp.addEventListener('click',()=>{const t=document.querySelector('#stub pre').innerText;navigator.clipboard.writeText(t).then(()=>{cp.textContent='copied ✓';setTimeout(()=>cp.textContent='copy',1600)})})}
+  const a=document.getElementById('tokA');
+  if(a){let n=0;const f=()=>{n+=80;if(n>=1600){n=1600}a.textContent='≈'+(n/1000).toFixed(1)+'k always';if(n<1600)requestAnimationFrame(f)};setTimeout(()=>{a.textContent='≈0.0k always';requestAnimationFrame(f)},400)}
+
+  const SD=[
+    {l:"stage 0 · spec phase",t:"Triage",c:"#8b7bff",g:"right-size the 2×2",d:`Right-size the work on the 2×2 — is it decomposable into independent slices, and is a misread expensive and non-obvious? — then file or find the changelog item. The route you pick (mechanical / persona / parallel) decides which stages even run. A worker box also confirms the item is Ready before it starts.`},
+    {l:"stage 1–2 · spec phase",t:"Design + recon",c:"#8b7bff",g:"PM approves",d:`A prose design pass with the PM: surface the unknowns, decide the forks explicitly, and read the existing spec first — it probably already has what you were about to reinvent. Then recon: verify the prerequisites actually exist before committing, so the plan can't fail at integration. Persona route only.`},
+    {l:"stage 3 · spec phase",t:"Spec-first (EARS)",c:"#8b7bff",g:"link_check + PM approves",d:`Write the behaviour as EARS clauses with stable IDs, implementation-grade — every constant and threshold traceable to a source. The ticket's acceptance criteria are the seed clauses, and the decision lands in the spec the same exchange it's made. Closes on link_check plus PM approval: the pre-code gate.`},
+    {l:"stage 4 · test phase",t:"Test plan",c:"#39d3b0",g:"coverage_check",d:`Every behavioural clause maps to at least one numbered scenario across the four test layers — unit, integration, lifecycle, visual — or "N/A, with a reason." Authored by the PO, so the coverage map stays independent of whoever writes the tests. coverage_check verifies it before a single test exists.`},
+    {l:"stage 5 · test phase",t:"QA · spec-only",c:"#39d3b0",g:"red, then frozen",d:`QA writes the tests from the spec alone — never seeing the implementation. Expected values come from the spec (the oracle rule), never captured from the code under test. The tests compile, run red, and are then frozen. That blindness is the independence.`},
+    {l:"stage 6 · test phase",t:"Engineer",c:"#39d3b0",g:"test_edit_ban",d:`Implements against the frozen tests and the spec — and cannot edit the tests. A disagreement is filed to the Orchestrator, never resolved by bending a test. Uses the project's named seams and conforms to the spec, not just "make it green."`},
+    {l:"stage 7 · ship phase",t:"Gates + ship",c:"#f2b34b",g:"run_all · validate",d:`Mechanical gates run first — link, coverage, test-edit-ban, the full suite — then a fresh-context Validation reviews the diff against the spec and the constitution, because green is necessary but not sufficient. The Orchestrator owns the single serialized merge to trunk.`},
+    {l:"on done · ship phase",t:"Fold + pin",c:"#f2b34b",g:"spec = fold(ships)",d:`On Done, the transient working-spec folds into the canonical spec with a provenance pin — (§X per ticket, date) — the spec is recompiled and the old draft archived, never deleted. This keeps "spec = fold(all shipped work)" true at ship time, not as a query you run later.`}
+  ];
+  const cards=[...document.querySelectorAll('.stage[data-st]')];
+  const sd=document.getElementById('sd');const inner=sd.querySelector('.inner');let opened=-1;
+  function closeSD(){opened=-1;sd.classList.remove('open');cards.forEach(c=>c.classList.remove('active'))}
+  function showSD(i){const d=SD[i];inner.style.borderLeftColor=d.c;inner.innerHTML='<div class="st">'+d.l+'</div><h3>'+d.t+'</h3><p>'+d.d+'</p><div class="gate">gate · <b>'+d.g+'</b></div>';cards.forEach(c=>c.classList.remove('active'));cards[i].classList.add('active');sd.classList.add('open');opened=i}
+  cards.forEach((c,i)=>{c.tabIndex=0;c.setAttribute('role','button');c.setAttribute('aria-label','stage detail');
+    c.addEventListener('click',e=>{e.stopPropagation();opened===i?closeSD():showSD(i)});
+    c.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();opened===i?closeSD():showSD(i)}});});
+  sd.addEventListener('click',e=>e.stopPropagation());
+  document.addEventListener('click',()=>{if(opened>=0)closeSD()});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&opened>=0)closeSD()});
+
+  const MD=[
+    {l:"not decomposable · misread cheap",t:"Mechanical",c:"#39d3b0",ec:"#39d3b0",n:1,e:"lowest ceremony",r:"single context · 0→3→4→7",d:`One mind, one context, no persona split. Reach for it when the change is small and the values are already decided — a typo, a mechanical repoint, a config-only edit, a tweak where a misread is cheap and obvious to catch. You still keep the spec discipline: review the spec for conflicts, ship the tests in the same commit, run the whole suite green. The trap here is over-applying the persona loop — treating a mechanical change as if it needed four agents is its own kind of waste.`},
+    {l:"not decomposable · misread expensive",t:"Coupled + risky",c:"#8b7bff",ec:"#8b7bff",n:3,e:"high — one feature",r:"full persona loop · 0–7",d:`A single feature that can't be cleanly split, where a misread is expensive and not self-evident: money or combat math, a behaviour-preserving refactor of a load-bearing path, anything touching more than one core system. Run the full persona loop, stages 0–7 — QA writes the tests from the spec blind to the code, the Engineer implements against frozen tests it can't edit, and fresh Validation reviews the diff against the spec. The point is independence by construction: a misread has to survive more than one reader to ship.`},
+    {l:"decomposable · misread cheap",t:"Independent + simple",c:"#5aa9ff",ec:"#5aa9ff",n:2,e:"low, parallelized",r:"parallel worktree workers",d:`Low ceremony per item, but parallelized for throughput. Use it when you have several well-specified, simple stories that don't depend on each other — each only a few points, a single surface, no TBDs, no workflow-config-shape changes. Fan them out to worktree workers, each running the mechanical route; the coordinator owns triage, the serialized merge-train, and all ticket interaction. They're independent, so they can't step on each other — speed without coordination overhead.`},
+    {l:"decomposable · misread expensive",t:"Independent + risky",c:"#f2b34b",ec:"#f2b34b",n:4,e:"highest",r:"parallel · persona loop each",d:`The most effort — parallel and rigorous at once. Use it when decomposable work is also risky in each slice: a feature spanning frontend and backend, say. Pin the API contract first, then fan out — but each lane runs its own full persona loop. It composes the two independences: across slices (they don't collide) and within each slice (the misread must survive QA blind to the Engineer). Reserve it for genuinely big, genuinely risky work; the overhead is real.`}
+  ];
+  const cells=[...document.querySelectorAll('.cell[data-cell]')];
+  const md=document.getElementById('md');const minner=md.querySelector('.inner');let mopened=-1;
+  function bars(n){let s='';for(let k=0;k<4;k++)s+='<i class="'+(k<n?'on':'')+'"></i>';return s}
+  function clearCell(){cells.forEach(c=>{c.classList.remove('active');c.style.boxShadow='';c.style.borderColor=''})}
+  function closeMD(){clearCell();mopened=-1;md.classList.remove('open')}
+  function showMD(i){const d=MD[i];minner.style.borderLeftColor=d.c;minner.innerHTML='<div class="st">'+d.l+'</div><h3>'+d.t+'</h3><div class="effort" style="--ec:'+d.ec+'">effort <span class="bars">'+bars(d.n)+'</span> <span>'+d.e+'</span></div><p>'+d.d+'</p><div class="gate">route · <b>'+d.r+'</b></div>';clearCell();cells[i].classList.add('active');cells[i].style.boxShadow='inset 0 0 0 1.5px '+d.c;cells[i].style.borderColor=d.c;md.classList.add('open');mopened=i}
+  cells.forEach((c,i)=>{c.tabIndex=0;c.setAttribute('role','button');c.setAttribute('aria-label','route detail');
+    c.addEventListener('click',e=>{e.stopPropagation();mopened===i?closeMD():showMD(i)});
+    c.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();mopened===i?closeMD():showMD(i)}});});
+  md.addEventListener('click',e=>e.stopPropagation());
+  document.addEventListener('click',()=>{if(mopened>=0)closeMD()});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&mopened>=0)closeMD()});
+</script>
+</body>
+</html>
