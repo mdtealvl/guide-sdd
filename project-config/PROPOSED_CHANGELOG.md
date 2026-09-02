@@ -12,7 +12,8 @@
 >   (dead-wire recipe). *Deferred:* the `any_match` callers-count gate kind — smoke-tested follow-up.
 > - **PROP-05** → `project-config/INIT.md` §2c + Project Details `#CL-11`.
 > - **PROP-07** → v1.8 (`PROCESS.md` §0 "Dispatch frugally"). **PROP-08 / PROP-09** → v1.9 (`stages/3_spec.md`
->   update method + spec form, and the docs each names). **PROP-06** remains OPEN.
+>   update method + spec form, and the docs each names). **PROP-06** remains OPEN. **PROP-10** (installer
+> & distribution) OPEN, phase 0 done 2026-09-02.
 >
 > Full record: `constitution.changelog.md` v1.7. Original proposal bodies preserved below.
 
@@ -260,4 +261,65 @@ SDD-PROP-09/AC-2 — Every behavioural clause shall be one atomic line (list ite
                    cannot be expressed as a line.
 SDD-PROP-09/AC-3 — When a transient spec folds at Stage 7, the folded clauses shall keep the draft's
                    structural form; the fold shall not convert list or table clauses into paragraphs.
+```
+
+---
+
+## SDD-PROP-10 — Story — Installer & distribution: GitHub repo, release automation, installer pair, Claude Code plugin — **OPEN (PO-directed 2026-09-02; Phase 0 done)**
+
+- **Context / why.** Distribution today is a hand-built `../sdd.zip` plus "unzip and follow INIT"; the
+  spine reaches a project by copying. Measured 2026-09-02: the 4x mirror (vendored 2026-07-20) is 12
+  spine files behind and never received 17 framework files (carriers, commands, INIT, templates,
+  `prose_check`). The field survey of the same date rates SDD behind rivals on distribution alone.
+  Claude Code's plugin model (skills + hooks + marketplace, Sept 2026) can carry the session commands
+  and a mechanical persona edit-guard without touching the vendored spine.
+- **The change.** One repo, three channels, four phases.
+  (0) **Repo** `github.com/mdtealvl/sdd` — private, `main`, tag `v1.9`, `.gitignore` (box-role.local,
+  settings.local.json, *.zip), `.gitattributes` (LF) — **done 2026-09-02**.
+  (1) **Release automation** — `VERSION` file; `ci.yml` runs the INIT smoke test on windows + ubuntu and
+  a ps1/sh parity check on fixtures; `release.yml` on tag `vX.Y.Z` builds `sdd-X.Y.Z.zip` (`sdd/` prefix)
+  + sha256 and publishes a GitHub Release with the matching `constitution.changelog.md` section.
+  (2) **Installer pair** `install.ps1` / `install.sh` (behaviour-identical, no toolchain): verbs
+  `install | update | doctor`; flags `--version`, `--dest` (default `sdd`), `--carriers claude,codex,
+  copilot,cursor`, `--commands`, `--force`. Copies spine + carriers + commands, writes
+  `sdd/.sdd-manifest.json` (version + per-file sha256). **Never** touches the project surface:
+  `project-config/project-details.md`, `gates/gates.config.json`, concrete project gates,
+  `box-role.local`. **Never** answers INIT's three ASKs — it stops at them.
+  (3) **Claude Code plugin** at `plugin/` + `.claude-plugin/marketplace.json` at root (a repo cannot be
+  marketplace and plugin at once; relative-path source). Skills: `sdd-init`, `sdd-update`, `sdd-doctor`,
+  `sdd-gates`, `wrap`, `stash`, `unstash`. Hook: `PreToolUse` on `Edit|Write` denies paths matching
+  `testGlobs` when `SDD_PERSONA=engineer` (test_edit_ban at edit time, not just at gate time).
+  `claude plugin validate plugin/` in CI. Install: `/plugin marketplace add mdtealvl/sdd`,
+  `/plugin install sdd@sdd`.
+  (4) **Docs + public** — `LICENSE`; README "Install" (three routes); START_HERE routes; INIT §0/§1/§2c
+  "run the installer, or by hand"; `host-adapter.md` plugin row; `welcome.html` brought to current;
+  a `version_check` gate (README header = changelog head = VERSION = plugin.json); flip visibility.
+- **Non-goals.** No Node/Python at install time. The vendored spine stays canonical in the target repo;
+  the plugin adds host affordances only (the Agent OS lesson: never make the process depend on a host
+  feature). No per-host command bundles beyond the Claude / Copilot / Cursor dirs INIT already names.
+  Installer makes no triage, spec, or fork decisions.
+- **Dependencies & links.** `project-config/INIT.md` §0–§2c, §5; `host-adapter.md`; `commands/README.md`;
+  `gates/README.md`. Claude Code docs: plugins, plugin-marketplaces, skills, hooks-guide. Origin: field
+  survey 2026-09-02 (§6 "Worse", §7 roadmap).
+- **Right-size route.** Phases 1–2 **mechanical** (scripts + CI + fixtures). Phase 3 **persona** (the hook
+  encodes invariant 3; QA writes the hook fixtures blind). Phase 4 mechanical. Points: 2 / 5 / 5 / 3.
+- **PO decisions.** D1 when to go public (recommend: end of phase 3 — a private marketplace works only
+  where the box's git auth reaches the repo). D2 license (recommend MIT). D3 names: marketplace `sdd`,
+  plugin `sdd`. D4 versions: `vX.Y.Z` releases; plugin tag `sdd--vX.Y.Z` via `claude plugin tag --push`.
+
+ACs:
+```
+SDD-PROP-10/AC-1 — When a tag vX.Y.Z is pushed and both-OS smoke tests pass, CI shall publish a GitHub
+                   Release carrying sdd-X.Y.Z.zip (sdd/ prefix) and its sha256.
+SDD-PROP-10/AC-2 — install.ps1 and install.sh shall produce byte-identical file sets in a fresh repo.
+SDD-PROP-10/AC-3 — update shall replace only spine files listed in the manifest and shall leave
+                   project-details.md, gates.config.json, concrete project gates, and box-role.local
+                   unchanged; on a dirty git tree it shall refuse unless --force.
+SDD-PROP-10/AC-4 — doctor shall list every spine file whose sha256 differs from the manifest, and the
+                   installed version, and exit non-zero when any differs.
+SDD-PROP-10/AC-5 — With the plugin installed and SDD_PERSONA=engineer, a PreToolUse hook shall deny
+                   Edit/Write to any path matching gates.config.json testGlobs.
+SDD-PROP-10/AC-6 — /plugin install sdd@sdd on a second box shall make /wrap, /stash, /unstash and
+                   /sdd-init available without copying commands/.
+SDD-PROP-10/AC-7 — The installer shall stop before INIT's three ASKs; they remain human-answered.
 ```
