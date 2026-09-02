@@ -1,6 +1,7 @@
 {
   "name": "guide-sdd",
-  "version": "1.11.0",
+  "version": "1.11.1",
+  "license": "MIT",
   "description": "GUIDE SDD (Gated, Unified, Intent-Driven Engineering): host affordances for the spec-driven method. Install, update and doctor the vendored spine; run the gate bank; /wrap, /stash, /unstash session commands; a persona edit-guard that stops an Engineer editing tests.",
   "author": { "name": "Michael Teal", "url": "https://github.com/mdtealvl" },
   "homepage": "https://github.com/mdtealvl/guide-sdd",

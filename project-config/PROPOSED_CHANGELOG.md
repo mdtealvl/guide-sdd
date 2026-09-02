@@ -265,7 +265,7 @@ SDD-PROP-09/AC-3 — When a transient spec folds at Stage 7, the folded clauses 
 
 ---
 
-## SDD-PROP-10 — Story — Installer & distribution: GitHub repo, release automation, installer pair, Claude Code plugin — **OPEN (PO-directed 2026-09-02; phases 0–4 shipped in v1.10.0–v1.11.0 except LICENSE + visibility = PO decisions D1/D2)**
+## SDD-PROP-10 — Story — Installer & distribution: GitHub repo, release automation, installer pair, Claude Code plugin — **OPEN (PO-directed 2026-09-02; phases 0–4 shipped in v1.10.0–v1.11.0 LICENSE = MIT © Voyager Labs (v1.11.1); only D1 visibility open)**
 
 - **Context / why.** Distribution today is a hand-built `../sdd.zip` plus "unzip and follow INIT"; the
   spine reaches a project by copying. Measured 2026-09-02: the 4x mirror (vendored 2026-07-20) is 12

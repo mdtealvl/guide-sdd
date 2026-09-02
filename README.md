@@ -1,6 +1,6 @@
 # GUIDE SDD — Gated, Unified, Intent-Driven Engineering
 
-> **v1.11.0 — 2026-09-02.** A reusable, token-efficient, spec-first / persona-split development
+> **v1.11.1 — 2026-09-02.** A reusable, token-efficient, spec-first / persona-split development
 > method that drops into large, multi-developer projects worked by humans **and** AI agents. It
 > merges two mature in-house practices (Mistwright's *How We Work*, Polars' *How To Develop*) with
 > the published SOTA into one copyable **spine** + a small, indexed **per-project surface**.
@@ -11,6 +11,9 @@
 Display name `GUIDE`; repo and plugin slug `guide-sdd`; internal short name `sdd` (spine directory
 `sdd/`, `SDD_*` env vars, `SDD-PROP` / `SDD-amend` unit IDs) — unchanged, so adopting repos never rename
 paths. Renamed 2026-09-02 (was "SDD"); history keeps the old name.
+
+**License:** MIT, © 2026 Voyager Labs (`LICENSE`). The GUIDE SDD name identifies this framework; please
+call a fork something else.
 
 ## Install
 

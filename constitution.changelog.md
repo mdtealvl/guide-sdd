@@ -222,3 +222,10 @@ and the config template.
 - **Proposal.** SDD-PROP-10 phases 0–3 done. Phase 4 open: docs refresh (`welcome.html` still at v1.5,
   `host-adapter.md` plugin row, Stage 6 persona-marker note), `LICENSE`, visibility — the last two are PO
   decisions D1/D2.
+
+## v1.11.1 — MIT license (per SDD-amend-v1.11.1, 2026-09-02)
+
+- **License.** `LICENSE` added: MIT, © 2026 Voyager Labs (PO decision D2). Same license as 11 of the 12
+  comparable frameworks surveyed 2026-09-02. `plugin.json` gains `"license": "MIT"`; README §Name and
+  `plugin/README.md` state it. A README note asks forks to use a different name.
+- **Proposal.** SDD-PROP-10: only D1 (visibility) remains open.

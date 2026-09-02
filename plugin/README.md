@@ -21,3 +21,5 @@ which Claude Code already requires. Tested by `ci/hook_test.sh`.
 
 `bin/install.sh` and `bin/install.ps1` are byte-identical copies of the repo-root installers (CI checks).
 Plugin version = the framework `VERSION`; plugin tags are `guide-sdd--vX.Y.Z`.
+
+**License:** MIT, © 2026 Voyager Labs — same as the framework (`../LICENSE`).
