@@ -15,6 +15,15 @@ jobs:
         run: sh ci/version_check.sh
       - name: Smoke test (sh gates, ps1 twins compared)
         run: sh ci/smoke.sh --compare
+      - name: Persona guard hook unit test
+        run: sh ci/hook_test.sh
+      - name: Plugin bin copies match the root installers
+        run: cmp install.sh plugin/bin/install.sh && cmp install.ps1 plugin/bin/install.ps1
+      - name: Plugin + marketplace manifests validate
+        run: |
+          npm install -g @anthropic-ai/claude-code > /dev/null 2>&1
+          claude plugin validate ./plugin --strict
+          claude plugin validate .claude-plugin/marketplace.json --strict
   smoke-windows:
     name: ps1 gates (windows)
     runs-on: windows-latest

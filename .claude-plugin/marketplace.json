@@ -1,0 +1,12 @@
+{
+  "name": "guide-sdd",
+  "description": "GUIDE SDD (Gated, Unified, Intent-Driven Engineering) - the spec-driven development method's Claude Code plugin: install/update/doctor the vendored spine, run the gates, session-lifecycle commands, persona edit-guard.",
+  "owner": { "name": "Michael Teal", "url": "https://github.com/mdtealvl" },
+  "plugins": [
+    {
+      "name": "guide-sdd",
+      "source": "./plugin",
+      "description": "GUIDE SDD host affordances: sdd-init / sdd-update / sdd-doctor / sdd-gates / sdd-persona skills, /wrap /stash /unstash, and the persona edit-guard hook. The spine itself is vendored into your repo by sdd-init and stays canonical there."
+    }
+  ]
+}

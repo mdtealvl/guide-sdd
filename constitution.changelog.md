@@ -202,3 +202,23 @@ and the config template.
 - **POSIX fix.** `coverage_check.sh` and `fold_check.sh` used bash process substitution; `sh` is dash on
   Debian/Ubuntu, so INIT §6's `sh gates/…` failed there. Rewritten with awk. Found by the new ubuntu job.
 - **Proposal.** SDD-PROP-10 phases 0–2 done; 3 (Claude Code plugin) and 4 (docs, license, public) open.
+
+## v1.11.0 — Claude Code plugin + marketplace; persona edit-guard (per SDD-amend-v1.11.0, 2026-09-02)
+
+- **Plugin** `plugin/` (name `guide-sdd`, version = `VERSION`); marketplace `.claude-plugin/marketplace.json`
+  at the repo root (source `./plugin`). Install: `/plugin marketplace add mdtealvl/guide-sdd` →
+  `/plugin install guide-sdd@guide-sdd`. Host affordances only: the vendored spine stays canonical and
+  works without the plugin (SDD-PROP-10 phase 3).
+- **Skills.** `sdd-init` (bundled installer, then INIT from §1a — the ASKs stay human), `sdd-update`,
+  `sdd-doctor`, `sdd-gates` (run_all, verdict lines only — dispatch frugality), `sdd-persona` (marker
+  `sdd/.persona`), and `wrap` / `stash` / `unstash` generated from `commands/*.md`, which remain the source
+  for non-plugin hosts.
+- **Hook** `plugin/hooks/persona-guard.sh` — PreToolUse on Edit|Write|MultiEdit. Persona `engineer` (env
+  `SDD_PERSONA`, else `sdd/.persona`) → any edit to a path matching `gates.config.json` `testGlobs` is
+  denied (exit 2) with the reason: test_edit_ban at edit time, not only at gate time (invariant 3). Runs
+  under `sh` (Git Bash on Windows). Unit-tested by `ci/hook_test.sh` (10 cases, incl. Windows-escaped paths).
+- **CI.** Hook unit test; `claude plugin validate --strict` on plugin and marketplace; `plugin/bin/install.*`
+  must be byte-identical to the root installers.
+- **Proposal.** SDD-PROP-10 phases 0–3 done. Phase 4 open: docs refresh (`welcome.html` still at v1.5,
+  `host-adapter.md` plugin row, Stage 6 persona-marker note), `LICENSE`, visibility — the last two are PO
+  decisions D1/D2.

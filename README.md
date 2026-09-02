@@ -1,6 +1,6 @@
 # GUIDE SDD — Gated, Unified, Intent-Driven Engineering
 
-> **v1.10.0 — 2026-09-02.** A reusable, token-efficient, spec-first / persona-split development
+> **v1.11.0 — 2026-09-02.** A reusable, token-efficient, spec-first / persona-split development
 > method that drops into large, multi-developer projects worked by humans **and** AI agents. It
 > merges two mature in-house practices (Mistwright's *How We Work*, Polars' *How To Develop*) with
 > the published SOTA into one copyable **spine** + a small, indexed **per-project surface**.
@@ -28,7 +28,9 @@ Three routes, one repo (`github.com/mdtealvl/guide-sdd`):
    `--version vX.Y.Z|latest`, `--dest`, `--source <dir|zip>` (offline), `--force`. A pre-manifest copy of
    the spine is adopted with `install --force`.
 3. **Claude Code plugin** — `/plugin marketplace add mdtealvl/guide-sdd`, then `/plugin install
-   guide-sdd@guide-sdd` (SDD-PROP-10 phase 3 — not yet shipped).
+   guide-sdd@guide-sdd`. Adds `/sdd-init` (runs the bundled installer, then INIT from §1a), `/sdd-update`,
+   `/sdd-doctor`, `/sdd-gates`, `/sdd-persona`, and `/wrap` `/stash` `/unstash` without copying, plus a
+   PreToolUse hook that denies an `engineer` persona any edit to `testGlobs` paths. See `plugin/README.md`.
 
 ## The core idea (in four lines)
 
@@ -326,6 +328,13 @@ unchanged). Three-part versions with a root `VERSION` file. Framework repo on Gi
 test on both gate families, ps1/sh parity) and release-on-tag (`guide-sdd-X.Y.Z.zip` + sha256 + notes from
 `constitution.changelog.md`). `test_edit_ban.ps1` positional-config fix. Installer pair and Claude Code
 plugin follow (SDD-PROP-10 phases 2–4). Full record in `constitution.changelog.md`.
+
+### v1.11.0 Amendment — Claude Code plugin + persona edit-guard (2026-09-02)
+
+No invariant change; still ten. `plugin/` + root marketplace: `/sdd-init`, `/sdd-update`, `/sdd-doctor`,
+`/sdd-gates`, `/sdd-persona`, `/wrap` `/stash` `/unstash`, and a PreToolUse hook that denies an `engineer`
+persona edits to `testGlobs` paths (invariant 3 at edit time). Spine unchanged and still canonical without the
+plugin. Full record in `constitution.changelog.md`.
 
 ## Map to the source practices
 
