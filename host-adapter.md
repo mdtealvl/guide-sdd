@@ -54,6 +54,12 @@ slash-commands) the identical rituals are run **by hand** — the discipline is 
 slash sugar. Either way the commands read/write the project memory directory (`project-details.md#CL-11`,
 seeded at INIT). See `commands/README.md` and `session-lifecycle.md`.
 
+**Claude Code plugin** (`plugin/` + marketplace at the repo root; `/plugin marketplace add mdtealvl/guide-sdd` →
+`/plugin install guide-sdd@guide-sdd`): the three commands as skills, plus `/sdd-init` (bundled installer, then
+INIT from §1a), `/sdd-update`, `/sdd-doctor`, `/sdd-gates` (verdict lines only) and `/sdd-persona`, and a
+PreToolUse hook that denies an `engineer` persona any edit to `testGlobs` paths (invariant 3 at edit time).
+Host affordance only — the vendored spine stays canonical and every ritual still runs without it.
+
 ## Adding a host (the whole procedure)
 
 1. **always-load** — find the host's always-loaded rules file; put the stub there, or point/import it to

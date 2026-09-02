@@ -13,6 +13,11 @@ with **intent + anti-patterns**, never "make these green" alone — a test hande
 criterion invites a degenerate implementation (synthetic timers, teleports, deleted code paths) that
 passes the test and matches nothing in the spec. The spec is your target; the tests are the floor.
 
+Mechanical guard (Tier A with the GUIDE SDD plugin): the dispatcher runs `/sdd-persona engineer` before this
+stage and `/sdd-persona clear` after it; while the marker is set, the plugin's PreToolUse hook denies every edit
+to a `testGlobs` path. Tier B: export `SDD_PERSONA=engineer` in the Engineer's session instead. The gate
+`test_edit_ban` still runs at Stage 7 — the hook is the early tripwire, not the proof.
+
 ## Rules
 
 - **Test-edit ban is absolute.** Never touch a test file. Disputes are **filed** up to the

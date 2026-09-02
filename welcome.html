@@ -160,7 +160,7 @@
 <header class="hero">
   <div class="bgblob"></div>
   <div class="wrap">
-    <span class="pill"><span class="dot"></span> v1.5 · a dogfooded spec · for humans <b style="color:var(--ink)">&amp;</b> AI agents</span>
+    <span class="pill"><span class="dot"></span> v1.11.0 · a dogfooded spec · for humans <b style="color:var(--ink)">&amp;</b> AI agents</span>
     <h1>GUIDE<br><span class="grad">SDD</span></h1>
     <p class="tag">The spec is the prompt. The code <b>conforms</b>. One copyable method that drops into any project and makes <b>intent drift</b> very hard to ship — token-efficient, persona-split, gated end to end.</p>
     <div class="cta">
@@ -191,7 +191,7 @@
     <div class="flow">
       <div class="stage ph-spec" data-st="0"><div class="bar"></div><div class="s">stage 0</div><div class="t">Triage</div><div class="gate">right-size · 2×2</div></div>
       <div class="stage ph-spec" data-st="1"><div class="bar"></div><div class="s">stage 1–2</div><div class="t">Design + recon</div><div class="gate">PM approves</div></div>
-      <div class="stage ph-spec" data-st="2"><div class="bar"></div><div class="s">stage 3</div><div class="t">Spec-first (EARS)</div><div class="gate">link_check</div></div>
+      <div class="stage ph-spec" data-st="2"><div class="bar"></div><div class="s">stage 3</div><div class="t">Spec-first (EARS)</div><div class="gate">link_check + prose_check</div></div>
       <div class="stage ph-test" data-st="3"><div class="bar"></div><div class="s">stage 4</div><div class="t">Test plan</div><div class="gate">coverage_check</div></div>
       <div class="stage ph-test" data-st="4"><div class="bar"></div><div class="s">stage 5</div><div class="t">QA · spec-only</div><div class="gate">red, frozen</div></div>
       <div class="stage ph-test" data-st="5"><div class="bar"></div><div class="s">stage 6</div><div class="t">Engineer</div><div class="gate">test_edit_ban</div></div>
@@ -271,7 +271,7 @@
     <h2>Get started</h2>
     <p class="lead">Drop the spine into a repo, wire one stub, answer three questions, smoke-test the gates. That's it.</p>
     <ol class="steps">
-      <li><b>Copy the spine</b> into your repo (<code class="k">sdd/</code>) — never edited per project.</li>
+      <li><b>Install the spine</b> (installer, the plugin's <code>/sdd-init</code>, or copy) into your repo (<code class="k">sdd/</code>) — never edited per project.</li>
       <li><b>Wire the agent carrier</b> — <code class="k">AGENTS.md</code> holds the ~9-line stub (constitution + boot protocol + this box's role); <code class="k">CLAUDE.md</code> routes to it, Copilot via <code class="k">.github/copilot-instructions.md</code>. Cross-agent by design.</li>
       <li><b>Choose a changelog mode</b> — external tracker (Jira / Linear) or a lighter on-disk backlog. The fold-on-ship invariant is identical either way.</li>
       <li><b>Greenfield or brownfield?</b> New code → author the spec fresh. Existing code with no spec → reconstruct the slice you touch, or run <code class="k">discover-spec.md</code> to characterize a whole area.</li>
@@ -282,8 +282,8 @@
     </ol>
     <div class="stub" id="stub">
       <button class="cp" id="cp">copy</button>
-<pre style="margin:0;white-space:pre-wrap"><span class="c">## Spec-Driven Development (SDD)</span>
-This project uses SDD — a defined spec-first process. On your first action, say so, then:
+<pre style="margin:0;white-space:pre-wrap"><span class="c">## GUIDE SDD (spec-driven development)</span>
+This project uses GUIDE SDD — a defined spec-first process. On your first action, say so, then:
 1. Obey <span class="g">@sdd/constitution.md</span> (always in effect).
 2. Read <span class="g">@sdd/PROCESS.md</span> §0 (the boot protocol / router) and load ONLY your current stage.
 3. Project specifics live in <span class="g">sdd/project-config/project-details.md</span> — load on demand.
@@ -298,7 +298,7 @@ Do not continue ad-hoc work. If unsure of your stage, you are in Stage 0.</pre>
   <div class="wrap">
     <p class="kquote">how it compares</p>
     <h2>SDD vs. the field</h2>
-    <p class="lead">All of these reject vibe-coding for structure; SDD, BMAD, and Spec Kit each center a spec and a <b style="color:var(--ink)">constitution</b>. Where SDD differs: it <b style="color:var(--ink)">mechanically enforces</b> the discipline with gates and an unbroken trace, and is built to stay <b style="color:var(--ink)">token-lean</b> — at the cost of being the newest (a zip + agent-run runbook, not a maintained CLI product).</p>
+    <p class="lead">All of these reject vibe-coding for structure; SDD, BMAD, and Spec Kit each center a spec and a <b style="color:var(--ink)">constitution</b>. Where SDD differs: it <b style="color:var(--ink)">mechanically enforces</b> the discipline with gates and an unbroken trace, and is built to stay <b style="color:var(--ink)">token-lean</b> — at the cost of being the newest (a GitHub repo with CI, an installer pair, a Claude Code plugin and a release zip — not yet a community).</p>
     <div class="cmpwrap">
       <table class="cmp">
         <thead>
@@ -312,9 +312,9 @@ Do not continue ad-hoc work. If unsure of your stage, you are in Stage 0.</pre>
           <tr><th>Context</th><td class="sdd">Staged loading, <b>~1.6k always-loaded</b></td><td>Rich, front-loaded story files</td><td>Per-feature spec dirs</td><td>Skills on demand + subagent isolation</td></tr>
           <tr><th>Testing</th><td class="sdd">4 layers, <b>spec-derived oracle</b>, mutation in Discover Spec</td><td>QA agent reviews (not gated)</td><td>Tests as tasks (not enforced)</td><td><b>TDD-first</b> is the core</td></tr>
           <tr><th>Brownfield</th><td class="sdd"><b>Discover Spec</b> (reconstruct + coverage/mutation)</td><td>Analyst flows</td><td>Greenfield-leaning</td><td>TDD on existing code</td></tr>
-          <tr><th>Platform</th><td class="sdd">Cross-agent via <code>AGENTS.md</code> (Claude / Codex / Cursor / Gemini / Copilot); <b>PowerShell + Bash</b> gates</td><td>Any IDE/model, <b>domain-agnostic</b></td><td>CLI + many agent hosts</td><td>Claude Code + harnesses (plugin)</td></tr>
-          <tr><th>Install / adopt</th><td class="sdd"><b>Agent-driven runbook</b> — unzip, "follow the instructions" → INIT (3 questions) → gate smoke test. <b>No toolchain.</b></td><td><code>npx bmad-method install</code></td><td><code>uvx … specify init</code></td><td><code>/plugin install superpowers</code></td></tr>
-          <tr><th>Maturity</th><td class="sdd">Bespoke, dogfooded, new</td><td>~46k★, v6, large community</td><td>Official GitHub, growing</td><td>Dominant skills framework</td></tr>
+          <tr><th>Platform</th><td class="sdd">Cross-agent via <code>AGENTS.md</code> (Claude / Codex / Cursor / Gemini / Copilot); <b>PowerShell + Bash</b> gates; Claude Code plugin</td><td>Any IDE/model, <b>domain-agnostic</b></td><td>CLI + many agent hosts</td><td>Claude Code + harnesses (plugin)</td></tr>
+          <tr><th>Install / adopt</th><td class="sdd"><b>Installer pair</b> (<code>install.ps1</code> / <code>install.sh</code>: install · update · doctor, manifest-tracked), <b>Claude Code plugin</b> (<code>/plugin install guide-sdd@guide-sdd</code>), or unzip + runbook → INIT (3 questions) → gate smoke test. <b>No toolchain.</b></td><td><code>npx bmad-method install</code></td><td><code>uvx … specify init</code></td><td><code>/plugin install superpowers</code></td></tr>
+          <tr><th>Maturity</th><td class="sdd">v1.11.0 · GitHub repo, CI on Windows + Ubuntu, release-on-tag, dogfooded on 3 projects</td><td>~46k★, v6, large community</td><td>Official GitHub, growing</td><td>Dominant skills framework</td></tr>
         </tbody>
       </table>
     </div>
@@ -344,7 +344,7 @@ Do not continue ad-hoc work. If unsure of your stage, you are in Stage 0.</pre>
 </section>
 
 <footer>
-  <b>SDD v1.5</b> — merged from Mistwright &amp; Polars + SOTA · the spec is boss · trust artifacts, not narratives
+  <b>GUIDE SDD v1.11.0</b> — merged from Mistwright &amp; Polars + SOTA · the spec is boss · trust artifacts, not narratives
 </footer>
 
 <script>
@@ -358,7 +358,7 @@ Do not continue ad-hoc work. If unsure of your stage, you are in Stage 0.</pre>
   const SD=[
     {l:"stage 0 · spec phase",t:"Triage",c:"#8b7bff",g:"right-size the 2×2",d:`Right-size the work on the 2×2 — is it decomposable into independent slices, and is a misread expensive and non-obvious? — then file or find the changelog item. The route you pick (mechanical / persona / parallel) decides which stages even run. A worker box also confirms the item is Ready before it starts.`},
     {l:"stage 1–2 · spec phase",t:"Design + recon",c:"#8b7bff",g:"PM approves",d:`A prose design pass with the PM: surface the unknowns, decide the forks explicitly, and read the existing spec first — it probably already has what you were about to reinvent. Then recon: verify the prerequisites actually exist before committing, so the plan can't fail at integration. Persona route only.`},
-    {l:"stage 3 · spec phase",t:"Spec-first (EARS)",c:"#8b7bff",g:"link_check + PM approves",d:`Write the behaviour as EARS clauses with stable IDs, implementation-grade — every constant and threshold traceable to a source. The ticket's acceptance criteria are the seed clauses, and the decision lands in the spec the same exchange it's made. Closes on link_check plus PM approval: the pre-code gate.`},
+    {l:"stage 3 · spec phase",t:"Spec-first (EARS)",c:"#8b7bff",g:"link_check + prose_check + PM approves",d:`Write the behaviour as EARS clauses with stable IDs, implementation-grade — every constant and threshold traceable to a source. The ticket's acceptance criteria are the seed clauses, and the decision lands in the spec the same exchange it's made. Closes on link_check and prose_check (spec form is measured: decisions only, one fact per line) plus PM approval: the pre-code gate.`},
     {l:"stage 4 · test phase",t:"Test plan",c:"#39d3b0",g:"coverage_check",d:`Every behavioural clause maps to at least one numbered scenario across the four test layers — unit, integration, lifecycle, visual — or "N/A, with a reason." Authored by the PO, so the coverage map stays independent of whoever writes the tests. coverage_check verifies it before a single test exists.`},
     {l:"stage 5 · test phase",t:"QA · spec-only",c:"#39d3b0",g:"red, then frozen",d:`QA writes the tests from the spec alone — never seeing the implementation. Expected values come from the spec (the oracle rule), never captured from the code under test. The tests compile, run red, and are then frozen. That blindness is the independence.`},
     {l:"stage 6 · test phase",t:"Engineer",c:"#39d3b0",g:"test_edit_ban",d:`Implements against the frozen tests and the spec — and cannot edit the tests. A disagreement is filed to the Orchestrator, never resolved by bending a test. Uses the project's named seams and conforms to the spec, not just "make it green."`},
