@@ -1,6 +1,6 @@
 # GUIDE SDD — Gated, Unified, Intent-Driven Engineering
 
-> **v1.9 — 2026-09-02.** A reusable, token-efficient, spec-first / persona-split development
+> **v1.10.0 — 2026-09-02.** A reusable, token-efficient, spec-first / persona-split development
 > method that drops into large, multi-developer projects worked by humans **and** AI agents. It
 > merges two mature in-house practices (Mistwright's *How We Work*, Polars' *How To Develop*) with
 > the published SOTA into one copyable **spine** + a small, indexed **per-project surface**.
@@ -300,6 +300,14 @@ current law, and narrative prose that costs tokens on every demand-load.
   second in `run_all`; in the INIT smoke test and the config template.
 
 Full record in `constitution.changelog.md`.
+
+### v1.10.0 Amendment — GUIDE SDD rebrand + distribution phase 1 (2026-09-02)
+
+No invariant change; still ten. Renamed **GUIDE SDD** (slug `guide-sdd`; internal short name `sdd`
+unchanged). Three-part versions with a root `VERSION` file. Framework repo on GitHub with CI (INIT §6 smoke
+test on both gate families, ps1/sh parity) and release-on-tag (`guide-sdd-X.Y.Z.zip` + sha256 + notes from
+`constitution.changelog.md`). `test_edit_ban.ps1` positional-config fix. Installer pair and Claude Code
+plugin follow (SDD-PROP-10 phases 2–4). Full record in `constitution.changelog.md`.
 
 ## Map to the source practices
 

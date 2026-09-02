@@ -171,3 +171,27 @@ bad-base / off) and read-only on the 4x corpus (252 shards; both scripts byte-id
 share with paragraphs to 381 words against the draft's 23 % / 87w — the fold re-narration, now caught
 mechanically. Runs second in `run_all`, closes Stage 3 beside `link_check`, added to the INIT smoke test
 and the config template.
+
+## v1.10.0 — GUIDE SDD rebrand + distribution phase 1: repo, CI, release automation (per SDD-amend-v1.10.0, 2026-09-02)
+
+- **Name.** Framework renamed **GUIDE SDD** — Gated, Unified, Intent-Driven Engineering, a spec-driven
+  development method. Display `GUIDE`; slug `guide-sdd`; internal short name `sdd` unchanged (spine dir,
+  `SDD_*` env vars, `SDD-PROP` / `SDD-amend` IDs), so adopting repos rename nothing. Why: "SDD" is the
+  field's generic term (field survey 2026-09-02). Touched: README (§Name), START_HERE, the three carriers,
+  INIT welcome line, welcome.html title/hero.
+- **Versioning.** Three-part `vX.Y.Z` from here. `VERSION` at the repo root is the stamp of record;
+  `ci/version_check.sh` requires README header, changelog tail heading, `VERSION`, the plugin manifest
+  (when present) and the release tag to agree.
+- **Repo.** `github.com/mdtealvl/guide-sdd` (private until the PO flips it). `.gitignore`: box-role.local,
+  settings.local.json, `*.zip`, `dist/`. `.gitattributes`: LF everywhere (bash gates on Windows checkouts).
+- **CI** (`.github/workflows/ci.yml`). `ci/smoke.sh` and `ci/smoke.ps1` reproduce INIT §6 on a throwaway
+  copy of the spine: four generic gates PASS, negative control FAILs naming `DEMO.2`, revert, `run_all HEAD`
+  clean. Ubuntu runs the sh gates with every ps1 twin compared (same exit code required, output diff
+  reported); Windows runs the ps1 gates.
+- **Release** (`.github/workflows/release.yml`). Tag `vX.Y.Z` → version check → smoke → `guide-sdd-X.Y.Z.zip`
+  (`sdd/` prefix; excludes workflows, `ci/`, `plugin/`, `PROPOSED_CHANGELOG.md`) + sha256 → GitHub Release
+  with this changelog section as notes. Retires the hand-built `sdd.zip`.
+- **Gate fix.** `test_edit_ban.ps1` now takes the config positionally (`HEAD gates/gates.config.json`) as
+  INIT §6 documents and as the `.sh` twin already did. Found by the first parity run.
+- **Proposal.** SDD-PROP-10 phases 0–1 done; phases 2 (installer pair), 3 (Claude Code plugin), 4 (docs,
+  license, public) open.

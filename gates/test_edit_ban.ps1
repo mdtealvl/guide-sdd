@@ -15,7 +15,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)][string]$BaseRef,
-    [string]$Config = 'gates/gates.config.json'
+    [Parameter(Position = 1)][string]$Config = 'gates/gates.config.json'
 )
 $ErrorActionPreference = 'Stop'
 

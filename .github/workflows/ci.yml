@@ -1,0 +1,25 @@
+name: ci
+# GUIDE SDD framework CI: the INIT §6 smoke test on both gate families, plus ps1/sh parity and
+# version consistency. No Python; jq + pwsh only.
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  smoke-ubuntu:
+    name: sh gates + ps1 parity (ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version consistency
+        run: sh ci/version_check.sh
+      - name: Smoke test (sh gates, ps1 twins compared)
+        run: sh ci/smoke.sh --compare
+  smoke-windows:
+    name: ps1 gates (windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Smoke test (ps1 gates)
+        shell: pwsh
+        run: pwsh ci/smoke.ps1
