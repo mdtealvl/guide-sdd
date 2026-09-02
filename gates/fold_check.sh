@@ -91,9 +91,8 @@ else
   if [ "${GITFELL:-0}" != 1 ]; then
     # intersect changed with all shards (both forward-slashed, leading ./ stripped)
     CHANGED=$(printf '%s\n' "$OUT" | sed 's#^\./##;s/[[:space:]]*$//;s/^[[:space:]]*//' | sed '/^$/d' | sort -u)
-    FILES=$(comm -12 \
-      <(printf '%s\n' "$ALL_SHARDS" | sort -u) \
-      <(printf '%s\n' "$CHANGED" | sort -u))
+    # intersection via awk (POSIX sh: no process substitution — dash is /bin/sh on Debian/Ubuntu)
+    FILES=$(printf '%s\n' "$CHANGED" | awk -v t="$ALL_SHARDS" 'BEGIN { n = split(t, a, "\n"); for (i = 1; i <= n; i++) if (a[i] != "") s[a[i]] = 1 } NF && ($0 in s)' | sort -u)
   fi
 fi
 

@@ -12,6 +12,24 @@ Display name `GUIDE`; repo and plugin slug `guide-sdd`; internal short name `sdd
 `sdd/`, `SDD_*` env vars, `SDD-PROP` / `SDD-amend` unit IDs) — unchanged, so adopting repos never rename
 paths. Renamed 2026-09-02 (was "SDD"); history keeps the old name.
 
+## Install
+
+Three routes, one repo (`github.com/mdtealvl/guide-sdd`):
+
+1. **Zip** — download `guide-sdd-X.Y.Z.zip` from the Releases page, unzip, open `sdd/START_HERE.md`.
+2. **Installer** — from your repo root, with the scripts taken from the zip or the repo:
+   - Windows: `pwsh install.ps1 install --carriers claude,copilot --commands`
+   - Linux/macOS: `sh install.sh install --carriers claude,codex --commands`
+
+   Vendors the spine to `sdd/`, places the carriers you name, installs the session commands, seeds
+   `gates.config.json`, writes `sdd/.sdd-manifest.json`, and stops at INIT §1a — the box tier/role and the
+   three ASKs stay yours. Later: `update` (spine only; refuses on a dirty tree or locally edited spine
+   files; never deletes) and `doctor` (every file whose hash differs from the manifest; exit 1 on any).
+   `--version vX.Y.Z|latest`, `--dest`, `--source <dir|zip>` (offline), `--force`. A pre-manifest copy of
+   the spine is adopted with `install --force`.
+3. **Claude Code plugin** — `/plugin marketplace add mdtealvl/guide-sdd`, then `/plugin install
+   guide-sdd@guide-sdd` (SDD-PROP-10 phase 3 — not yet shipped).
+
 ## The core idea (in four lines)
 
 1. **Spec is the source of truth.** Code conforms; when they disagree the code is the bug.

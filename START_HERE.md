@@ -6,7 +6,8 @@ You just unzipped **GUIDE SDD** — Gated, Unified, Intent-Driven Engineering, a
 
 Do exactly this, nothing else, until setup is green:
 
-1. Read `project-config/INIT.md` — the setup runbook. Execute it top to bottom.
+1. Read `project-config/INIT.md` — the setup runbook. Execute it top to bottom. If `sdd/.sdd-manifest.json`
+   exists, the installer already did the copying (INIT §0, §1 carriers, §2c commands, §5 config seed) — start at §1a.
 2. At each **ASK**, ask the human and wait: changelog mode, greenfield vs brownfield, spec format.
 3. Wire the always-loaded core into the agent carrier (`AGENTS.md`; `CLAUDE.md` routes to it, Copilot via a shim — `host-adapter.md`), set this box's role, instantiate project details + gate config.
 4. Run the gate smoke test **for this OS** — PowerShell (`.ps1`) on Windows, Bash (`.sh`) on Linux/macOS. See `gates/README.md`. No Python.

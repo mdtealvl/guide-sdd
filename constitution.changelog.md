@@ -193,5 +193,12 @@ and the config template.
   with this changelog section as notes. Retires the hand-built `sdd.zip`.
 - **Gate fix.** `test_edit_ban.ps1` now takes the config positionally (`HEAD gates/gates.config.json`) as
   INIT §6 documents and as the `.sh` twin already did. Found by the first parity run.
-- **Proposal.** SDD-PROP-10 phases 0–1 done; phases 2 (installer pair), 3 (Claude Code plugin), 4 (docs,
-  license, public) open.
+- **Installer pair** (`install.sh` / `install.ps1`; SDD-PROP-10 phase 2). Verbs `install | update | doctor`;
+  flags `--version`, `--dest`, `--carriers`, `--commands`, `--source`, `--repo`, `--force`. Writes
+  `sdd/.sdd-manifest.json` (version + per-file sha256, CR-stripped so a CRLF checkout is not drift). Never
+  touches the project surface, never deletes, stops before INIT's ASKs; `update` refuses on a dirty tree or
+  locally edited spine files; a pre-manifest mirror is adopted with `install --force`. Twins verified
+  byte-identical over a 14-step scenario including a copy of the 4x mirror (project files untouched).
+- **POSIX fix.** `coverage_check.sh` and `fold_check.sh` used bash process substitution; `sh` is dash on
+  Debian/Ubuntu, so INIT §6's `sh gates/…` failed there. Rewritten with awk. Found by the new ubuntu job.
+- **Proposal.** SDD-PROP-10 phases 0–2 done; 3 (Claude Code plugin) and 4 (docs, license, public) open.

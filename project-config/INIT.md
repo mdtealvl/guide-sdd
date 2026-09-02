@@ -26,6 +26,11 @@ in that one config file — there are no separate `*.rules.json` files). (Spine 
 the opportunistic-rewrite mechanism in `README.md`, and flow back to all projects — not per-project
 forks.)
 
+Or run the installer from the repo root — `pwsh install.ps1 install --carriers … --commands` / `sh install.sh
+install …` (README §Install): it does this step, the carrier copies in §1, the command install in §2c, and
+seeds `gates.config.json` for §5, then stops. §1a, §1b, and the three ASKs stay yours. `update` and `doctor`
+keep the spine current later.
+
 ## 1. Wire the always-loaded core into the agent carrier
 
 The always-loaded surface is a ~9-line **stub** that points at the constitution + `PROCESS.md` §0. It is

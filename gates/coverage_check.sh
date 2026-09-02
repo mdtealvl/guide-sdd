@@ -123,8 +123,9 @@ done | keep_wanted)
 CLAUSE_IDS=$(printf '%s\n' "$CLAUSES" | awk -F'\t' 'NF{print $1}' | sort -u | sed '/^$/d')
 TAGGED_IDS=$(printf '%s\n' "$TAGS"    | awk -F'\t' 'NF{print $1}' | sort -u | sed '/^$/d')
 
-ORPHANS=$(comm -23 <(printf '%s\n' "$CLAUSE_IDS") <(printf '%s\n' "$TAGGED_IDS") | sed '/^$/d')
-UNKNOWN=$(comm -13 <(printf '%s\n' "$CLAUSE_IDS") <(printf '%s\n' "$TAGGED_IDS") | sed '/^$/d')
+# Set differences via awk (POSIX sh: no process substitution — dash is /bin/sh on Debian/Ubuntu).
+ORPHANS=$(printf '%s\n' "$CLAUSE_IDS" | awk -v t="$TAGGED_IDS" 'BEGIN { n = split(t, a, "\n"); for (i = 1; i <= n; i++) if (a[i] != "") s[a[i]] = 1 } NF && !($0 in s)')
+UNKNOWN=$(printf '%s\n' "$TAGGED_IDS" | awk -v t="$CLAUSE_IDS" 'BEGIN { n = split(t, a, "\n"); for (i = 1; i <= n; i++) if (a[i] != "") s[a[i]] = 1 } NF && !($0 in s)')
 
 N_CLAUSE=$(printf '%s\n' "$CLAUSE_IDS" | sed '/^$/d' | wc -l | tr -d ' ')
 N_ORPHAN=$(printf '%s\n' "$ORPHANS" | sed '/^$/d' | grep -c . || true)
