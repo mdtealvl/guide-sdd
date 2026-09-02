@@ -10,7 +10,7 @@ marked **ASK**, end with a green gate smoke-test. ~20 minutes.
 ## Bootstrap (AI agent)
 
 If you are an AI agent asked to set this up: read `sdd/START_HERE.md`, then execute this file top to
-bottom. **Open with a welcome before the questions** — tell the user, in your words: *"Welcome to SDD —
+bottom. **Open with a welcome before the questions** — tell the user, in your words: *"Welcome to GUIDE SDD —
 I'm setting up a spec-first development process for this project: the spec stays the source of truth,
 risky work is split across independent agents, and every change is gated, so development is faster and
 more accurate. I'll ask three quick setup questions, then verify the gates run."* Give one line of

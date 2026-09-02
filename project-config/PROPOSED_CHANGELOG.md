@@ -274,10 +274,10 @@ SDD-PROP-09/AC-3 — When a transient spec folds at Stage 7, the folded clauses 
   Claude Code's plugin model (skills + hooks + marketplace, Sept 2026) can carry the session commands
   and a mechanical persona edit-guard without touching the vendored spine.
 - **The change.** One repo, three channels, four phases.
-  (0) **Repo** `github.com/mdtealvl/sdd` — private, `main`, tag `v1.9`, `.gitignore` (box-role.local,
+  (0) **Repo** `github.com/mdtealvl/guide-sdd` — private, `main`, tag `v1.9`, `.gitignore` (box-role.local,
   settings.local.json, *.zip), `.gitattributes` (LF) — **done 2026-09-02**.
   (1) **Release automation** — `VERSION` file; `ci.yml` runs the INIT smoke test on windows + ubuntu and
-  a ps1/sh parity check on fixtures; `release.yml` on tag `vX.Y.Z` builds `sdd-X.Y.Z.zip` (`sdd/` prefix)
+  a ps1/sh parity check on fixtures; `release.yml` on tag `vX.Y.Z` builds `guide-sdd-X.Y.Z.zip` (`sdd/` prefix)
   + sha256 and publishes a GitHub Release with the matching `constitution.changelog.md` section.
   (2) **Installer pair** `install.ps1` / `install.sh` (behaviour-identical, no toolchain): verbs
   `install | update | doctor`; flags `--version`, `--dest` (default `sdd`), `--carriers claude,codex,
@@ -289,8 +289,8 @@ SDD-PROP-09/AC-3 — When a transient spec folds at Stage 7, the folded clauses 
   marketplace and plugin at once; relative-path source). Skills: `sdd-init`, `sdd-update`, `sdd-doctor`,
   `sdd-gates`, `wrap`, `stash`, `unstash`. Hook: `PreToolUse` on `Edit|Write` denies paths matching
   `testGlobs` when `SDD_PERSONA=engineer` (test_edit_ban at edit time, not just at gate time).
-  `claude plugin validate plugin/` in CI. Install: `/plugin marketplace add mdtealvl/sdd`,
-  `/plugin install sdd@sdd`.
+  `claude plugin validate plugin/` in CI. Install: `/plugin marketplace add mdtealvl/guide-sdd`,
+  `/plugin install guide-sdd@guide-sdd`.
   (4) **Docs + public** — `LICENSE`; README "Install" (three routes); START_HERE routes; INIT §0/§1/§2c
   "run the installer, or by hand"; `host-adapter.md` plugin row; `welcome.html` brought to current;
   a `version_check` gate (README header = changelog head = VERSION = plugin.json); flip visibility.
@@ -304,13 +304,12 @@ SDD-PROP-09/AC-3 — When a transient spec folds at Stage 7, the folded clauses 
 - **Right-size route.** Phases 1–2 **mechanical** (scripts + CI + fixtures). Phase 3 **persona** (the hook
   encodes invariant 3; QA writes the hook fixtures blind). Phase 4 mechanical. Points: 2 / 5 / 5 / 3.
 - **PO decisions.** D1 when to go public (recommend: end of phase 3 — a private marketplace works only
-  where the box's git auth reaches the repo). D2 license (recommend MIT). D3 names: marketplace `sdd`,
-  plugin `sdd`. D4 versions: `vX.Y.Z` releases; plugin tag `sdd--vX.Y.Z` via `claude plugin tag --push`.
+  where the box's git auth reaches the repo). D2 license (recommend MIT). D3 names: marketplace `guide-sdd`, plugin `guide-sdd`. D4 versions: `vX.Y.Z` releases; plugin tag `guide-sdd--vX.Y.Z` via `claude plugin tag --push`.
 
 ACs:
 ```
 SDD-PROP-10/AC-1 — When a tag vX.Y.Z is pushed and both-OS smoke tests pass, CI shall publish a GitHub
-                   Release carrying sdd-X.Y.Z.zip (sdd/ prefix) and its sha256.
+                   Release carrying guide-sdd-X.Y.Z.zip (sdd/ prefix) and its sha256.
 SDD-PROP-10/AC-2 — install.ps1 and install.sh shall produce byte-identical file sets in a fresh repo.
 SDD-PROP-10/AC-3 — update shall replace only spine files listed in the manifest and shall leave
                    project-details.md, gates.config.json, concrete project gates, and box-role.local
@@ -319,7 +318,7 @@ SDD-PROP-10/AC-4 — doctor shall list every spine file whose sha256 differs fro
                    installed version, and exit non-zero when any differs.
 SDD-PROP-10/AC-5 — With the plugin installed and SDD_PERSONA=engineer, a PreToolUse hook shall deny
                    Edit/Write to any path matching gates.config.json testGlobs.
-SDD-PROP-10/AC-6 — /plugin install sdd@sdd on a second box shall make /wrap, /stash, /unstash and
+SDD-PROP-10/AC-6 — /plugin install guide-sdd@guide-sdd on a second box shall make /wrap, /stash, /unstash and
                    /sdd-init available without copying commands/.
 SDD-PROP-10/AC-7 — The installer shall stop before INIT's three ASKs; they remain human-answered.
 ```

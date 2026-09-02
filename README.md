@@ -1,9 +1,16 @@
-# SDD — Spec-Driven Development Framework
+# GUIDE SDD — Gated, Unified, Intent-Driven Engineering
 
 > **v1.9 — 2026-09-02.** A reusable, token-efficient, spec-first / persona-split development
 > method that drops into large, multi-developer projects worked by humans **and** AI agents. It
 > merges two mature in-house practices (Mistwright's *How We Work*, Polars' *How To Develop*) with
 > the published SOTA into one copyable **spine** + a small, indexed **per-project surface**.
+
+## Name
+
+**GUIDE SDD** — *Gated, Unified, Intent-Driven Engineering*, a spec-driven development (SDD) method.
+Display name `GUIDE`; repo and plugin slug `guide-sdd`; internal short name `sdd` (spine directory
+`sdd/`, `SDD_*` env vars, `SDD-PROP` / `SDD-amend` unit IDs) — unchanged, so adopting repos never rename
+paths. Renamed 2026-09-02 (was "SDD"); history keeps the old name.
 
 ## The core idea (in four lines)
 

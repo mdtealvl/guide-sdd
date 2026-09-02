@@ -1,4 +1,4 @@
-# AGENTS.md — SDD always-loaded core (agent-neutral carrier)
+# AGENTS.md — GUIDE SDD always-loaded core (agent-neutral carrier)
 
 <!-- The always-loaded surface for any coding agent that reads AGENTS.md natively (OpenAI Codex,
      Cursor, Gemini CLI, …). Claude Code reads CLAUDE.md, which `@`-imports this file. GitHub Copilot
@@ -6,7 +6,7 @@
      capability tiers: `sdd/host-adapter.md`. This file is the template wired into a target repo at
      INIT; paths below assume the spine lives at `sdd/`. -->
 
-## This project uses Spec-Driven Development (SDD)
+## This project uses GUIDE SDD (Gated, Unified, Intent-Driven Engineering — spec-driven development)
 
 On your first action here, **say so**, then operate under SDD — do NOT continue ad-hoc work.
 

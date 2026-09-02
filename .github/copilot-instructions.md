@@ -1,10 +1,10 @@
-# Copilot instructions — Spec-Driven Development (SDD)
+# Copilot instructions — GUIDE SDD (spec-driven development)
 
 <!-- GitHub Copilot always-loads this file but does NOT read AGENTS.md — so this shim carries the SDD
      stub for Copilot. Canonical stub: AGENTS.md (repo root). Mechanism map + tiers: sdd/host-adapter.md.
      Template — paths assume the spine at sdd/. Keep in sync with AGENTS.md. -->
 
-**This project uses SDD.** On your first action here, **say so**, then operate under it — do NOT continue
+**This project uses GUIDE SDD.** On your first action here, **say so**, then operate under it — do NOT continue
 ad-hoc work. Read `AGENTS.md` (repo root) for the full always-loaded core; the essentials:
 
 - **Always:** obey `sdd/constitution.md` (the ten invariants).

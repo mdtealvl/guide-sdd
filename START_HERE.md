@@ -1,6 +1,6 @@
 # START HERE
 
-You just unzipped the **Spec-Driven Development (SDD)** framework. This is the front door.
+You just unzipped **GUIDE SDD** — Gated, Unified, Intent-Driven Engineering, a spec-driven development framework (short name `sdd`). This is the front door.
 
 ## If you are an AI agent (e.g. told "unzip `sdd.zip` and follow the instructions")
 
