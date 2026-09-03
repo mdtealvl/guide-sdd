@@ -16,9 +16,18 @@ the **Definition of Ready** (`definition-of-done.md`): if DoR fails, surface the
 `project-details.md#CL-7`) and do **not** start; if DoR holds, read the Triage record's route and load
 its next active stage.
 
-## Right-size it: two questions
+## Is it an item yet?
 
-Ask in order. **Q1 sets rigor; Q2 sets whether to parallelize.**
+If the input is a raw request (a sentence, a thread, a bug report, a PRD) rather than a changelog item,
+run **`intake.md`** first — classify the input, split to one goal, run the numbered-question loop and the
+domain screen, write the item, record the readiness verdict. Triage right-sizes an **item**.
+
+## Right-size it: three questions
+
+Ask in order. **Q0 confirms one goal; Q1 sets rigor; Q2 sets whether to parallelize.**
+
+**Q0 — one goal?** Does the item hold two or more deliverables reviewable and mergeable independently?
+(Count deliverables, never verbs.) Yes → back to `intake.md` §2: split, or record `kept-whole`.
 
 **Q1 — could a wrong guess slip through?** Is a misread both *expensive* and *not obvious to catch*?
 - **No → low-risk:** typo, rename, config tweak, mechanical repoint, values already decided.
@@ -76,4 +85,4 @@ doubt, round up.
 - Routing decision + Triage record recorded on the changelog item (no script gate).
 ### Return
 Return to PROCESS.md §0 and load the route's next active stage: Stage 1 (design) for the persona
-route, Stage 3 (spec) for the mechanical route. Drop this stage body from context.
+route, Stage 3 (spec) for the mechanical route. Read that stage file fully and follow it; this one is done.

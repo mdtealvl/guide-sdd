@@ -107,8 +107,8 @@ MEM=docs/memory          # or your chosen path — record it as CL-11
 mkdir -p "$MEM/stashes/archive" "$MEM/memory"
 printf '# Memory index\n\n_one line per memory; no content here_\n' > "$MEM/MEMORY.md"
 printf '# HANDOFF — you are here\n\n_overwritten each wrap, never appended_\n' > "$MEM/HANDOFF.md"
-# Mode B only — the on-disk backlog also lives here:
-printf '# Backlog\n' > "$MEM/backlog.md"   # SKIP in Mode A (the tracker is the backlog)
+# Mode B only — the on-disk backlog is one file per item at the repo root (#CL-1; fold_check reads it):
+mkdir -p backlog                            # SKIP in Mode A (the tracker is the backlog)
 ```
 
 **Install the Tier-A commands** so `/wrap`, `/stash`, `/unstash` are live: copy `sdd/commands/*.md` into
@@ -139,10 +139,15 @@ binding, pointer-doc map are each their own growable section. At minimum, regist
    flat, inline keys (these are the EXACT keys the gate scripts read):
    - `clauseIdRegex` — the clause-ID regex (mirror from project-details `#SPEC-6`).
    - `testClauseTag` — the `@clause:` tag the tests carry.
-   - `paths.spec` — the recursive shard glob, e.g. `spec/**/*.body.md`.
-   - `testGlobs` — where the test files live.
-   - `baseRef` — the VCS base ref the edit-ban diffs against.
-   - `suiteCmd` — the suite-green command (mirror from project-details `#TOOL-3`).
+   - `paths.spec` — the recursive shard glob, e.g. `spec/**/*.body.md`. **Every path/glob is relative
+     to the project root** (the git top-level), not to `sdd/`; `run_all` resolves that root itself.
+   - `testGlobs` — where the test files live, **plus** snapshots and test-runner config (`jest.config.*`,
+     `pytest.ini`, `conftest.py`): an Engineer who can edit those can silence a test without touching it.
+     One dialect everywhere: `**` spans directories, `*` does not, anchored at the root.
+   - `baseRef` — fallback only. `test_edit_ban` diffs the **QA-frozen SHA** (the item's `frozen:` line,
+     mirrored in `gates/.frozen` by `gates/freeze.*`); a branch name is warned as weak.
+   - `suiteCmd` — the suite-green command (mirror from project-details `#TOOL-3`). **Mandatory:**
+     `run_all` exits 2 while it is unset — a bank that skips the suite proves nothing.
    - `unitIdRegex` — the changelog unit-id regex (from project-details `#CL-2`).
    - `foldCheck.backlogRoot` / `foldCheck.resolveCmd` — how `fold_check` resolves a pin's
      `<unit-id>`. The fold step (Stage 7) is otherwise changelog-mode-blind, so switching
@@ -207,7 +212,10 @@ printf '\n## DEMO.2 unfollowed {#DEMO.2}\nThe system shall have no test, on purp
 Then re-run coverage — **Windows:** `pwsh gates/coverage_check.ps1 --config gates/gates.config.json`
 / **Linux/macOS:** `sh gates/coverage_check.sh --config gates/gates.config.json`. It must FAIL
 naming `DEMO.2`. Then revert: remove the DEMO.2 lines so the tree is clean again, and confirm it
-PASSes. Now run the whole bank — **Windows:**
+PASSes. Second negative control — the edit ban: append a line to `tests/demo.smoke.test` without
+committing and run `test_edit_ban` with `HEAD`; it must FAIL naming the file (the working tree is
+diffed, not just commits). Revert. Now set `suiteCmd` for the demo (`"exit 0"` is enough here; the real
+command follows in step 5) and run the whole bank — **Windows:**
 
 ```powershell
 pwsh gates/run_all.ps1 HEAD   # generic gates in order; pass a RESOLVING base (real CI passes the QA-frozen commit)
@@ -233,7 +241,7 @@ the demo files when done.
 - [ ] Agent carrier wired (`AGENTS.md`; `CLAUDE.md` routes to it; Copilot shim if used); `$SDD_HOST_TIER` set (`host-adapter.md`).
 - [ ] Box role set per box (`SDD_BOX_ROLE` or `box-role.local`); `box-role.local` git-ignored.
 - [ ] Changelog mode chosen + recorded in Project Details §4 (incl. CL-6 work-ready / CL-7 PO-attention states).
-- [ ] Project memory directory seeded (MEMORY.md, HANDOFF.md, stashes/, memory/; backlog.md in Mode B) + path recorded as CL-11; session-lifecycle commands installed if Tier-A (`sdd/commands/`).
+- [ ] Project memory directory seeded (MEMORY.md, HANDOFF.md, stashes/, memory/) + path recorded as CL-11; `backlog/` created in Mode B (CL-1); session-lifecycle commands installed if Tier-A (`sdd/commands/`).
 - [ ] Box default greenfield/brownfield recorded; brownfield → unspecified-surface register created.
 - [ ] Spec format chosen (default `.body.md` content-only shards) + build command in Project Details §5.
 - [ ] `project-details.md` instantiated; seams registered in §1.
@@ -241,4 +249,5 @@ the demo files when done.
   `paths.spec`, `testGlobs`, `baseRef`, `suiteCmd`, `unitIdRegex`, `foldCheck.*`) and inline
   `constitutionRules[]` / `seamRules[]`; concrete project gate scripts copied.
 - [ ] Gate smoke test green for this OS (PowerShell or Bash gates; `.body.md` demo, `--config`
-  flag, `HEAD` base, DEMO.2 negative control); demo files removed.
+  flag, `HEAD` base, DEMO.2 negative control, uncommitted-test-edit negative control, `suiteCmd` set);
+  demo files removed.

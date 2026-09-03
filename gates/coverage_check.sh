@@ -107,6 +107,13 @@ else
   set -- $TEST_GLOBS
   TAG_FILES=$(expand_globs "$@")
   WHAT="tests"
+  # A tag in a note, README or fixture description covers nothing: exclude non-test text
+  # files from the tag scan (testTagExcludeGlobs; default markdown + plain text).
+  EXCL_GLOBS=$(jq -r '(.testTagExcludeGlobs // ["**/*.md","**/*.txt"]) | if type=="array" then .[] else . end' "$CFG" 2>/dev/null)
+  EXCL_ALT=$(printf '%s\n' "$EXCL_GLOBS" | sed '/^$/d' | while IFS= read -r g; do glob_to_regex "$g"; done | paste -sd '|' -)
+  if [ -n "$EXCL_ALT" ] && [ -n "$TAG_FILES" ]; then
+    TAG_FILES=$(printf '%s\n' "$TAG_FILES" | grep -v -E "$EXCL_ALT" || true)
+  fi
 fi
 
 # tags: clause-id <TAB> file  (tag prefix immediately followed by optional ws + clause)
@@ -130,6 +137,18 @@ UNKNOWN=$(printf '%s\n' "$TAGGED_IDS" | awk -v t="$CLAUSE_IDS" 'BEGIN { n = spli
 N_CLAUSE=$(printf '%s\n' "$CLAUSE_IDS" | sed '/^$/d' | wc -l | tr -d ' ')
 N_ORPHAN=$(printf '%s\n' "$ORPHANS" | sed '/^$/d' | grep -c . || true)
 N_UNKNOWN=$(printf '%s\n' "$UNKNOWN" | sed '/^$/d' | grep -c . || true)
+
+# A tag on a skipped / focused test covers nothing. The gate cannot prove a test RAN (that is
+# suite_green + the Matrix audit at Stage 7); it can at least name the files carrying skip or
+# only markers so the reviewer looks.
+if [ "$PLAN" = 0 ]; then
+  SKIP_RE='\.skip\(|\bxit\(|\bxdescribe\(|\bxtest\(|pytest\.mark\.skip|\[Ignore|\[Skip|@Ignore\b|@Disabled\b|t\.Skip\(|\.only\('
+  printf '%s\n' "$TAGS" | awk -F'\t' 'NF{print $2}' | sort -u | while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    n=$(grep -c -E "$SKIP_RE" "$f" 2>/dev/null || true)
+    [ "${n:-0}" -gt 0 ] && echo "WARN $GATE: $f has $n skip/only marker line(s) - a skipped test covers nothing; the suite must run it."
+  done
+fi
 
 if [ "$N_ORPHAN" -eq 0 ] && [ "$N_UNKNOWN" -eq 0 ]; then
   echo "PASS $GATE ($WHAT, $SCOPE): $N_CLAUSE clauses, all covered."

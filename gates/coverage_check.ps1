@@ -96,6 +96,15 @@ if ($Plan) {
 } else {
     $tagFiles = Expand-Globs $testGlobs
     $what = 'tests'
+    # A tag in a note, README or fixture description covers nothing: exclude non-test text
+    # files from the tag scan (testTagExcludeGlobs; default markdown + plain text).
+    $exclGlobs = @('**/*.md', '**/*.txt')
+    if ($cfg.PSObject.Properties.Name -contains 'testTagExcludeGlobs' -and $null -ne $cfg.testTagExcludeGlobs) { $exclGlobs = @($cfg.testTagExcludeGlobs) }
+    $exclRes = @()
+    foreach ($g in $exclGlobs) { if ($g) { $exclRes += ,(ConvertTo-Regex $g) } }
+    if ($exclRes.Count -gt 0) {
+        $tagFiles = @($tagFiles | Where-Object { $p = $_; -not ($exclRes | Where-Object { $_.IsMatch($p) } | Select-Object -First 1) })
+    }
 }
 
 # clause-ID -> set(test/plan paths tagging it)
@@ -125,6 +134,19 @@ $taggedIds = [System.Collections.Generic.HashSet[string]]::new([string[]]@($tags
 
 $orphans = @($clauses.Keys | Where-Object { -not $taggedIds.Contains($_) } | Sort-Object)
 $unknown = @($tags.Keys    | Where-Object { -not $clauseIds.Contains($_) } | Sort-Object)
+
+# A tag on a skipped / focused test covers nothing. The gate cannot prove a test RAN (that is
+# suite_green + the Matrix audit at Stage 7); it can at least name the files carrying skip or
+# only markers so the reviewer looks.
+if (-not $Plan) {
+    $skipRe = [regex]'\.skip\(|\bxit\(|\bxdescribe\(|\bxtest\(|pytest\.mark\.skip|\[Ignore|\[Skip|@Ignore\b|@Disabled\b|t\.Skip\(|\.only\('
+    $taggedFiles = New-Object 'System.Collections.Generic.HashSet[string]'
+    foreach ($set in $tags.Values) { foreach ($f in $set) { [void]$taggedFiles.Add($f) } }
+    foreach ($f in ($taggedFiles | Sort-Object)) {
+        $n = @((Read-FileLines $f) | Where-Object { $skipRe.IsMatch($_) }).Count
+        if ($n -gt 0) { Write-Output "WARN coverage_check: $f has $n skip/only marker line(s) - a skipped test covers nothing; the suite must run it." }
+    }
+}
 
 if ($orphans.Count -eq 0 -and $unknown.Count -eq 0) {
     Write-Output "PASS coverage_check ($what, $scope): $($clauseIds.Count) clauses, all covered."

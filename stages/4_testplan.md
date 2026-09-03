@@ -70,11 +70,11 @@ before it costs a QA pass.
 ---
 ### Gate(s) that close this stage
 - `coverage_check --plan` — run the gate for your OS: `gates/coverage_check.ps1 -Plan` (Windows) /
-  `gates/coverage_check.sh --plan` (Linux/macOS). See `gates/README.md`.
+  `gates/coverage_check.sh --plan` (Linux/macOS).
   (PASS: every clause-ID in the manifest → ≥1 planned scenario).
 - **Coverage scope:** `coverage_check` is **whole-corpus at ship** — every clause in `paths.spec` needs
   a test. For fast per-unit feedback in-loop, use `coverage_check --manifest <file>` / `-Manifest
   <file>` (Windows) to scope to this unit's shards; the ship-time pass stays whole-corpus.
 ### Return
 Return to PROCESS.md §0 and load the route's next active stage: Stage 5 (QA) for the persona route, or
-Stage 7 (gates + ship) for the mechanical route. Drop this stage body from context.
+Stage 7 (gates + ship) for the mechanical route. Read that stage file fully and follow it; this one is done.

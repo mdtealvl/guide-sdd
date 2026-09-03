@@ -14,10 +14,17 @@ Install: `/plugin marketplace add mdtealvl/guide-sdd` then `/plugin install guid
 | `/sdd-persona` | Sets `sdd/.persona` (`engineer` / `qa` / `clear`) read by the hook below. |
 | `/wrap` `/stash` `/unstash` | The session-lifecycle commands from `commands/`, as skills. |
 
-**Hook — persona edit-guard** (`hooks/persona-guard.sh`, PreToolUse on Edit/Write/MultiEdit): while the
-persona is `engineer` (env `SDD_PERSONA`, else `sdd/.persona`), any edit to a path matching
-`gates.config.json` `testGlobs` is denied with the reason. Runs under `sh`; on Windows that is Git Bash,
-which Claude Code already requires. Tested by `ci/hook_test.sh`.
+**Hook — persona guard** (`hooks/persona-guard.sh`; persona from env `SDD_PERSONA`, else `sdd/.persona`),
+three passes:
+
+| Pass | Event | Engineer persona | QA persona |
+|---|---|---|---|
+| `--pre` | PreToolUse on Edit/Write/MultiEdit/NotebookEdit/Read/Grep/Glob | deny edits to `testGlobs` paths, the gate bank (`gates/**`), `.persona`, `.frozen`; fail closed if the config is unreadable | deny Read/Grep/Glob under `paths.code` (QA is blind to the implementation) |
+| `--post` | PostToolUse on Bash/Edit/Write/MultiEdit/NotebookEdit | sweep the working tree (status + diff vs `gates/.frozen`): any test or gate path that differs is named with the revert command (exit 2) | — |
+| `--stop` | Stop | the same sweep at turn end (catches codegen that wrote files it never named) | — |
+
+Runs under `sh`; on Windows that is Git Bash, which Claude Code already requires. A tripwire, not the
+proof: the Stage-7 `test_edit_ban` gate diffs the QA-frozen SHA. Tested by `ci/hook_test.sh` (36 cases).
 
 `bin/install.sh` and `bin/install.ps1` are byte-identical copies of the repo-root installers (CI checks).
 Plugin version = the framework `VERSION`; plugin tags are `guide-sdd--vX.Y.Z`.

@@ -13,7 +13,7 @@
 > - **PROP-05** → `project-config/INIT.md` §2c + Project Details `#CL-11`.
 > - **PROP-07** → v1.8 (`PROCESS.md` §0 "Dispatch frugally"). **PROP-08 / PROP-09** → v1.9 (`stages/3_spec.md`
 >   update method + spec form, and the docs each names). **PROP-06** remains OPEN. **PROP-10** (installer
-> & distribution) OPEN, phase 0 done 2026-09-02.
+> & distribution) OPEN, only visibility left. **PROP-11** (adversarial review vs BMAD v6.11) phase 1 shipped in v1.12.0, phase 2 deferred — see its Status block.
 >
 > Full record: `constitution.changelog.md` v1.7. Original proposal bodies preserved below.
 
@@ -322,3 +322,67 @@ SDD-PROP-10/AC-6 — /plugin install guide-sdd@guide-sdd on a second box shall m
                    /sdd-init available without copying commands/.
 SDD-PROP-10/AC-7 — The installer shall stop before INIT's three ASKs; they remain human-answered.
 ```
+
+---
+
+## SDD-PROP-11 — Story — Adversarial review vs BMAD v6.11: enforcement hardening, intake, review loop, autonomy vocabulary — **OPEN (PO-directed 2026-09-02; phase 1 shipped in v1.12.0; phase 2 deferred, listed)**
+
+- **Verbatim request.** "Angrily spawn several reviewers look over "GUIDE" and see its deficiencies vs
+  competitors. Determine how we can improve. Improve."
+- **Why.** Five adversarial reviews (2026-09-02) against the BMAD v6.11.0 source: the enforcement review
+  verified in a scratch repo that `test_edit_ban` passed with an uncommitted test edit, a moved base, an
+  edited config, a Bash-written test, a rename-out, and glob drift between the three matchers; the pre-spec
+  review found nothing between a raw request and a changelog item; the review-loop review found a decline
+  with no route, cap, revert, ledger or score; the autonomy review found the item state machine to be prose
+  and no outcome metric defined; the context review measured ≈31k words of framework text per persona unit
+  and a "read §0 then stop" router that sends the reader past §0.
+- **The change.** Make the central claim ("the Engineer cannot edit the tests; trace is script-checked") true
+  at the working tree; give the PO a procedure for the pre-spec zone; make a Validation decline a routed,
+  bounded loop; give a worker box a vocabulary an orchestrator can read; fix the false context claims.
+- **Success signal.** Every bypass the enforcement review demonstrated is a CI negative control that FAILs
+  naming the path, on both OS twins.
+- **Boundaries.** Always: no invariant change; docs demand-loaded; always-loaded growth ≤ one sentence.
+  Ask first: any change to the always-loaded core beyond that; making `prose_check` strict on the spine.
+  Never: a Python or Node dependency in the gates; a gate that skips and passes.
+- **Open questions / Assumptions.** Q1 (PO): when does phase 2 start? A1 (ratified by shipping): the
+  `frozen:` line on the item is the authoritative base; the file is a mirror.
+- **Route.** persona (framework-repo self-application: reviewer contexts were the fresh lenses).
+
+### ACs
+
+```
+SDD-PROP-11/AC-1 — When test_edit_ban runs with the QA-frozen SHA, the system shall FAIL naming the path if
+                   any working-tree path (committed, staged, unstaged, untracked, or renamed) matching
+                   testGlobs differs from that SHA.
+SDD-PROP-11/AC-2 — If any file under the gate directory other than .frozen differs from the base then
+                   test_edit_ban shall FAIL naming it.
+SDD-PROP-11/AC-3 — If the base does not resolve or is not an ancestor of HEAD then test_edit_ban shall exit 2.
+SDD-PROP-11/AC-4 — When run_all runs with suiteCmd unset the system shall exit 2 before printing ALL GATES PASSED.
+SDD-PROP-11/AC-5 — While the engineer persona is set, the plugin hook shall deny pre-edit of testGlobs, gate
+                   and marker paths, and shall report post-tool and stop-time drift vs the frozen SHA (exit 2).
+SDD-PROP-11/AC-6 — While the qa persona is set, the plugin hook shall deny Read/Grep/Glob under paths.code.
+SDD-PROP-11/AC-7 — coverage_check shall not count a tag in a file matching testTagExcludeGlobs and shall
+                   WARN naming any tagged file with a skip/only marker.
+SDD-PROP-11/AC-8 — The spine shall provide intake.md, the readiness verdict in the DoR, the four-lens
+                   Validation brief with class routing / cap / score in Stage 7, the item-line enum, claim
+                   leases and terminal states, and metrics.md.
+```
+
+### Status
+
+- **Phase 1 — shipped v1.12.0** (2026-09-02): AC-1..AC-8; CI negative controls for AC-1..AC-4 and AC-7
+  (`ci/smoke.*`), AC-5/AC-6 (`ci/hook_test.sh`, 36 cases). Full record `constitution.changelog.md` v1.12.0.
+- **Phase 2 — deferred, each a Task when picked up:**
+  - `coverage_ran` gate: `suiteReport` (JUnit/TRX) → every `@clause:` tag maps to a test that ran and passed;
+    a skipped/filtered test counts as missing (the BMAD Matrix-audit rule, mechanical).
+  - `gates/item_status.*`: `next-ready | claim | set | validate` over the Mode B backlog (Mode A via
+    `resolveCmd`), JSON out, lease-aware — the orchestrable form of `box-roles.md`.
+  - `ci/evidence.*`: range in, JSON per item out (commits, surface-backs by reason, verdicts, ship SHA,
+    post-ship bugs) — computes `metrics.md`.
+  - Plugin `Stop`/`SessionEnd`/`PreCompact` event files for an orchestrator; YAML frontmatter on `HANDOFF.md`.
+  - Spine prose self-compliance (15 docs over the `prose_check` bar; CI runs it warn-only).
+  - Rendered single-file mechanical lane + persona briefs (BMAD step-file shape) to cut the ≈31k-word
+    per-unit load.
+  - Bash read-guard for the `qa` persona; the route recorded on a committed artifact so `--mechanical` is
+    not the agent's say-so.
+  - **PROP-06** (`any_match` rule kind) — still OPEN since 2026-07-14.

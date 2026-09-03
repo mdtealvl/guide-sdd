@@ -93,8 +93,8 @@ here, before the lanes diverge.
   (Linux/macOS); see `gates/README.md`. (PASS required: every cross-ref resolves.)
 - `prose_check` — spec form (SDD-PROP-09): `gates/prose_check.ps1` (Windows) / `gates/prose_check.sh`
   (Linux/macOS); scope = shards changed vs base. WARN by default; `proseCheck.mode=strict` makes a touched
-  shard over the paragraph-share or longest-paragraph threshold FAIL (migrate-on-contact). See `gates/README.md`.
+  shard over the paragraph-share or longest-paragraph threshold FAIL (migrate-on-contact).
 - PM approves the spec diff (pre-code gate, human).
 ### Return
-Return to PROCESS.md §0 and load Stage 4 (test plan) — active in every route. Drop this stage body
-from context.
+Return to PROCESS.md §0 and load Stage 4 (test plan) — active in every route. Read that stage file
+fully and follow it; this one is done.

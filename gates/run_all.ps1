@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# run_all — the full gate bank, mechanical-first, fail-fast. Exits nonzero on the first
+# run_all - the full gate bank, mechanical-first, fail-fast. Exits nonzero on the first
 # failing gate, so it drops into CI and pre-merge hooks unchanged.
 #
 # Order (Stage 7 ship):
@@ -8,14 +8,24 @@
 #     -> suite_green (re-run)
 # (*) project gates run only if their concrete (non-template) .ps1 script exists.
 #
+# Working directory: the PROJECT ROOT - the git top-level of the tree the gates live in
+# (so a spine vendored at sdd/ still resolves `spec/**`, `tests/**` from the repo root).
+# Override with `projectRoot` in gates.config.json (relative to the spine directory) for a
+# non-git or nested layout. Every config path is root-relative.
+#
+# suite_green is REQUIRED: an unset suiteCmd is exit 2, never a silent skip - a bank that
+# prints ALL GATES PASSED without running the suite proves nothing.
+#
 # This .ps1 runner invokes the .ps1 siblings (the Windows, dependency-free path).
 #
 # Usage:  pwsh gates/run_all.ps1 [baseRef] [-PreFold] [-Mechanical] [-Strict]
-#   baseRef       optional merge base for diffs (defaults to config baseRef).
+#   baseRef       the QA-frozen SHA for test_edit_ban / prose_check / fold_check diffs.
+#                 Omitted: test_edit_ban reads gates/.frozen, else config baseRef (weak).
 #   -PreFold      skip fold_check (and its post-fold suite re-run): the pins it checks
 #                 do not exist until the fold happens. Use for the Stage-7 pre-fold pass.
 #   -Mechanical   skip test_edit_ban: the mechanical route has no QA/Engineer split, so a
-#                 single author legitimately writes tests + code together.
+#                 single author legitimately writes tests + code together. The route is
+#                 recorded on the changelog item; CI passes this flag from that record.
 #   -Strict       forward -Strict to fold_check: a configured resolver that errors/returns
 #                 non-zero FAILS instead of degrading. CI should run with -Strict.
 #                 Also forwarded to prose_check (spec-form violations FAIL instead of WARN).
@@ -32,12 +42,32 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/_common.ps1"
 
 $HereDir = $PSScriptRoot
-# Run from the repo root (parent of gates/) so every path the gates resolve is
-# repo-relative and portable.
-$RepoRoot = Split-Path -Parent $HereDir
+$SpineDir = Split-Path -Parent $HereDir
+
+# Resolve the project root: config projectRoot (relative to the spine dir) > git top-level > spine dir.
+$RepoRoot = $null
+$localCfgPath = Join-Path $HereDir 'gates.config.json'
+if (Test-Path -LiteralPath $localCfgPath) {
+    try {
+        $localCfg = (Get-Content -LiteralPath $localCfgPath -Raw | ConvertFrom-Json)
+        $pr = Get-CfgValue $localCfg 'projectRoot' $null
+        if ($pr) {
+            $cand = Join-Path $SpineDir $pr
+            if (-not (Test-Path -LiteralPath $cand)) { Write-Output "FAIL run_all: projectRoot '$pr' does not exist"; exit 2 }
+            $RepoRoot = (Resolve-Path -LiteralPath $cand).Path
+        }
+    } catch { }
+}
+if (-not $RepoRoot) {
+    $top = (& git -C $HereDir rev-parse --show-toplevel 2>$null)
+    if ($LASTEXITCODE -eq 0 -and $top) { $RepoRoot = (Resolve-Path -LiteralPath $top).Path } else { $RepoRoot = $SpineDir }
+}
 Set-Location -LiteralPath $RepoRoot
-$GD = Split-Path -Leaf $HereDir          # gate dir name, normally "gates"
-$CFG = Join-Path $GD 'gates.config.json'
+$hereNorm = ($HereDir -replace '\\', '/').TrimEnd('/')
+$rootNorm = ($RepoRoot -replace '\\', '/').TrimEnd('/')
+$GD = if ($hereNorm.StartsWith($rootNorm + '/')) { $hereNorm.Substring($rootNorm.Length + 1) } elseif ($hereNorm -eq $rootNorm) { '.' } else { $hereNorm }
+$CFG = "$GD/gates.config.json"
+if (-not (Test-Path -LiteralPath $CFG)) { Write-Output "FAIL run_all: cannot read config $CFG (cwd $RepoRoot)"; exit 2 }
 
 $base = $BaseRef
 
@@ -47,7 +77,7 @@ function Fail([string]$name) {
 }
 
 function Invoke-Gate([string]$script, [string[]]$gateArgs) {
-    # Runs the sibling .ps1, streaming its stdout straight through. Returns nothing —
+    # Runs the sibling .ps1, streaming its stdout straight through. Returns nothing -
     # callers check $LASTEXITCODE (set by the child pwsh) to avoid capturing the
     # child's printed lines into a return value.
     $full = Join-Path $HereDir $script
@@ -57,8 +87,8 @@ function Invoke-Gate([string]$script, [string[]]$gateArgs) {
 function Invoke-Suite {
     $suite = Get-CfgValue $cfgGlobal 'suiteCmd' ''
     if ([string]::IsNullOrEmpty($suite) -or $suite -like '<from project-details*') {
-        Write-Output "== suite_green == (skipped: set suiteCmd in gates.config.json)"
-        return
+        Write-Output "FAIL suite_green: suiteCmd is not set in $CFG - the bank cannot pass without the project suite (INIT section 5)."
+        exit 2
     }
     Write-Output "== suite_green =="
     if ($env:ComSpec) {
@@ -72,6 +102,7 @@ function Invoke-Suite {
 # Load config once for suiteCmd checks.
 $cfgGlobal = Read-Config $CFG 'run_all'
 
+Write-Output "== run_all == (root: $RepoRoot)"
 Write-Output "== link_check =="
 Invoke-Gate 'link_check.ps1' @('-Config', $CFG)
 if ($LASTEXITCODE -ne 0) { Fail 'link_check' }

@@ -14,15 +14,21 @@ criterion invites a degenerate implementation (synthetic timers, teleports, dele
 passes the test and matches nothing in the spec. The spec is your target; the tests are the floor.
 
 Mechanical guard (Tier A with the GUIDE SDD plugin): the dispatcher runs `/sdd-persona engineer` before this
-stage and `/sdd-persona clear` after it; while the marker is set, the plugin's PreToolUse hook denies every edit
-to a `testGlobs` path. Tier B: export `SDD_PERSONA=engineer` in the Engineer's session instead. The gate
-`test_edit_ban` still runs at Stage 7 — the hook is the early tripwire, not the proof.
+stage and `/sdd-persona clear` after it. While the marker is set the plugin hook runs three passes: **pre**
+denies every Edit/Write to a `testGlobs` path (tests, snapshots, test-runner config), to the gate bank, and
+to the persona/frozen markers; **post** sweeps the working tree after any tool — a Bash heredoc, `sed -i`,
+`mv`, `git checkout` — and names any test or gate path that differs from the frozen SHA, with the revert
+command; **stop** repeats the sweep at turn end. Tier B: export `SDD_PERSONA=engineer` in the Engineer's
+session instead. The gate `test_edit_ban` still runs at Stage 7 against the item's `frozen:` SHA — the
+hook is the early tripwire, not the proof.
 
 ## Rules
 
-- **Test-edit ban is absolute.** Never touch a test file. Disputes are **filed** up to the
-  Orchestrator, never resolved by editing a test. (`gates/test_edit_ban.ps1` (Windows) /
-  `gates/test_edit_ban.sh` (Linux/macOS) proves you didn't — structural enforcement of QA⊥Engineer.)
+- **Test-edit ban is absolute.** Never touch a test file, a snapshot, a test-runner config, or anything
+  under the gate bank. Disputes are **filed** up to the Orchestrator, never resolved by editing a test.
+  (`gates/test_edit_ban.ps1` (Windows) / `gates/test_edit_ban.sh` (Linux/macOS) proves you didn't — it
+  diffs the frozen SHA against the working tree, untracked files and renames included, and fails if the
+  gate config or scripts changed.)
 - **Conform to the spec, not just the tests.** Green is necessary, not sufficient.
 - **Use the seams.** No bypassing the project's architecture boundaries (`project-details.md#SEAM-N`),
   even if a bypass would be greener faster. `seam_conformance` checks this at ship.
@@ -62,8 +68,10 @@ that keep QA ⊥ Engineer honest.
 
 ---
 ### Gate(s) that close this stage
-- `test_edit_ban` — run the gate for your OS: `gates/test_edit_ban.ps1` (Windows) /
-  `gates/test_edit_ban.sh` (Linux/macOS). See `gates/README.md`. (PASS: no test file touched).
+- `test_edit_ban` — run the gate for your OS: `gates/test_edit_ban.ps1 <frozen-sha>` (Windows) /
+  `gates/test_edit_ban.sh <frozen-sha>` (Linux/macOS); with no argument it reads `gates/.frozen`.
+  (PASS: no test file, runner config, gate script or gate config differs from the frozen SHA.)
 - `suite_green` — Orchestrator re-runs the project suite (`suiteCmd`); exit 0 required.
-### Return
-Return to PROCESS.md §0 and load Stage 7 (gates + ship). Drop this stage body from context.
+### Next
+Return to PROCESS.md §0 and load Stage 7 (gates + ship). Read that stage file fully and follow it; this
+one is done.

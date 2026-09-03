@@ -1,5 +1,5 @@
 {
-  "_comment": "Copy to gates.config.json at INIT. Fill suiteCmd (project-details #TOOL-3) and unitIdRegex (project-details #CL-2). All gate scripts read this flat config; nothing is hardcoded to a stack.",
+  "_comment": "Copy to gates.config.json at INIT. Fill suiteCmd (project-details #TOOL-3) and unitIdRegex (project-details #CL-2). All gate scripts read this flat config; nothing is hardcoded to a stack. Every path/glob is relative to the PROJECT ROOT (the git top-level; override with projectRoot, relative to the spine dir, for a non-git layout).",
   "clauseIdRegex": "\\b[A-Z]{2,}\\.\\d+\\b",
   "testClauseTag": "@clause:",
   "paths": {
@@ -7,7 +7,11 @@
     "tests": "tests/**",
     "code": "src/**"
   },
-  "testGlobs": ["tests/**", "**/*.test.*", "**/*.spec.*", "**/*Tests.cs"],
+  "_testGlobs_comment": "One glob dialect everywhere (coverage_check, test_edit_ban, the plugin hook): ** spans directories, * does not, anchored at the project root. List test RUNNER CONFIG and snapshots too — an Engineer who can edit jest.config or a .snap can silence a test without touching it.",
+  "testGlobs": ["**/tests/**", "**/__tests__/**", "**/__mocks__/**", "**/*.test.*", "**/*.spec.*", "**/*Tests.cs", "**/*.snap", "**/jest.config.*", "**/vitest.config.*", "**/pytest.ini", "**/conftest.py"],
+  "_testTagExcludeGlobs_comment": "Files under testGlobs whose @clause: tags do NOT count as coverage (notes, fixtures described in prose).",
+  "testTagExcludeGlobs": ["**/*.md", "**/*.txt"],
+  "_baseRef_comment": "Fallback only. test_edit_ban diffs the QA-frozen SHA (passed by the Orchestrator / CI, mirrored in gates/.frozen by gates/freeze.*); a branch name here is warned as weak.",
   "baseRef": "main",
   "suiteCmd": "<from project-details #TOOL-3 — e.g. dotnet test or npm test>",
   "unitIdRegex": "\\b[A-Z]{2,}-\\d+\\b",
@@ -28,6 +32,6 @@
   "constitutionRules": [],
   "_seamRules_comment": "Example: {id:'SEAM-1-audit', kind:'pair_requires', paths:'src/**/Handlers/**/*.cs', pattern:'ICommandHandler', expect:'IAuditSink', message:'...'}. Author one rule per Project Details SEAM-N. See gates/README.md.",
   "seamRules": [],
-  "_qaImportRules_comment": "Example: {id:'qa-no-impl-import', kind:'must_not_match', paths:'tests/**/*.cs', pattern:'using\\s+MyApp\\.Internal', message:'QA tests may not import production internals'}. (In the real rule, write the pattern as JSON: \"using\\\\s+MyApp\\\\.Internal\".) Read by qa_import_ban (copy qa_import_ban.template.* to a concrete name). Same rule shape as constitutionRules/seamRules. See gates/README.md.",
+  "_qaImportRules_comment": "Example: {id:'qa-no-impl-import', kind:'must_not_match', paths:'tests/**/*.cs', pattern:'using\\s+MyApp\\.Internal', message:'QA tests may not import production internals'}. (In the real rule, write the pattern as JSON: \"using\\\\s+MyApp\\\\.Internal\".) Read by qa_import_ban (copy qa_import_ban.template.* to a concrete name); the copied gate FAILS (exit 2) while this array is empty. Same rule shape as constitutionRules/seamRules. See gates/README.md.",
   "qaImportRules": []
 }

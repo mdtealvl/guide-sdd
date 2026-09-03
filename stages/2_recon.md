@@ -35,4 +35,4 @@ it will appear.
 - Viability checklist recorded — all ✓ (or each ✗ tracked and sequenced first).
   Human/Orchestrator gate (no script).
 ### Return
-Return to PROCESS.md §0 and load Stage 3 (spec). Drop this stage body from context.
+Return to PROCESS.md §0 and load Stage 3 (spec). Read that stage file fully and follow it; this one is done.

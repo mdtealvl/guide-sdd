@@ -1,0 +1,31 @@
+# GUIDE SDD — CI template for a TARGET repo (copy to .github/workflows/guide-sdd.yml).
+# Runs the whole gate bank, strict, on every pull request. Nothing else consumes the gate verdicts
+# unless something like this runs them; branch protection should require this job.
+#
+# Base for test_edit_ban:
+#   persona route  -> the QA-frozen SHA. The AUTHORITATIVE copy is the `frozen:` line on the changelog
+#                     item; sdd/gates/.frozen is a mirror the PR author could edit, so a reviewer compares
+#                     the two (or the PR description carries the SHA and the job reads it from there).
+#   mechanical     -> no .frozen file: the bank runs with --mechanical against the PR base.
+# Adjust `sdd/` if the spine is vendored elsewhere; the .ps1 gates run the same way on a windows runner.
+name: guide-sdd gates
+on:
+  pull_request:
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the frozen SHA and the PR base must both be reachable
+      - name: jq
+        run: sudo apt-get install -y jq > /dev/null
+      - name: Gate bank (strict)
+        run: |
+          if [ -f sdd/gates/.frozen ]; then
+            echo "persona route: base from sdd/gates/.frozen (verify against the item's frozen: line)"
+            sh sdd/gates/run_all.sh --strict
+          else
+            echo "mechanical route: no frozen marker; test_edit_ban skipped"
+            sh sdd/gates/run_all.sh --strict --mechanical "${{ github.event.pull_request.base.sha }}"
+          fi

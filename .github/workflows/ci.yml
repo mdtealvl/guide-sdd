@@ -17,6 +17,11 @@ jobs:
         run: sh ci/smoke.sh --compare
       - name: Persona guard hook unit test
         run: sh ci/hook_test.sh
+      - name: Spine prose self-check (warn only — the spine fails its own spec-form gate; tracked in SDD-PROP-11)
+        run: |
+          jq '.paths.spec = "**/*.md" | .proseCheck.mode = "warn" | .proseCheck.excludeGlobs = ["README.md","constitution.changelog.md","project-config/PROPOSED_CHANGELOG.md","website/**","plugin/**"]' \
+            gates/gates.config.template.json > /tmp/spine-prose.json
+          sh gates/prose_check.sh --config /tmp/spine-prose.json --all --report || true
       - name: Plugin bin copies match the root installers
         run: cmp install.sh plugin/bin/install.sh && cmp install.ps1 plugin/bin/install.ps1
       - name: Plugin + marketplace manifests validate

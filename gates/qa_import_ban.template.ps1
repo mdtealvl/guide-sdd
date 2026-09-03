@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# qa_import_ban (TEMPLATE) — a partial structural proof of QA ⊥ implementation.
+# qa_import_ban (TEMPLATE) - a partial structural proof of QA ⊥ implementation.
 #
 # QA test files must NOT import/reference production internals beyond the contracted
 # surface. This is the structural half of the QA-blind independence guarantee: without it,
@@ -37,8 +37,9 @@ $rules = @()
 if ($cfg.PSObject.Properties.Name -contains $RulesKey -and $cfg.$RulesKey) { $rules = @($cfg.$RulesKey) }
 
 if ($rules.Count -eq 0) {
-    Write-Output "PASS ${GateName}: no rules in $RulesKey (nothing to check)."
-    exit 0
+    # Fail closed: a copied-in gate with no rules would certify QA-blindness it never checked.
+    Write-Output "FAIL ${GateName}: no rules in $RulesKey - author at least one must_not_match over the production-internal surface (gates/README.md), or remove this gate."
+    exit 2
 }
 
 exit (Invoke-Rules $rules $GateName)

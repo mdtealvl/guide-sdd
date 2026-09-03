@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# qa_import_ban (TEMPLATE) — a partial structural proof of QA ⊥ implementation.
+# qa_import_ban (TEMPLATE) - a partial structural proof of QA ⊥ implementation.
 #
 # QA test files must NOT import/reference production internals beyond the contracted
 # surface. This is the structural half of the QA-blind independence guarantee: without it,
@@ -47,8 +47,9 @@ RULES=$(jq -c ".${RULES_KEY}[]?" "$CFG" 2>/dev/null)
 N=$(printf '%s\n' "$RULES" | sed '/^$/d' | grep -c . || true)
 
 if [ "$N" -eq 0 ]; then
-  echo "PASS $GATE: no rules in $RULES_KEY (nothing to check)."
-  exit 0
+  # Fail closed: a copied-in gate with no rules would certify QA-blindness it never checked.
+  echo "FAIL $GATE: no rules in $RULES_KEY - author at least one must_not_match over the production-internal surface (gates/README.md), or remove this gate."
+  exit 2
 fi
 
 run_rules "$GATE" <<EOF

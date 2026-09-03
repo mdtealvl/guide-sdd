@@ -1,6 +1,6 @@
 # GUIDE SDD — Gated, Unified, Intent-Driven Engineering
 
-> **v1.11.1 — 2026-09-02.** A reusable, token-efficient, spec-first / persona-split development
+> **v1.12.0 — 2026-09-02.** A reusable, token-efficient, spec-first / persona-split development
 > method that drops into large, multi-developer projects worked by humans **and** AI agents. It
 > merges two mature in-house practices (Mistwright's *How We Work*, Polars' *How To Develop*) with
 > the published SOTA into one copyable **spine** + a small, indexed **per-project surface**.
@@ -338,6 +338,19 @@ No invariant change; still ten. `plugin/` + root marketplace: `/sdd-init`, `/sdd
 `/sdd-gates`, `/sdd-persona`, `/wrap` `/stash` `/unstash`, and a PreToolUse hook that denies an `engineer`
 persona edits to `testGlobs` paths (invariant 3 at edit time). Spine unchanged and still canonical without the
 plugin. Full record in `constitution.changelog.md`.
+
+### v1.12.0 Amendment — enforcement hardening, intake, review loop (2026-09-02)
+
+No invariant change; still ten. Five adversarial reviews against BMAD v6.11 (`SDD-PROP-11`) found the
+test-edit ban defeatable and the pre-spec zone empty. **Enforcement:** `test_edit_ban` now diffs the
+QA-frozen SHA against the working tree (untracked + renames), fails on gate-config tamper, requires an
+ancestor base; `gates/freeze.*` records the SHA; `run_all` runs from the project root and refuses an unset
+`suiteCmd`; the plugin hook gained post-tool and stop-time sweeps, a QA read-guard and fail-closed;
+CI carries a negative control per bypass. **Method:** `intake.md` (raw request → Ready item, one goal,
+numbered-question loop, domain screen, readiness verdict PASS/CONCERNS/FAIL), a four-lens Stage-7
+Validation with class routing, revert-and-re-derive, a decline cap and scoring, `[DEFER]` and `lesson:`
+lines, a reason enum for surface-backs, claim leases and terminal states, `metrics.md`. Full record in
+`constitution.changelog.md`; deferrals listed there.
 
 ## Map to the source practices
 

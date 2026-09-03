@@ -20,7 +20,9 @@ On your first action here, **say so**, then operate under SDD — do NOT continu
 
 SDD role: `$SDD_BOX_ROLE` (default `po`), id `$SDD_BOX_ID`. A **worker** box claims
 (`claimed-by:$SDD_BOX_ID`) and executes Ready items, surfaces concerns to the changelog item, and flags
-`Ready-for-review`; it never authors specs, decides forks, or merges. See `sdd/box-roles.md`.
+`Ready-for-review`; it never authors specs, decides forks, or merges. See `sdd/box-roles.md`. If the
+values above still read as literal `$SDD_…`, INIT §1a was not completed: resolve them from the env or
+`sdd/project-config/box-role.local`, and say so.
 
 ## Your host capability tier (set at INIT — governs the persona loop)
 

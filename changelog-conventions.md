@@ -4,8 +4,9 @@ How to write a **well-formed changelog entry** — the content standard for one 
 **Identical in Mode A (external tracker) and Mode B (on-disk backlog)**; only *storage/mechanics*
 differ, bound in `project-details.md#CL-` (store, id format, states, transitions). This file =
 **what-goes-in-the-entry**; project details = **where-it-lives**. Demand-loaded — read at Stage 0
-(file/find an item) and Stage 3 (ACs seed the spec). `<ITEM-ID>` = the project's id
-(`project-details.md#CL-2`: e.g. `POL-142` Mode A, `BL-20260624-03` Mode B).
+(file/find an item; `intake.md` produces it from a raw request) and Stage 3 (ACs seed the spec).
+`<ITEM-ID>` = the project's id (`project-details.md#CL-2`: e.g. `POL-142` Mode A, `BL-20260624-03`
+Mode B).
 
 ---
 
@@ -21,6 +22,11 @@ differ, bound in `project-details.md#CL-` (store, id format, states, transitions
 > A Spike's deliverable is the decision written back to the item, never merged code. A Bug with no
 > failing test is not Ready — write the repro first.
 
+**Bug intake shape** (before the failing test exists): `expected:` the clause-ID and its text — or
+`no clause → brownfield slice first` (`greenfield-vs-brownfield.md`) · `actual:` what happened ·
+`repro:` input / state / steps · `env:` version, platform, data. The PO box writes the failing test
+from *expected*, never from *actual*.
+
 ---
 
 ## 2. Title — imperative + scoped
@@ -32,15 +38,18 @@ every commit, and the provenance pin (§4).
 
 ---
 
-## 3. Body — five parts, in order
+## 3. Body — the parts, in order
 
 | Part | Holds |
 |------|-------|
-| **Context / why** | the problem or motivation; one paragraph, no solutioning |
-| **The change** | what will be true after, at a high level |
-| **Non-goals** | what this item explicitly does **not** do (kills scope creep) |
-| **Dependencies & links** | other `<ITEM-ID>`s (blocks/blocked-by) **and** target spec **clause-IDs** |
-| **Right-size route** | `mechanical` / `persona` / `parallel` (from the Stage 0 2×2) + points |
+| **Verbatim request** | the PM's own words, quoted, unedited — the intent-alignment reference for Stage 7 review |
+| **Why** | the force (what is broken or missing), **who** it is for, **why now**; one paragraph, no solutioning |
+| **The change** | what will be true after, at a high level (the *what*, not the *how*) |
+| **Success signal** | one measurable line a test or demo can be judged against ("p95 export under 2 s at 10k rows", never "faster"); becomes an AC |
+| **Boundaries** | three tiers — **Always** (invariants the work must keep) · **Ask first** (decisions that HALT the worker and go to the PO: pre-authorised `[NEEDS-PO]` triggers) · **Never** (non-goals + forbidden approaches; kills scope creep) |
+| **Open questions / Assumptions** | numbered questions a PM can answer in one line; assumptions the PM must ratify. **Empty questions + ratified assumptions at Ready**; the answer is written beside the question, never in chat (`intake.md` §3) |
+| **Dependencies & links** | other `<ITEM-ID>`s (blocks / blocked-by, `split-from:`), target spec **clause-IDs**, the Project Details seams touched |
+| **Right-size route** | `mechanical` / `persona` / `parallel` (from the Stage 0 2×2) + points; brownfield stance |
 
 The **spec clause-ID** links are load-bearing: they tell the worker which shard(s) the work touches
 (`project-details.md#SPEC-`) and are where the ACs fold on Done (§4). For design-bearing work with
@@ -73,6 +82,10 @@ POL-142/AC-2 — If three consecutive retries return 429 then the system shall
                surface a "sync paused" notice and stop retrying.
 ```
 
+**Before Ready** an item may carry **capabilities** instead — `<ITEM-ID>/CAP-n — intent: … /
+success: …` — the *what* before the design that fixes the constants (Stage 1). Stage 1/3 converts
+each CAP into one or more ACs; CAP ids are never reused. An item is **Ready only with ACs**.
+
 ### The JOIN — AC → spec clause (Stage 7 fold)
 
 The AC is the **transient, point-in-time** form of a behaviour; the canonical **spec clause** is
@@ -90,33 +103,36 @@ back-derivable from the changelog.
 - **Parallel-dispatch bar:** parallel-dispatchable only when `≤ N` points, single surface, no
   TBDs, no config-shape changes. Threshold `N` and tweaks recorded in `project-details.md#RS-`
   (right-sizing overrides) — not hard-coded here.
-- **Ready bar:** an entry must meet **all seven items of the Definition of Ready** before a
-  **worker box** picks it up — `definition-of-done.md` (DoR) is the single source: title + type,
-  EARS ACs with stable ids, **no open forks / TBDs**, target spec shard(s) identified,
-  **prerequisites / viability noted**, points assigned, route recorded. An item failing any DoR
-  item is surfaced back (§6), not started.
+- **Ready bar:** an entry must meet **every item of the Definition of Ready** before a **worker
+  box** picks it up — `definition-of-done.md` (DoR) is the single source, closed by the PO's
+  **readiness verdict** (PASS / CONCERNS / FAIL). An item failing any DoR item is surfaced back (§6),
+  not started.
 
 ---
 
-## 6. Worker surfacing templates
+## 6. Item lines — surfacing, deferring, verdicts
 
-When a **worker box** hits anything above *"obvious from existing convention"* — an ambiguity, a
-spec bug, a missing prerequisite, an AC unreachable through a production API, or any fork — it does
-**not** guess and does **not** patch the canonical spec. It comments on the item using one of these
-templates, transitions the item to the **PO-attention** state (`project-details.md#CL-`), then
-**stops** on that item (it may pick another DoR-met item). The PO box resolves and re-readies. Full
-protocol in `box-roles.md`.
+A worker box, QA, the Engineer, or Validation writes to the item using these lines; they are the
+async channel and the metric source (`metrics.md`). Reasons are a **fixed enum** so a PO loop or a
+script can triage without reading prose.
 
-| Template | Use when |
-|----------|----------|
-| `[NEEDS-PO] <question / ambiguity>` | a spec or design **decision** the worker may not make (a fork, an unspecified threshold, an inadequate AC) |
-| `[BLOCKED] <reason / missing prerequisite>` | a prerequisite is missing or the item cannot proceed (broken dep, unavailable seam, failing baseline) |
+| Line | Use when | Transition |
+|------|----------|------------|
+| `[NEEDS-PO:<reason>] <question>` — reason ∈ `fork` · `threshold` · `ac-unreachable` · `spec-gap` · `intent-gap` | a spec or design **decision** the worker may not make | → PO-attention; stop on the item |
+| `[BLOCKED:<reason>] <detail>` — reason ∈ `dor-fail` · `base-unresolved` · `suite-red-at-pickup` · `prereq-missing` · `fixture-blocking` · `non-convergence` · `merge-conflict` | the item cannot proceed until something lands | → PO-attention; stop on the item |
+| `[DEFER] <summary> — evidence: <file:line>` | a finding **outside this unit's clause range** (pre-existing, incidental). Never fixed in this unit — that would break reverse trace | no transition; the PO loop converts each to a Bug/Task at intake |
+| `frozen: <sha>` | Stage 5 exit: the QA-frozen commit `test_edit_ban` diffs against (mirrored in `gates/.frozen`) | — |
+| `validated: <base>..<head> accept\|decline [class]` | every Stage 7 Validation pass, with the SHA range it read | decline → Rework:<class> (`box-roles.md`) |
+| `lesson: <rule or stage that would have caught it> — source: <file:line\|sha>` | one per decline, written by the Orchestrator; the PO reads open lessons at intake | — |
+| `split-from: <ITEM-ID>` · `kept-whole: PM <date>` | intake scope decisions (`intake.md` §2) | — |
 
 > The **distributed form** of *"ambiguity is a spec bug, routed through the Orchestrator, never
 > resolved in conversation."* The changelog item **is** the async PO ↔ worker channel. The
 > **obvious-only exception**: a worker MAY record an obvious-from-convention detail inline (the
 > auditable "PO working decision" pattern) and note it on the item; anything non-obvious goes to
-> `[NEEDS-PO]`. That line is the framework's existing right-sizing line, nothing wider.
+> `[NEEDS-PO]`. That line is the framework's existing right-sizing line, nothing wider. A worker that
+> surfaces transitions the item to **PO-attention** (`project-details.md#CL-7`) and **stops** on it
+> (it may pick another DoR-met item). Full protocol in `box-roles.md`.
 
 ---
 
@@ -130,8 +146,8 @@ spec. A revert is a changelog entry that folds a spec delta (Stage 7), not a sil
 **Production lessons re-enter the spec.** A behaviour gap discovered **in production** (incident,
 telemetry, support) is not closed in ops — it is filed as a **Bug** (starts from a failing test,
 §1) that **folds into the canonical spec**, or as a **spec correction** (Stage-3 update method: replace
-wholesale, own commit) where the spec was right but incomplete. The spec stays the single source of intended behaviour; storage bound in
-`project-details.md#CL-`.
+wholesale, own commit) where the spec was right but incomplete. The spec stays the single source of
+intended behaviour; storage bound in `project-details.md#CL-`.
 
 ## Retiring or superseding an item
 
@@ -142,8 +158,11 @@ never a silent delete. See `lifecycle-states.md`.
 
 ## Cross-links
 
+- **`intake.md`** — a raw request becomes this entry.
 - **Stage 0** (`stages/0_triage.md`) — file/find the item; right-size route.
 - **Stage 3** (`stages/3_spec.md`) — ACs are the **seed clauses** for the canonical spec.
-- **`definition-of-done.md`** — the DoR (Ready bar) and DoD this entry is measured against.
-- **`box-roles.md`** — PO vs worker authority; the surface-back protocol.
+- **Stage 7** (`stages/7_ship.md`) — the `validated:` / `[DEFER]` / `lesson:` lines.
+- **`definition-of-done.md`** — the DoR (Ready bar + readiness verdict) and DoD this entry is measured against.
+- **`box-roles.md`** — PO vs worker authority; the surface-back protocol; item state machine.
+- **`metrics.md`** — what these lines are counted into.
 - **`project-details.md#CL-`** — storage, id format, work-ready & PO-attention states, transitions.

@@ -14,8 +14,15 @@ common expensive mistake. (Standing rule, not a preference.)
 
 ## Do
 
-1. Surface unknowns in prose. Don't paper over them; follow the train of thought.
-2. Decide the forks **explicitly** — recommendations, not exhaustive surveys.
+1. Surface unknowns in prose. Don't paper over them; follow the train of thought. Then run the
+   **unknown-finding pass** — four questions, each answered or turned into an open question on the item:
+   - *Inversion* — what would guarantee this fails, is reverted, or is never used?
+   - *Second order* — what else changes when it ships (callers, stored data, docs, ops, cost)?
+   - *Seam walk* — for each touched `#SEAM-N`: what does the design need from it; what does it forbid?
+   - *Fixed-set check* — if one member of a set (enum, status code, role) is special-cased, what
+     happens to every other member?
+2. Decide the forks **explicitly** — recommendations, not exhaustive surveys. Convert the item's
+   `CAP-n` capabilities into the constants and thresholds the ACs will name.
 3. Name every prerequisite the design assumes exists (feeds Stage 2 recon).
 4. Keep it conversational and diagram-first — the human design surface and the LLM primary context at
    once; equally navigable to both.
@@ -41,4 +48,4 @@ common expensive mistake. (Standing rule, not a preference.)
 - PM approves the design prose (human gate).
 ### Return
 Return to PROCESS.md §0 and load Stage 2 (recon) if the plan rests on unverified prerequisites, else
-Stage 3 (spec). Drop this stage body from context.
+Stage 3 (spec). Read that stage file fully and follow it; this one is done.

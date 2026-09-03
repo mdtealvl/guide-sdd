@@ -1,22 +1,32 @@
 #!/usr/bin/env bash
-# run_all — the full gate bank, mechanical-first, fail-fast. Exits nonzero on the first
+# run_all - the full gate bank, mechanical-first, fail-fast. Exits nonzero on the first
 # failing gate, so it drops into CI and pre-merge hooks unchanged.
 #
 # Order (Stage 7 ship):
 #   link_check -> prose_check -> coverage_check -> test_edit_ban -> suite_green
 #     -> constitution_lint* -> seam_conformance* -> qa_import_ban* -> fold_check
 #     -> suite_green (re-run)
-# (*) project gates run only if their concrete (non-template) .sh script exists — a fresh
+# (*) project gates run only if their concrete (non-template) .sh script exists - a fresh
 #     repo is green before you author them.
+#
+# Working directory: the PROJECT ROOT - the git top-level of the tree the gates live in
+# (so a spine vendored at sdd/ still resolves `spec/**`, `tests/**` from the repo root).
+# Override with `projectRoot` in gates.config.json (relative to the spine directory) for a
+# non-git or nested layout. Every config path is root-relative.
+#
+# suite_green is REQUIRED: an unset suiteCmd is exit 2, never a silent skip - a bank that
+# prints ALL GATES PASSED without running the suite proves nothing.
 #
 # This .sh runner invokes the .sh siblings (the Linux/macOS path; needs git + jq).
 #
 # Usage:  sh gates/run_all.sh [baseRef] [--pre-fold] [--mechanical] [--strict]
-#   baseRef       optional merge base for diffs (defaults to config baseRef).
+#   baseRef       the QA-frozen SHA for test_edit_ban / prose_check / fold_check diffs.
+#                 Omitted: test_edit_ban reads gates/.frozen, else config baseRef (weak).
 #   --pre-fold    skip fold_check (and its post-fold suite re-run): the pins it checks
 #                 do not exist until the fold happens. Use for the Stage-7 pre-fold pass.
 #   --mechanical  skip test_edit_ban: the mechanical route has no QA/Engineer split, so a
-#                 single author legitimately writes tests + code together.
+#                 single author legitimately writes tests + code together. The route is
+#                 recorded on the changelog item; CI passes this flag from that record.
 #   --strict      forward --strict to fold_check: a configured resolver that errors/returns
 #                 non-zero FAILS instead of degrading. CI should run with --strict.
 #                 Also forwarded to prose_check (spec-form violations FAIL instead of WARN).
@@ -24,14 +34,21 @@
 set -u
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-# Run from the repo root (parent of gates/) so every path the gates resolve — spec
-# shards, test globs, the config — is repo-relative and portable across shells/CI.
-cd "$HERE/.."
-GD="$(basename "$HERE")"          # gate dir name, normally "gates"
-CFG="$GD/gates.config.json"
-
 . "$HERE/_common.sh"
 require_jq run_all
+
+# Resolve the project root: config projectRoot (relative to the spine dir) > git top-level > spine dir.
+PR=$(jq -r '.projectRoot // empty' "$HERE/gates.config.json" 2>/dev/null)
+if [ -n "$PR" ]; then
+  ROOT=$(cd "$HERE/.." && cd "$PR" 2>/dev/null && pwd) || { echo "FAIL run_all: projectRoot '$PR' does not exist"; exit 2; }
+else
+  TOP=$(git -C "$HERE" rev-parse --show-toplevel 2>/dev/null || true)
+  if [ -n "$TOP" ]; then ROOT=$(cd "$TOP" && pwd); else ROOT=$(cd "$HERE/.." && pwd); fi
+fi
+cd "$ROOT" || exit 2
+GD=${HERE#"$ROOT"/}; [ "$GD" = "$HERE" ] && GD="."   # gate dir relative to the root, e.g. gates or sdd/gates
+CFG="$GD/gates.config.json"
+[ -f "$CFG" ] || { echo "FAIL run_all: cannot read config $CFG (cwd $ROOT)"; exit 2; }
 
 BASE=""; PREFOLD=0; MECH=0; STRICT=0
 for a in "$@"; do
@@ -49,13 +66,15 @@ run_suite() {
   SUITE=$(read_cfg "$CFG" '.suiteCmd' '')
   case "$SUITE" in
     ""|"<from project-details"*)
-      echo "== suite_green == (skipped: set suiteCmd in gates.config.json)";;
+      echo "FAIL suite_green: suiteCmd is not set in $CFG - the bank cannot pass without the project suite (INIT section 5)."
+      exit 2 ;;
     *)
       echo "== suite_green =="
       sh -c "$SUITE" || fail suite_green;;
   esac
 }
 
+echo "== run_all == (root: $ROOT)"
 echo "== link_check =="
 bash "$HERE/link_check.sh" --config "$CFG" || fail link_check
 
@@ -71,7 +90,11 @@ if [ "$MECH" = 1 ]; then
   echo "== test_edit_ban == (skipped: mechanical route, no QA/Engineer split)"
 else
   echo "== test_edit_ban =="
-  bash "$HERE/test_edit_ban.sh" "$BASE" --config "$CFG" || fail test_edit_ban
+  if [ -n "$BASE" ]; then
+    bash "$HERE/test_edit_ban.sh" "$BASE" --config "$CFG" || fail test_edit_ban
+  else
+    bash "$HERE/test_edit_ban.sh" --config "$CFG" || fail test_edit_ban
+  fi
 fi
 
 run_suite

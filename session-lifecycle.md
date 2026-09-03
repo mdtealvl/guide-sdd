@@ -21,7 +21,9 @@ Per-project; path + layout bound in `project-details.md#CL-11`, seeded at INIT
 - `MEMORY.md` — the index loaded each boot; one line per memory, no content.
 - `HANDOFF.md` — the mutable "you are here" card; **overwritten each wrap, never appended** (history
   lives in the backlog). The next boot reads it FIRST.
-- `backlog.md` — the durable event log (Mode B) or a tracker pointer (Mode A).
+- the backlog is **not** here: Mode B keeps one file per item under `backlog/` at the repo root
+  (`#CL-1`, what `fold_check` resolves); Mode A keeps it in the tracker. This directory holds session
+  state only.
 - `stashes/` — named resume packs; `stashes/archive/` holds consumed packs.
 - `memory/` — banked trap memories (+ `memory/archive.md` for pruned entries).
 

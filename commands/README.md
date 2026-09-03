@@ -3,9 +3,9 @@
 > Bundled capability, **not spine**. SDD's spine governs the **item** lifecycle (Ready → Done); these
 > govern the **session/context** lifecycle — the ritual that gets durable state out of a volatile agent
 > context before it is cleared, so the next boot loses nothing. Origin: the 4x project's session
-> practice (2026-07-14). Deeper integration (a spine module, DoD gate, INIT auto-install + memory
-> seeding) is **proposed, not yet ratified** — see `project-config/PROPOSED_CHANGELOG.md`
-> (`SDD-PROP-01/03/05`). Until then these ship as a usable drop-in.
+> practice (2026-07-14). The spine module (`session-lifecycle.md`), the DoD lane-reconciliation item and
+> INIT memory seeding were ratified in v1.7 (`SDD-PROP-01/03/05`); these files are the Tier-A
+> implementation of that module, and the plugin ships them as skills.
 
 ## The three commands
 
@@ -35,7 +35,7 @@ Mode-A/B aware). Expected layout:
 <memory-dir>/
   MEMORY.md         # the index loaded each boot — one line per memory, no content
   HANDOFF.md        # the mutable "you are here" card — OVERWRITTEN each wrap, never appended
-  backlog.md        # the durable event log (Mode B) or a pointer to the tracker (Mode A)
+  (the backlog itself lives at #CL-1: backlog/ item files in Mode B, the tracker in Mode A)
   stashes/          # named resume packs; stashes/archive/ holds consumed packs
   memory/           # banked trap memories (+ memory/archive.md for pruned entries)
 ```

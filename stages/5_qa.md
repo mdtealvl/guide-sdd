@@ -4,7 +4,9 @@
 shard(s) from the manifest + the **PO-authored Stage-4 traceability matrix** (as input — you do not own
 it) + the `project-details.md#STK-N` test-home map + named seam rows (`project-details.md#SEAM-N`).
 **You do NOT see the implementation, the router, or any sibling working notes. That blindness is the
-independence — it is the whole point.**
+independence.** With the GUIDE SDD plugin the dispatcher sets `/sdd-persona qa` first: the hook then
+denies any Read/Grep/Glob under `paths.code`. Without it, the `qa_import_ban` gate proves the structural
+half only; the rest is on you.
 
 Persona route only. Implement tests for the matrix's scenarios, deriving every expected value (the
 oracle) from the **spec** — not from the matrix and never from the code. You do not author the coverage
@@ -75,9 +77,14 @@ ban holds for the Engineer regardless.
 ---
 ### Gate(s) that close this stage
 - `coverage_check` — run the gate for your OS: `gates/coverage_check.ps1` (Windows) /
-  `gates/coverage_check.sh` (Linux/macOS). See `gates/README.md`.
-  (PASS: every clause-ID → ≥1 test-ID).
+  `gates/coverage_check.sh` (Linux/macOS). (PASS: every clause-ID → ≥1 test-ID; tags in notes do not
+  count; skip/only markers are named.)
 - Suite is RED-as-expected and tests compile (Orchestrator re-runs to confirm).
-Tests are now **frozen** — the Engineer cannot edit them.
-### Return
-Return to PROCESS.md §0 and load Stage 6 (Engineer). Drop this stage body from context.
+- **Freeze** (Orchestrator): commit QA's tests, then `pwsh gates/freeze.ps1 -Unit <ITEM-ID>` /
+  `sh gates/freeze.sh --unit <ITEM-ID>`. It refuses a dirty tree, writes `gates/.frozen`, and prints the
+  `frozen: <sha>` line — **record it on the changelog item** (the item's copy is authoritative; the file
+  is a mirror), then commit the marker. That SHA is the base every later `test_edit_ban` diffs against.
+Tests are now **frozen** — the Engineer cannot edit them, and neither can the gate config.
+### Next
+Return to PROCESS.md §0 and load Stage 6 (Engineer). Read that stage file fully and follow it; this one
+is done.

@@ -229,3 +229,90 @@ and the config template.
   comparable frameworks surveyed 2026-09-02. `plugin.json` gains `"license": "MIT"`; README §Name and
   `plugin/README.md` state it. A README note asks forks to use a different name.
 - **Proposal.** SDD-PROP-10: only D1 (visibility) remains open.
+
+## v1.12.0 — Enforcement hardening, intake, review loop, autonomy vocabulary (per SDD-amend-v1.12.0, 2026-09-02)
+
+Origin: five adversarial reviews of the spine against BMAD v6.11.0 (enforcement holes, pre-spec zone,
+review loop, autonomy + evidence, context economy), triaged per `stages/7_ship.md` §3 and filed as
+SDD-PROP-11. No invariant changes; ten remain. Every doc change is demand-loaded; always-loaded text grew
+by one sentence (`AGENTS.md`, the unresolved-placeholder note).
+
+- **`test_edit_ban` rewritten (sh + ps1).** Diffs the QA-frozen base against the **working tree** —
+  committed, staged, unstaged and untracked, `--no-renames` so a test moved out of a test path shows as a
+  delete. FAILs when anything under the gate directory (config, scripts; `.frozen` may be added) differs from
+  the base. Base = argument, else `gates/.frozen`, else config `baseRef` with a WARN that a branch name can be
+  advanced; the base must resolve **and** be an ancestor of HEAD (exit 2). One glob dialect for the whole bank
+  (`**` spans directories, `*` does not, root-anchored) — the old fnmatch translator is no longer used. Trust
+  boundary stated in the script header: the authoritative SHA is the item's `frozen:` line; the file and the
+  hook are tripwires. Closes the bypasses the enforcement review verified: uncommitted edit, movable base,
+  config edit, rename-out, glob drift.
+- **`gates/freeze.*` (new helper).** Stage 5 exit: refuses a dirty tree, writes `gates/.frozen`
+  (`sha=`, `date=`, `unit=`), prints the `frozen:` line for the item and the commit command.
+- **`run_all` (sh + ps1).** Runs from the **project root** (git top-level; `projectRoot` config override) so a
+  spine vendored at `sdd/` resolves root-relative globs — the documented layout was broken before. `suiteCmd`
+  unset ⇒ **exit 2**, never a skipped-and-passed bank.
+- **`coverage_check` (sh + ps1).** `testTagExcludeGlobs` (default `**/*.md`, `**/*.txt`): a tag in a notes file
+  under `tests/` no longer counts. WARN line naming any tagged file with skip/only markers.
+- **`qa_import_ban` templates.** Empty `qaImportRules` ⇒ exit 2 (a copied-in gate certified nothing).
+- **Config template.** `testGlobs` now lists test infrastructure (`**/__tests__/**`, `**/__mocks__/**`,
+  `**/*.snap`, `**/jest.config.*`, `**/vitest.config.*`, `**/pytest.ini`, `**/conftest.py`) and nested test
+  dirs (`**/tests/**`); `testTagExcludeGlobs`; comments state root-relative paths and the frozen-SHA rule.
+- **Plugin hook — three passes** (`plugin/hooks/persona-guard.sh --pre|--post|--stop`, `hooks.json`).
+  *pre* (PreToolUse on Edit/Write/MultiEdit/NotebookEdit/Read/Grep/Glob): `engineer` may not edit
+  `testGlobs` paths, the gate bank, `.persona` or `.frozen`, and is refused **all** edits when the config is
+  unreadable (fail closed); `qa` may not Read/Grep/Glob under `paths.code`. *post* (PostToolUse on
+  Bash/Edit/Write/MultiEdit/NotebookEdit) and *stop*: `engineer` gets a working-tree sweep (status + diff vs
+  `.frozen`) naming any test/gate path that drifted and the revert command — catches heredocs, `sed -i`,
+  `mv`, `git checkout`. `ci/hook_test.sh` grows from 10 to 36 cases in a real git repo.
+- **CI negative controls.** `ci/smoke.sh` / `ci/smoke.ps1`: tag-in-notes ignored, skip-marker WARN,
+  test_edit_ban FAIL on uncommitted edit / untracked test / rename-out / config tamper / non-ancestor base,
+  freeze then PASS via `.frozen` then FAIL on a committed edit, `run_all` exit 2 on unset `suiteCmd`; every
+  case twinned on pwsh. A spine prose self-check runs warn-only (the spine fails its own form gate; tracked).
+  `ci/target-ci.template.yml`: a PR workflow for target repos so the verdicts are consumed.
+- **`intake.md` (new, demand-loaded).** Raw request → Ready item: input classes (rich / sparse / mixed / too
+  thin), preservation rule, verbatim request kept, one-goal test with `split-from:` / `kept-whole:`, the
+  numbered-question loop (re-ask only the missing), five unknown-finding prompts, the domain-implication
+  screen over the non-functional categories, CAP-n before AC-n, and the PO's readiness verdict.
+- **`changelog-conventions.md`.** Body gains Verbatim request, Why (force + who + why-now), Success signal,
+  Boundaries (Always / Ask-first / Never), Open questions / Assumptions; Bug intake shape; `CAP-n` pre-Ready;
+  §6 becomes the **item lines** with a fixed reason enum: `[NEEDS-PO:<reason>]`, `[BLOCKED:<reason>]`,
+  `[DEFER] … — evidence:`, `frozen:`, `validated: <base>..<head> accept|decline`, `lesson:`.
+- **`definition-of-done.md`.** DoR adds verbatim request, measurable success signal, open questions empty +
+  assumptions ratified, boundaries, the non-functional screen, and the **readiness verdict** (PASS /
+  CONCERNS / FAIL — "could a worker implement this without inventing a decision nothing records?"). DoD adds
+  the `frozen:` SHA + working-tree ban, the four-lens `validated:` line, and deferred-not-fixed.
+- **`stages/7_ship.md` rewritten.** Validation brief (HANDED / NOT HANDED / output schema); four lenses —
+  conformance, **hunt** (second fresh context, ≥10 findings, "what is missing", no persona framing),
+  verification gap ("if this broke, which test fails — read it"), intent alignment against the verbatim
+  request; the Orchestrator judges findings independently, assigns severity by consequence, scores (any
+  high ⇒ decline; `3×medium + low ≥ 5` ⇒ one more fresh pass); **class routing table** — `spec` writes
+  `KEEP:`/`AVOID:` and **resets to the frozen SHA** before Stage 3/5/6 re-derive, `test` → 5, `code` → 6,
+  `migration` → 2, `intentional-legacy` → 3, `out-of-range` → `[DEFER]`; `validation-pass:` cap of three then
+  `[BLOCKED:non-convergence]`; one `lesson:` per decline; merge policy table.
+- **`box-roles.md`.** Item state machine drawn with `Rework:<class>`; terminal states a worker may leave
+  (`Ready-for-review`, `PO-attention`, `Died:<gate>`); claim **lease** (default 2× cadence, renewed per loop,
+  expired claims reclaimable); gate-fix loop capped at three; PO loop reads open `lesson:` and `[DEFER]` lines
+  at intake; Ask-first boundaries are pre-declared `[NEEDS-PO:fork]` triggers.
+- **`metrics.md` (new).** Five outcome metrics (first-pass acceptance, surface-backs by reason, test
+  challenges by resolution, post-ship defects in 30 days, route share + re-triage), each from an artifact the
+  method already writes; how to read them; what they do not claim.
+- **Stages 0, 1, 5, 6.** Stage 0: "is it an item yet?" → `intake.md`; **Q0 one goal** before Q1/Q2. Stage 1:
+  the unknown-finding pass; CAP → constants. Stage 5: QA read-guard note; **freeze** as a closing step with
+  the `frozen:` line. Stage 6: the three-pass hook, test infrastructure in the ban, gate reads `.frozen`.
+  Every stage tail now says "read the next stage file fully and follow it" instead of "drop this body from
+  context" (an instruction no LLM can execute); inline gate commands no longer point at `gates/README.md`.
+- **Context fixes.** `CLAUDE.md` `@`-imports `sdd/constitution.md` — the constitution was pointed at, not
+  injected. `AGENTS.md` says what to do when the `$SDD_…` placeholders are still literal. `PROCESS.md`: the
+  whole file is §0 (the old "read §0 then stop" sent the reader past §0 for the stage index); the
+  maintainer-only section is two lines; demand-loaded list gains `intake.md` and `metrics.md`; the undefined
+  "adversarial verify" persona is now the Stage-7 hunt pass; defects route per §3. **Backlog layout
+  contradiction resolved:** Mode B is one file per item under `backlog/` at the repo root (`#CL-1`, what
+  `fold_check` resolves); `session-lifecycle.md`, `commands/wrap.md` (+ the wrap skill), `commands/README.md`,
+  INIT and `#CL-11` no longer describe a single `backlog.md` in the memory dir. `commands/README.md` no longer
+  calls v1.7 content "proposed". `gates/README.md` documents the frozen-SHA trust boundary, the root cwd, the
+  mandatory suite, the new keys, and the negative-control rule for gate authors.
+- **Deferred (SDD-PROP-11 phase 2), listed so no one mistakes them for done:** a JUnit/TRX-based
+  `coverage_ran` gate; a machine-readable item-status script and event hooks for an unattended
+  orchestrator; `ci/evidence.*` to compute `metrics.md`; the spine meeting its own `prose_check` bar; a
+  rendered single-file mechanical lane and persona briefs; a Bash read-guard for the `qa` persona; recording
+  the route on a committed artifact so `--mechanical` is not the agent's say-so; PROP-06 `any_match`.

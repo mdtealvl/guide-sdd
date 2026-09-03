@@ -73,7 +73,7 @@ Both modes satisfy constitution §8 identically; only storage differs.
 | CL-8 | Entry-writing standard / DoR-DoD | `sdd/changelog-conventions.md` (well-formed entry); `sdd/definition-of-done.md` (DoR/DoD gates) — mode-independent | _same two docs_ |
 | CL-9 | **Claim** (worker stamps before starting; only an unclaimed Ready item) | _a comment `claimed-by:<SDD_BOX_ID>` + timestamp_ | _a `claimed-by: <SDD_BOX_ID>` line on the entry_ |
 | CL-10 | **Ready-for-review state** (worker flags; PO box reviews + merges) | _e.g. Jira `Ready for Review` / a label_ | _a `status: review` line on the entry_ |
-| CL-11 | **Project memory directory** — session-lifecycle home (`session-lifecycle.md`), seeded at INIT: `MEMORY.md` index, `HANDOFF.md` (overwrite-only card), `stashes/` (+ `archive/`), `memory/`. `backlog.md` here in Mode B; in Mode A the backlog is the tracker (CL-1) and this dir holds only MEMORY/HANDOFF/stashes. | _e.g. `docs/memory/` (HANDOFF + MEMORY + stashes; backlog = tracker)_ | _e.g. `docs/memory/` (incl. `backlog.md`)_ |
+| CL-11 | **Project memory directory** — session-lifecycle home (`session-lifecycle.md`), seeded at INIT: `MEMORY.md` index, `HANDOFF.md` (overwrite-only card), `stashes/` (+ `archive/`), `memory/`. Session state only — the backlog itself lives at CL-1 (`backlog/` item files in Mode B; the tracker in Mode A). | _e.g. `docs/memory/`_ | _e.g. `docs/memory/`_ |
 
 > **Box loops:** worker poll ~15–30 min, PO poll ~30 min; `SDD_BOX_ID` + cadence are per-box (`box-role.local`). Workers never merge — they flag CL-10 and the PO box owns the serialized merge. See `box-roles.md` §"Box loops & coordination".
 
