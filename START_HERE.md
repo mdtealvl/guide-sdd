@@ -20,7 +20,7 @@ current stage, never the whole framework. Before touching code in an existing re
 ## If you are a human
 
 - **What it is:** a reusable, token-efficient, spec-first method for projects worked by humans *and* AI agents. The spec is the source of truth; code conforms; a 2×2 right-sizes each task; risky work is split across independent agents so a misread can't ship.
-- **5-minute tour:** open `welcome.html` in a browser.
+- **5-minute tour:** open `welcome.html` in a browser, or the hosted copy at <https://mdtealvl.github.io/guide-sdd/>.
 - **Adopt it:** walk `project-config/INIT.md` (≈20 min).
 
 ## Map
@@ -38,5 +38,5 @@ current stage, never the whole framework. Before touching code in an existing re
 | To retire something safely | `lifecycle-states.md` |
 | The gates (PowerShell + Bash) | `gates/README.md` |
 | The spec format | `spec-format/README.md` |
-| A pretty tour | `welcome.html` |
+| A pretty tour | `welcome.html` (hosted: <https://mdtealvl.github.io/guide-sdd/>) |
 | The full picture | `README.md` |

@@ -1,0 +1,40 @@
+name: pages
+# GUIDE SDD landing page: publishes welcome.html as the GitHub Pages site index
+# (https://<owner>.github.io/<repo>/). The page is self-contained; its relative *.md links are
+# rewritten at build time to the rendered files on GitHub, so nothing else needs hosting.
+on:
+  push:
+    branches: [main]
+    paths: [welcome.html, .github/workflows/pages.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Assemble the site (welcome.html -> index.html; .md links -> GitHub)
+        run: |
+          mkdir -p _site
+          sed -E "s#href=\"([A-Za-z0-9_./-]+\.md)\"#href=\"https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/\1\"#g" welcome.html > _site/index.html
+          echo "rewritten links: $(grep -c "github.com/${GITHUB_REPOSITORY}/blob/" _site/index.html)"
+          ! grep -qE 'href="[A-Za-z0-9_./-]+\.md"' _site/index.html
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

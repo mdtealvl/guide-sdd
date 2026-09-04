@@ -5,6 +5,9 @@
 > merges two mature in-house practices (Mistwright's *How We Work*, Polars' *How To Develop*) with
 > the published SOTA into one copyable **spine** + a small, indexed **per-project surface**.
 
+**Start here:** the rendered welcome page (the 5-minute tour) is at **<https://mdtealvl.github.io/guide-sdd/>**;
+the agent's front door is `START_HERE.md`; adopting it is **Install** below.
+
 ## Name
 
 **GUIDE SDD** — *Gated, Unified, Intent-Driven Engineering*, a spec-driven development (SDD) method.
