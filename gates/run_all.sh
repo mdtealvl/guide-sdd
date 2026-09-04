@@ -3,11 +3,13 @@
 # failing gate, so it drops into CI and pre-merge hooks unchanged.
 #
 # Order (Stage 7 ship):
-#   link_check -> prose_check -> coverage_check -> test_edit_ban -> suite_green
+#   link_check -> prose_check -> coverage_check -> test_edit_ban -> structure_check -> suite_green
 #     -> constitution_lint* -> seam_conformance* -> qa_import_ban* -> fold_check
 #     -> suite_green (re-run)
 # (*) project gates run only if their concrete (non-template) .sh script exists - a fresh
 #     repo is green before you author them.
+# structure_check runs its --frozen half (approved diagram unchanged vs the frozen base) only on
+# the persona route's --pre-fold pass; the forward trace runs in every pass.
 #
 # Working directory: the PROJECT ROOT - the git top-level of the tree the gates live in
 # (so a spine vendored at sdd/ still resolves `spec/**`, `tests/**` from the repo root).
@@ -96,6 +98,20 @@ else
     bash "$HERE/test_edit_ban.sh" --config "$CFG" || fail test_edit_ban
   fi
 fi
+
+# structure_check: on the persona route's pre-fold pass the PM-approved diagram must equal the frozen
+# base (the fold itself rewrites the canonical shard, so the post-fold pass skips this half); the
+# forward trace (every diagram class/member exists under paths.code) runs in every pass.
+if [ "$MECH" = 0 ] && [ "$PREFOLD" = 1 ]; then
+  echo "== structure_check --frozen =="
+  if [ -n "$BASE" ]; then
+    bash "$HERE/structure_check.sh" --frozen "$BASE" --config "$CFG" || fail structure_check
+  else
+    bash "$HERE/structure_check.sh" --frozen --config "$CFG" || fail structure_check
+  fi
+fi
+echo "== structure_check =="
+bash "$HERE/structure_check.sh" --config "$CFG" || fail structure_check
 
 run_suite
 

@@ -25,5 +25,6 @@ session boots cold from durable artifacts with zero loss. Do these IN ORDER, the
    belongs in the backlog, never here.
 7. **MEMORY.md budget check**: if over ~200 lines, prune superseded entries (old session_*
    summaries whose content is in backlog/commits) into memory/archive.md.
-8. **Report** ≤10 lines: lanes reconciled (with verdicts), commits, what the next session
+8. **Report** ≤10 lines: lanes reconciled (with verdicts), commits, the `tokens:` line of each
+   slice closed this session (`gates/token_ledger.* report --slice`), what the next session
    should do first, then the literal line: **"Cleared for /clear."** Do not start new work.

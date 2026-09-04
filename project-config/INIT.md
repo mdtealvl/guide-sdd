@@ -144,6 +144,10 @@ binding, pointer-doc map are each their own growable section. At minimum, regist
    - `testGlobs` — where the test files live, **plus** snapshots and test-runner config (`jest.config.*`,
      `pytest.ini`, `conftest.py`): an Engineer who can edit those can silence a test without touching it.
      One dialect everywhere: `**` spans directories, `*` does not, anchored at the root.
+   - `structureGlobs` — the PM-approved structure shards (default `**/*.structure.body.md`): frozen with
+     the tests (`structure_check --frozen`, the plugin hook) and forward-traced into `paths.code` at ship.
+   - `buildPlan.glob` / `buildPlan.tokensPerChar` — where the Stage-4b build plan lives
+     (`**/*.buildplan.md`) and the estimate `token_ledger` reports (`0.25` ≈ 4 chars per token).
    - `baseRef` — fallback only. `test_edit_ban` diffs the **QA-frozen SHA** (the item's `frozen:` line,
      mirrored in `gates/.frozen` by `gates/freeze.*`); a branch name is warned as weak.
    - `suiteCmd` — the suite-green command (mirror from project-details `#TOOL-3`). **Mandatory:**

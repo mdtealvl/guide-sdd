@@ -44,6 +44,8 @@ gates source; keep them next to the gates. Runs on a fresh clone with no project
 | coverage_check | `coverage_check.ps1` / `.sh` | generic | every behavioural clause-ID → ≥1 test-ID (both directions). **Whole-corpus by default** (ship invariant); **`--manifest` for per-unit** in-loop runs | 4 (`--plan`), 5 |
 | test_edit_ban | `test_edit_ban.ps1` / `.sh` | generic | no test file, snapshot, test-runner config, gate script or gate config differs from the **QA-frozen SHA** — working tree incl. untracked, renames not collapsed; base must be an ancestor of HEAD (QA⊥Engineer, structurally) | 6, 7 |
 | freeze | `freeze.ps1` / `.sh` | generic (helper) | records the QA-frozen SHA in `gates/.frozen` at Stage 5 exit and prints the `frozen:` line for the item; refuses a dirty tree | 5 |
+| structure_check | `structure_check.ps1` / `.sh` | generic | the PM-approved **member-level structure diagram** holds: `--plan` every structure shard is member-level; `--frozen` no structure shard differs from the **QA-frozen SHA** (the deviation guard; persona pre-fold pass); default every diagram class/member resolves to an identifier under `paths.code` and a `Removed` class is absent (forward trace, every pass) | 3 / 4b (`--plan`), 6 (`--frozen`), 7 |
+| token_ledger | `token_ledger.ps1` / `.sh` | generic (helper) | the Stage-4b read ledger: `add` appends a hash-stamped row with its token estimate, `verify` names STALE rows (exit 1), `report` prints the `tokens:` lines (admitted / saved per slice + plan) | 4b, every slice end, 7 |
 | link_check | `link_check.ps1` / `.sh` | generic | every spec cross-ref resolves to a real anchor/shard | 3, 7 |
 | prose_check | `prose_check.ps1` / `.sh` | generic | spec shards are terse and structured (SDD-PROP-09): paragraph-word share + longest paragraph per shard, **changed shards vs base** by default (`-All` / `--all` for the corpus); `proseCheck.mode` warn / strict / off | 3, 7 |
 | fold_check | `fold_check.ps1` / `.sh` | generic | every clause changed this ship carries a resolving provenance pin. CI runs **`--strict`** | 7 |
@@ -72,8 +74,10 @@ that contract.
 
 Each line below gives the **Windows (`pwsh …`) / Linux–macOS (`sh …`)** invocation. Run one, not both.
 
-- **Per-stage:** `link_check` + `prose_check` after any spec edit (Stage 3); `coverage_check --plan` at Stage 4;
-  `coverage_check` then `freeze` at end of Stage 5; `test_edit_ban <frozen-sha>` + `suite_green` at end of Stage 6.
+- **Per-stage:** `link_check` + `prose_check` + `structure_check --plan` after any spec edit (Stage 3);
+  `coverage_check --plan` at Stage 4; `structure_check --plan` + `token_ledger verify` / `report` at Stage 4b
+  and `token_ledger report --slice` at every slice end; `coverage_check` then `freeze` at end of Stage 5;
+  `test_edit_ban <frozen-sha>` + `structure_check --frozen <frozen-sha>` + `suite_green` at end of Stage 6.
 
   | Gate | Windows | Linux / macOS |
   |---|---|---|
@@ -86,6 +90,11 @@ Each line below gives the **Windows (`pwsh …`) / Linux–macOS (`sh …`)** in
   | coverage_check (per-unit) | `pwsh gates/coverage_check.ps1 -Manifest <file>` | `sh gates/coverage_check.sh --manifest <file>` |
   | freeze (Stage 5 exit) | `pwsh gates/freeze.ps1 -Unit <ITEM-ID>` | `sh gates/freeze.sh --unit <ITEM-ID>` |
   | test_edit_ban | `pwsh gates/test_edit_ban.ps1 <frozen-sha>` (no arg: reads `gates/.frozen`) | `sh gates/test_edit_ban.sh <frozen-sha>` (no arg: reads `gates/.frozen`) |
+  | structure_check (plan) | `pwsh gates/structure_check.ps1 -Plan` | `sh gates/structure_check.sh --plan` |
+  | structure_check (frozen diagram) | `pwsh gates/structure_check.ps1 -Frozen <frozen-sha>` (no sha: reads `gates/.frozen`) | `sh gates/structure_check.sh --frozen <frozen-sha>` (no sha: reads `gates/.frozen`) |
+  | structure_check (forward trace) | `pwsh gates/structure_check.ps1` (`-Changed <base>` to scope) | `sh gates/structure_check.sh` (`--changed <base>` to scope) |
+  | token_ledger (add a row) | `pwsh gates/token_ledger.ps1 add -Plan <file> -Kind <read\|range\|grep\|pin\|skip> -By <S> [-For <S\|*>] [-Aud any\|qa\|eng] -Path <p> [-Range <r>] [-Note <t>]` | `sh gates/token_ledger.sh add --plan <file> --kind … --by … [--for …] [--aud …] --path … [--range …] [--note …]` |
+  | token_ledger (verify / report) | `pwsh gates/token_ledger.ps1 verify -Plan <file> [-For <S>]` · `… report -Plan <file> [-Slice <S>]` | `sh gates/token_ledger.sh verify --plan <file> [--for <S>]` · `… report --plan <file> [--slice <S>]` |
   | fold_check | `pwsh gates/fold_check.ps1 -Base <baseRef>` | `sh gates/fold_check.sh --base <baseRef>` |
   | fold_check (CI, strict) | `pwsh gates/fold_check.ps1 -Base <baseRef> -Strict` | `sh gates/fold_check.sh --base <baseRef> --strict` |
   | constitution_lint | `pwsh gates/constitution_lint.ps1` | `sh gates/constitution_lint.sh` |
@@ -116,6 +125,35 @@ Each line below gives the **Windows (`pwsh …`) / Linux–macOS (`sh …`)** in
   persona. It does not prove a tagged test ran or passed — that is `suite_green` plus the Stage-7 review
   (a JUnit-based `coverage_ran` gate is a tracked follow-up, SDD-PROP-11).
 
+  **structure_check — what it proves, and what it leaves to Validation.** A structure shard
+  (`structureGlobs`, default `**/*.structure.body.md`) holds fenced `mermaid` `classDiagram` blocks at
+  member level; a transient shard is a delta under `## Added` / `## Changed` / `## Removed`, a canonical
+  one is the area's current state. `--plan` proves shape (≥ 1 class with ≥ 1 member; a memberless class is
+  WARNed). `--frozen [sha]` is the **deviation guard**: the same working-tree diff as `test_edit_ban`
+  (committed, staged, unstaged, untracked; renames not collapsed) over the structure globs, fail-closed on
+  a base that does not resolve or is not an ancestor of HEAD — `run_all` runs it on the persona route's
+  `--pre-fold` pass only, because the Stage-7 fold legitimately rewrites the canonical shard. The default
+  **forward trace** proves every class and member named under Added / Changed / an unlabelled block
+  resolves to an identifier under `paths.code` (`git grep -w`, tracked + untracked, the structure shards
+  themselves excluded) and that a class under Removed is absent (a removed *member* still present is a
+  WARN — the name may live on elsewhere). Matching is by **name**, stack-agnostic: it proves the planned
+  member exists somewhere in the tree, not that it hangs off the planned class. The **reverse trace** — no
+  public member in the diff that the diagram lacks — is the Stage-7 Validation lens 2a, read from the
+  diff; a language-aware extractor is a tracked follow-up (SDD-PROP-12).
+
+  **token_ledger — what it measures.** The Stage-4b build plan (`buildPlan.glob`, default
+  `**/*.buildplan.md`) ends in a `## Ledger` table: `| kind | by | for | aud | path | range | hash | full |
+  est | note |`. `add` computes `hash` (`git hash-object`, 7 chars), `full` (whole-file tokens) and `est`
+  (tokens of the range / grep window / pasted note; `0` for `skip`; the admitted tokens for `read`), with
+  tokens = `ceil(chars × buildPlan.tokensPerChar)` (default `0.25`); it refuses a `qa`-audience row that
+  points into `paths.code`. `verify` compares each row's hash with the file now and prints `STALE` (exit 1)
+  for any drift — a reader reconciles, never assumes. `report` sums, per slice, `admitted` (its `read`
+  rows) and `saved` (for each advice row aimed at it: the whole-file cost if it never opened the file, the
+  difference if it read a range, nothing if it read the whole file — that row is "not honoured"), and prints
+  `tokens: <slice> admitted ~A; saved ~V (P%); ledger H/N honoured` plus a plan line with the planning
+  cost `P`. ASCII on both twins, recomputable from the table, **an estimate from bytes admitted — never a
+  billed count**.
+
   **prose_check — spec form, measured.** Per shard: **paragraph share** (words inside paragraph text ÷
   all words; list items, table cells, code, headings and definition lists are *structured*) and the
   **longest paragraph**. HTML shards count `<p>` outside structured elements plus loose text; Markdown
@@ -139,10 +177,11 @@ Each line below gives the **Windows (`pwsh …`) / Linux–macOS (`sh …`)** in
 
 - **Ship (Stage 7):** run the whole bank, fail-fast, in order:
   ```
-  link_check → prose_check → coverage_check → test_edit_ban → suite_green
+  link_check → prose_check → coverage_check → test_edit_ban → structure_check → suite_green
              → constitution_lint* → seam_conformance* → qa_import_ban* → fold_check
              → suite_green (re-run)
   ```
+  (`structure_check --frozen` precedes the trace on the persona route's `--pre-fold` pass only.)
   - **Windows:** `pwsh gates/run_all.ps1 [baseRef] [-PreFold] [-Mechanical] [-Strict]`
   - **Linux / macOS:** `sh gates/run_all.sh [baseRef] [--pre-fold] [--mechanical] [--strict]`
 
@@ -179,6 +218,8 @@ in a script.
 | `paths.spec` | glob for content-only spec shards (`spec/**/*.body.md`). |
 | `paths.tests` / `testGlobs` | globs identifying test files **and test infrastructure** — snapshots, `jest.config.*`, `pytest.ini`, `conftest.py` (coverage_check scans tags; test_edit_ban forbids edits; the plugin hook denies them at edit time). One dialect everywhere: `**` spans directories, `*` does not, anchored at the project root. |
 | `testTagExcludeGlobs` | files under `testGlobs` whose `@clause:` tags do **not** count as coverage (default `**/*.md`, `**/*.txt`). |
+| `structureGlobs` | the PM-approved structure shards (default `**/*.structure.body.md`): `structure_check --frozen` forbids edits vs the frozen SHA, the plugin hook denies the `engineer` persona, the forward trace resolves their members under `paths.code`. |
+| `buildPlan` | `glob` for the Stage-4b build plan (default `**/*.buildplan.md`) and `tokensPerChar` (default `0.25`), the estimate every `token_ledger` number uses. |
 | `paths.code` | the implementation glob (`src/**`); the plugin hook denies the `qa` persona reads under it. |
 | `baseRef` | fallback base for diffs (`main`). `test_edit_ban` uses the QA-frozen SHA (argument, else `gates/.frozen`) and warns when it falls back to a branch name. |
 | `projectRoot` | optional; the project root relative to the spine directory, for a non-git layout. Default: the git top-level. |

@@ -1,14 +1,17 @@
 #!/usr/bin/env sh
 # GUIDE SDD persona guard - three passes, one script (the TEA write-time-control shape):
 #   --pre  (PreToolUse; default)  engineer: deny Edit/Write/MultiEdit/NotebookEdit to any testGlobs path,
-#                                 to the gate directory (config + scripts) and to the .persona/.frozen markers;
+#                                 to any structureGlobs path (the PM-approved member-level diagram; a
+#                                 deviation is [NEEDS-PO:structure], never an edit), to the gate directory
+#                                 (config + scripts) and to the .persona/.frozen markers;
 #                                 FAIL CLOSED (deny) when the gate config cannot be read.
 #                                 qa: deny Read/Grep/Glob whose path is under paths.code - QA is blind to the
 #                                 implementation (invariant 3); it reads spec + tests only.
 #   --post (PostToolUse)          engineer: sweep the working tree after ANY tool (Bash heredocs, sed -i, mv,
-#                                 git checkout, NotebookEdit): a test path or gate file that differs from the
-#                                 frozen base (gates/.frozen) or is dirty/untracked -> exit 2 naming the paths
-#                                 and the revert command. The write already happened; the sweep makes it loud.
+#                                 git checkout, NotebookEdit): a test path, structure shard or gate file that
+#                                 differs from the frozen base (gates/.frozen) or is dirty/untracked -> exit 2
+#                                 naming the paths and the revert command. The write already happened; the
+#                                 sweep makes it loud.
 #   --stop (Stop)                 engineer: the same sweep at turn end - catches a codegen script that wrote
 #                                 files it never named. Skipped when stop_hook_active is set (no loops).
 # Persona source, first match wins: env SDD_PERSONA, else the marker file sdd/.persona (written by the
@@ -57,6 +60,7 @@ gd=$(dirname "$cfg"); gd=${gd#"$root"/}
 flat=$(tr -d '\r\n' < "$cfg")
 arr() { printf '%s' "$flat" | sed -n "s/.*\"$1\":[[:space:]]*\[\([^]]*\)\].*/\1/p" | tr ',' '\n' | sed 's/^[[:space:]]*"//; s/"[[:space:]]*$//; /^$/d'; }
 globs=$(arr testGlobs)
+sglobs=$(arr structureGlobs)
 code=$(printf '%s' "$flat" | sed -n 's/.*"paths":[[:space:]]*{[^}]*"code":[[:space:]]*"\([^"]*\)".*/\1/p')
 
 # glob -> anchored ERE, the bank's one dialect: ** spans directories, * does not.
@@ -87,6 +91,11 @@ if [ "$mode" = pre ]; then
       "$gd"/*|"$gd") echo "GUIDE SDD persona guard: SDD_PERSONA=engineer may not edit the gate bank ($rel) - config and scripts are frozen with the tests; test_edit_ban fails on any change." >&2; exit 2 ;;
       *.persona|*/.persona|*.frozen|*/.frozen) echo "GUIDE SDD persona guard: SDD_PERSONA=engineer may not edit the persona/frozen markers ($rel)." >&2; exit 2 ;;
     esac
+    hit=$(matches_any "$rel" "$sglobs")
+    if [ -n "$hit" ]; then
+      echo "GUIDE SDD persona guard: SDD_PERSONA=engineer may not edit the approved structure diagram ($rel matches structureGlob '$hit'). A deviation is [NEEDS-PO:structure] on the item - the PM decides, the PO replaces the shard wholesale and re-freezes." >&2
+      exit 2
+    fi
     hit=$(matches_any "$rel" "$globs")
     [ -n "$hit" ] || exit 0
     echo "GUIDE SDD persona guard: SDD_PERSONA=engineer may not edit test files ($rel matches testGlob '$hit'). Tests belong to QA (invariant 3) - surface the need in the changelog item instead." >&2
@@ -115,6 +124,7 @@ changed=$( {
 [ -n "$changed" ] || exit 0
 bad=$(printf '%s\n' "$changed" | while IFS= read -r p; do
   case "$p" in "$gd"/.frozen) continue ;; "$gd"/*) echo "$p (gate bank)"; continue ;; esac
+  h=$(matches_any "$p" "$sglobs"); [ -n "$h" ] && { echo "$p (structureGlob '$h')"; continue; }
   h=$(matches_any "$p" "$globs"); [ -n "$h" ] && echo "$p (testGlob '$h')"
 done)
 [ -n "$bad" ] || exit 0

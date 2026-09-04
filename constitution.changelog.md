@@ -316,3 +316,63 @@ by one sentence (`AGENTS.md`, the unresolved-placeholder note).
   orchestrator; `ci/evidence.*` to compute `metrics.md`; the spine meeting its own `prose_check` bar; a
   rendered single-file mechanical lane and persona briefs; a Bash read-guard for the `qa` persona; recording
   the route on a committed artifact so `--mechanical` is not the agent's say-so; PROP-06 `any_match`.
+
+## v1.13.0 — Structure diagram, build plan + read ledger, token readout (per SDD-amend-v1.13.0, 2026-09-03)
+
+Origin: a PO request filed as SDD-PROP-12 — a member-level class diagram approved with the spec and guarded
+against deviation; a build plan after approval that sequences files and tells later slices what to read;
+token spend and savings measured and reported per slice and per plan. No invariant changes; ten remain.
+Every new doc is demand-loaded; `PROCESS.md` §0 grew by one Stage-Index row, one route hop and one
+DoD-summary clause.
+
+- **Structure shard** (`*.structure.body.md`, `structureGlobs`). Stage 1 step 6 — the last sub-step of the
+  design pass — draws the member-level mermaid `classDiagram` (text is the source; the drawing derives) in
+  delta form, `## Added` / `## Changed` / `## Removed`, after the forks are decided, conforming to the area's
+  canonical structure shard. Stage 3 approves it **with the spec** (mechanical route: written there, or
+  `structure: N/A — <reason>` on the item); the Stage-5 freeze covers it; Stage 6 may not edit it — a
+  needed deviation is `[NEEDS-PO:structure]`, **PM-only** (the PO never arbitrates structure; approved ⇒
+  the PO replaces the shard wholesale, own commit, and re-freezes); Stage-7 lens 2a reads the diff against
+  it, and the fold merges the delta into the area's canonical structure shard, pinned per class with a
+  `%%` comment. Private members are the Engineer's; the diagram is the public surface.
+- **`structure_check` (sh + ps1, generic).** `--plan`: every structure shard is member-level (a memberless
+  class WARNs). `--frozen [sha]`: no structure path differs from the frozen SHA — working tree incl.
+  untracked, renames not collapsed, fail-closed on a bad base. Default: the forward trace — every class /
+  member under Added / Changed / an unlabelled block resolves to an identifier under `paths.code`
+  (`git grep -w`, tracked + untracked, structure shards excluded); a Removed class must be absent (FAIL), a
+  removed member still present WARNs. Matching is by name, stack-agnostic. Wired into `run_all` after
+  `test_edit_ban`: `--frozen` on the persona route's `--pre-fold` pass only (the fold rewrites the
+  canonical shard), the trace on every pass. The reverse trace stays with Validation.
+- **Plugin hook.** The `engineer` persona is denied edits to `structureGlobs` paths; the post/stop sweeps
+  name structure drift vs the frozen SHA. `ci/hook_test.sh` 36 → 41 cases.
+- **Stage 4b — Build plan** (`stages/4b_buildplan.md`; every route, after the test plan). One
+  `<ITEM-ID>.buildplan.md` beside the transient spec (`SPEC-9`; archived, never folded): a **file map**
+  (structure-shard classes → paths → owner slice), a **sequence** of slices (one persona context × one
+  ordered write set; dependencies first, then locality — resume a live agent over re-dispatching, unless
+  the persona must be blind or fresh), per-slice **briefs** (stage file + shard-manifest slice +
+  audience-filtered ledger rows + filtered gate commands + budget) and the **read ledger**: `read` rows
+  (what a slice admitted) and advice rows `range` / `grep` / `pin` / `skip` for later slices, each with
+  the file's blob hash and an audience — `qa` rows never point into `paths.code`, Validation gets none.
+  Optimizations stated as rules: read once then range; pins over reads; skip lists for the negative space;
+  grep anchors where line numbers will drift; per-slice shard manifest; QA's test-body pins for the
+  Engineer; a spine load list per slice; the stale-pin guard; budget then readout.
+- **`token_ledger` (sh + ps1, helper).** `add` computes hash / full / est (`ceil(chars × tokensPerChar)`,
+  default 0.25) and appends the row, refusing a `qa` row into `paths.code`; `verify` prints `STALE` rows
+  and exits 1; `report` prints `tokens: <slice> admitted ~A; saved ~V (P%); ledger H/N honoured` per
+  slice and a plan line with the planning cost `P`. Savings rule: the whole-file cost an advice row let a
+  slice skip, credited only where the slice did not read the whole file. ASCII output so both twins are
+  byte-identical; every number recomputable from the table; an estimate from bytes admitted, never billed.
+  Config `buildPlan.glob` / `tokensPerChar`.
+- **Readout.** Stage 5 and Stage 6 close each slice with the `tokens:` line on the item; Stage 7 §4 (2b/2c)
+  folds the structure delta, writes the plan line and archives the build plan; `/wrap` (spine, command and
+  skill) reports the session's slice lines; `metrics.md` gains the cost row beside the five outcomes;
+  `changelog-conventions.md` §6 gains the `structure` reason, `structure: N/A` and `tokens:` lines;
+  `box-roles.md` makes `structure` PM-only; DoR gains the approved structure shard; DoD gains structure
+  conformance, the token readout and the archived build plan.
+- **CI.** `ci/smoke.sh` / `ci/smoke.ps1`: structure_check plan / trace / planned member missing / removed
+  class present / memberless diagram / edited after freeze; token_ledger add / verify / report / qa-row
+  refused / stale row; `run_all --pre-fold`. Every case twinned on pwsh. Docs: `gates/README.md` (bank,
+  wiring, config, two "what it proves" paragraphs), `spec-format/README.md` (§3 layout, §8 alignment),
+  Project Details `SPEC-8` / `SPEC-9`, INIT §5 keys, `host-adapter.md`, plugin README + `sdd-persona`
+  skill, `PROCESS.md` Stage Index `4b` + route `0→3→4→4b→7`, `stages/0–7` cross-references.
+- **Deferred** (SDD-PROP-12 Status): a language-aware reverse trace as a gate; host-metered token counts
+  (`tokenMeterCmd`) beside the byte estimate; mermaid rendering in the compiled spec (`_layout.html`).

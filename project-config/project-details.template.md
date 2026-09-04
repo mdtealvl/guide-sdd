@@ -90,6 +90,8 @@ Both modes satisfy constitution §8 identically; only storage differs.
 | SPEC-5 | Archive | _e.g. `spec/archive/` (audit-only; never read to implement)_ |
 | SPEC-6 | Clause-ID convention | _e.g. `SECTION.NN` like `CB.07`; mirror regex into gates.config.json `clauseIdRegex`_ |
 | SPEC-7 | Spec-form exemplars | _1–2 shards showing the terse factual form (`stages/3_spec.md` §"Spec form"); e.g. 4x `spec/Inventory_Spec_2.0.md`, `spec/Combat_Spec_2.0.md`_ |
+| SPEC-8 | Structure shards | _canonical `<section>/<subsection>.structure.body.md` (member-level mermaid `classDiagram`, current state); transient `<ITEM-ID>.structure.body.md` beside SPEC-4 (delta: Added / Changed / Removed). Mirror the glob into gates.config.json `structureGlobs`; add mermaid.js to `_layout.html` if the compiled view should render them_ |
+| SPEC-9 | Build plan home | _`<ITEM-ID>.buildplan.md` beside SPEC-4 (`stages/4b_buildplan.md`); gates.config.json `buildPlan.glob` + `tokensPerChar` (default 0.25)_ |
 
 ## 6. Pointer-doc map (`PTR-`) — read on trigger
 

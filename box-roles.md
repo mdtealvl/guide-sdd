@@ -41,15 +41,17 @@ spec bug, a missing prerequisite, an AC unreachable through a production API, a 
 1. **Do NOT guess. Do NOT patch the canonical spec.** Stop resolving it locally.
 2. **Write the concern to the changelog item** with a **reason from the enum**
    (`changelog-conventions.md` §6):
-   - `[NEEDS-PO:<fork|threshold|ac-unreachable|spec-gap|intent-gap>] <question>` — a decision the
-     worker may not make.
+   - `[NEEDS-PO:<fork|threshold|ac-unreachable|spec-gap|intent-gap|structure>] <question>` — a decision
+     the worker may not make (`structure`: a deviation from the PM-approved structure shard).
    - `[BLOCKED:<dor-fail|base-unresolved|suite-red-at-pickup|prereq-missing|fixture-blocking|non-convergence|merge-conflict>] <detail>`
      — work cannot proceed until something lands.
 3. **Transition the item to the PO-attention state** (`project-details.md#CL-7`; e.g. a Jira
    "Blocked"/flag in Mode A, a status line in Mode B) and **STOP work on it.** The worker may pick
    up another DoR-met item meanwhile.
 4. **The PO box resolves** — patches the spec / decides the fork / updates the AC / re-readies —
-   and returns the item to the work-ready state. Only then does execution resume.
+   and returns the item to the work-ready state. Only then does execution resume. **Exception —
+   `structure`:** the PO never arbitrates it. The PM approved the diagram, so the PM decides the
+   deviation; the PO then replaces the structure shard wholesale (own commit) and re-freezes.
 
 This is the QA→Orchestrator escalation (`stages/5_qa.md`, `stages/6_engineer.md`) cast at box
 level: a worker box never settles an ambiguity with the spec. The fix lands **in the artifact**,
@@ -64,8 +66,9 @@ line** — the same one the PO uses for an auditable working decision.
   decision" pattern) **and** note it on the item, so the trail stays in the changelog.
 - **Anything non-obvious** → `[NEEDS-PO:…]`. When in doubt, it is non-obvious — surface it.
 
-Authoring a spec clause, choosing between two viable designs, or setting a constant the spec does
-not already imply are all **non-obvious by definition**. A worker never widens this exception to
+Authoring a spec clause, choosing between two viable designs, setting a constant the spec does not
+already imply, or adding a public member the approved structure shard lacks are all **non-obvious by
+definition**. A worker never widens this exception to
 dodge a surface-back. An item's **Ask-first** boundary (`changelog-conventions.md` §3) pre-declares
 the decisions that halt the worker; hitting one is a `[NEEDS-PO:fork]`, not a judgement call.
 
@@ -122,7 +125,7 @@ cycle. First valid claim wins; a rare double-claim inside one lease is a PO-reso
    names, with the item's `KEEP:` / `AVOID:` lines in the brief.
 
 **PO loop (~30 min):**
-1. **`PO-attention`** items: resolve by reason — arbitrate if obvious, else escalate to the PM — write the decision into the spec/item, **re-ready** it.
+1. **`PO-attention`** items: resolve by reason — arbitrate if obvious, else escalate to the PM (`structure` always goes to the PM) — write the decision into the spec/item, **re-ready** it.
 2. **`Ready-for-review`** items: run the **fresh Validation** (`stages/7_ship.md` §2, genuinely cross-box-fresh), classify + score (§3), then either the **serialized merge** (→ `Done` + ship-SHA) or `Rework:<class>` with the routing, `KEEP:`/`AVOID:` and `lesson:` lines written.
 3. Intake: open `lesson:` lines and `[DEFER]` lines from finished items become Bugs/Tasks or process changes; new requests go through `intake.md` → triage → design → spec/test-plan → **Ready**.
 

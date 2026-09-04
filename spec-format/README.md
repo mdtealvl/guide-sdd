@@ -47,6 +47,7 @@ granularity and the content-only rule are **identical** in both.
 spec/
   _layout.html                       # single home of chrome/CSS/JS (build input, NOT a shard)
   <section>/<subsection>.body.md     # content-only fragment (authored)
+  <section>/<subsection>.structure.body.md   # the area's type surface: member-level mermaid classDiagram
   index.html                         # COMPILED whole-corpus view — never hand-edit
   archive/                           # folded-out transient working specs (git mv, never delete)
 ```
@@ -61,6 +62,14 @@ spec/
 - **Transient working specs** live under the working area named in `project-details.md#SPEC-1`; on DONE
   they fold into the canonical shard and `git mv` to `archive/` (never deleted, never read to
   implement from).
+- **Structure shards** (`*.structure.body.md`, `#SPEC-8`) hold the member-level class diagram — every
+  class with its public properties and methods — as a fenced `mermaid` `classDiagram`: **text is the
+  source, the drawing derives** (add mermaid.js to `_layout.html` if the compiled view should render it).
+  A transient `<ITEM-ID>.structure.body.md` is a **delta** under `## Added` / `## Changed` / `## Removed`
+  (`stages/1_design.md`); the canonical one is the area's current state, folded at Stage 7 and read first
+  by the next unit's design pass. PM-approved with the spec, frozen with the tests, checked by
+  `structure_check` (`gates/README.md`). The build plan (`<ITEM-ID>.buildplan.md`, `#SPEC-9`) sits beside
+  the transient spec and is archived, never folded.
 
 ---
 
@@ -203,11 +212,12 @@ anchor set unambiguous.
 
 | Touchpoint | Alignment |
 |---|---|
-| **Stage 3 (spec-first)** | Author/edit shards; emit the shard manifest; PM approves spec; `link_check` must pass before any test/code. |
+| **Stage 3 (spec-first)** | Author/edit shards; emit the shard manifest; PM approves spec **+ the structure shard**; `link_check` + `structure_check --plan` must pass before any test/code. |
 | **Stage 4 (test plan)** | `coverage_check --plan`: every clause-ID (via `clauseIdRegex`) maps to ≥1 scenario. The shard is the unit you enumerate clauses from. |
-| **Stage 5 (QA)** | QA gets **named shard paths only** (no router, no impl). Tests tag `@clause:<id>` straight from the shard. |
-| **Stage 6 (Engineer)** | Engineer gets the same shards + frozen tests; the shard is the spec of record on disagreement. |
-| **Stage 7 (ship & fold)** | Fold transient decisions into canonical shards; pin provenance per clause; `git mv` working spec to `archive/`; **recompile `index.html`**; `link_check` + `coverage_check` re-run in `run_all`. |
+| **Stage 4b (build plan)** | Structure-shard classes → files → slices; the read ledger (`<ITEM-ID>.buildplan.md`) names what each slice reads — ranges, anchors, pins, skips. |
+| **Stage 5 (QA)** | QA gets **named shard paths only** (no router, no impl). Tests tag `@clause:<id>` straight from the shard. Freeze covers the structure shard too. |
+| **Stage 6 (Engineer)** | Engineer gets the same shards + frozen tests + the frozen structure shard; the shard is the spec of record on disagreement; `structure_check --frozen` proves the diagram did not move. |
+| **Stage 7 (ship & fold)** | Fold transient decisions into canonical shards and the structure delta into the canonical structure shard; pin provenance per clause (per class in the diagram); `git mv` working spec + build plan to `archive/`; **recompile `index.html`**; `link_check` + `coverage_check` + `structure_check` re-run in `run_all`. |
 
 **Gate hooks (read these, then the gate scripts):**
 - `link_check` (`gates/link_check.ps1` on Windows / `gates/link_check.sh` on Linux/macOS) —

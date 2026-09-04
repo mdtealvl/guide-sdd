@@ -76,5 +76,6 @@ before it costs a QA pass.
   a test. For fast per-unit feedback in-loop, use `coverage_check --manifest <file>` / `-Manifest
   <file>` (Windows) to scope to this unit's shards; the ship-time pass stays whole-corpus.
 ### Return
-Return to PROCESS.md §0 and load the route's next active stage: Stage 5 (QA) for the persona route, or
-Stage 7 (gates + ship) for the mechanical route. Read that stage file fully and follow it; this one is done.
+Return to PROCESS.md §0 and load Stage 4b (build plan) — active in every route; it turns this matrix and
+the structure shard into files, slices and the read ledger. Read that stage file fully and follow it;
+this one is done.

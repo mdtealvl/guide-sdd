@@ -15,6 +15,16 @@
 | **Post-ship defects** | Bug items filed within 30 days whose failing test tags a clause the item folded (same pin date) | Bug items + the fold pins `(§X per <ITEM-ID>, date)` |
 | **Route share + re-triage** | items by route (mechanical / persona / parallel) and how many were re-triaged up or down | the Triage record on the item (`stages/0_triage.md`) |
 
+## Cost, reported beside them — tokens
+
+| Input | Definition | Source artifact |
+|---|---|---|
+| **Tokens per slice / per plan** | `admitted` = Σ bytes × `tokensPerChar` of every read a slice recorded; `saved` = the whole-file cost the ledger's advice rows let it skip; `P` = what planning itself read (`stages/4b_buildplan.md`) | the `tokens:` lines on the item — recomputable by `gates/token_ledger.* report` from `<ITEM-ID>.buildplan.md` |
+
+An estimate of what a context admitted, never a billed count. Read it per route beside the five: a
+route whose saved share rises while first-pass acceptance holds is a cheaper route; a plan whose
+`planning (P)` cost exceeds what its ledger saved is over-planning — trim the build plan, not the ledger.
+
 ## Reading them
 
 - Compare routes **within one risk class**. If the persona route's post-ship defect rate is not below

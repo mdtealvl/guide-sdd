@@ -1,9 +1,11 @@
 #!/usr/bin/env sh
 # GUIDE SDD — CI smoke test. Reproduces project-config/INIT.md §6 on a throwaway copy of the spine:
 # seed one anchored clause + one tagged test, run the generic gates (expect PASS), then the NEGATIVE
-# controls — an unfollowed clause (coverage FAIL), and every test_edit_ban bypass the v1.12 hardening
-# closed (uncommitted edit, untracked test, rename-out, gate-config tamper, moving base) — then freeze
-# and run the whole bank (expect clean).
+# controls — an unfollowed clause (coverage FAIL), every test_edit_ban bypass the v1.12 hardening
+# closed (uncommitted edit, untracked test, rename-out, gate-config tamper, moving base), the v1.13
+# structure_check controls (planned member missing, removed class present, memberless diagram, diagram
+# edited after freeze) and token_ledger (qa row into code refused, stale row) — then freeze and run the
+# whole bank (expect clean).
 #
 # Usage:  sh ci/smoke.sh [--compare]
 #   --compare   also run each gate's .ps1 twin via pwsh and require the same exit code; report
@@ -114,6 +116,56 @@ git commit -q --allow-empty -m "engineer work"
 expect 1 "test_edit_ban FAIL: base not an ancestor" sh gates/test_edit_ban.sh "$BASE~1" $CFG 2>/dev/null || true
 [ "$LAST_RC" = 2 ] || { echo "FAIL  base-not-ancestor should exit 2 (rc=$LAST_RC)"; fails=$((fails+1)); }
 
+# structure_check: the PM-approved member-level diagram. Shape (--plan), forward trace, and the
+# negative controls: a planned member missing from the code, a removed class still present, a
+# memberless diagram. Shard + impl are committed BEFORE the freeze so the frozen half can pass below.
+mkdir -p spec/working src
+printf '<!-- DEMO-1 structure (delta) -->\n## Added\n```mermaid\nclassDiagram\n  class Wallet {\n    +int Balance\n    +Deposit(int amount) bool\n  }\n```\n## Removed\n```mermaid\nclassDiagram\n  class LegacyPurse {\n    +Empty()\n  }\n```\n' > spec/working/DEMO-1.structure.body.md
+printf 'public class Wallet {\n  public int Balance; public bool Deposit(int amount) { return true; }\n}\n' > src/wallet.cs
+git add -A >/dev/null && git commit -q -m "chore(DEMO-1): structure shard + impl"
+expect 0 "structure_check --plan PASS" sh gates/structure_check.sh --plan --config $CFG
+twin "structure_check (plan)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Plan -Config $CFG
+expect 0 "structure_check trace PASS" sh gates/structure_check.sh --config $CFG
+twin "structure_check (trace)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Config $CFG
+sed -i 's/+Deposit(int amount) bool/&\n    +Withdraw(int amount) bool/' spec/working/DEMO-1.structure.body.md
+expect 1 "structure_check FAIL: planned member missing from code" sh gates/structure_check.sh --config $CFG
+names "structure_check (missing member)" "Wallet.Withdraw"
+twin "structure_check (missing member)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Config $CFG
+git checkout -q -- spec
+printf 'public class LegacyPurse { }\n' > src/legacy.cs
+expect 1 "structure_check FAIL: removed class still present" sh gates/structure_check.sh --config $CFG
+names "structure_check (removed class)" "LegacyPurse"
+twin "structure_check (removed class)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Config $CFG
+rm src/legacy.cs
+printf '## Added\n```mermaid\nclassDiagram\n  class Outline\n```\n' > spec/working/DEMO-2.structure.body.md
+expect 1 "structure_check --plan FAIL: memberless diagram" sh gates/structure_check.sh --plan --config $CFG
+names "structure_check (outline)" "DEMO-2.structure.body.md"
+twin "structure_check (outline)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Plan -Config $CFG
+rm spec/working/DEMO-2.structure.body.md
+
+# token_ledger: the Stage-4b read ledger - add rows, report the tokens: lines, refuse a QA row into
+# the implementation, and (negative control) flag a stale row once its file changes.
+BP=spec/working/DEMO-1.buildplan.md
+printf '# DEMO-1 build plan\n' > $BP
+expect 0 "token_ledger add read (P)" sh gates/token_ledger.sh add --plan $BP --kind read --by P --path src/wallet.cs --config $CFG
+expect 0 "token_ledger add range (P->S2)" sh gates/token_ledger.sh add --plan $BP --kind range --by P --for S2 --aud eng --path src/wallet.cs --range 2-2 --note "members only" --config $CFG
+expect 0 "token_ledger add skip (P->S2)" sh gates/token_ledger.sh add --plan $BP --kind skip --by P --for S2 --aud eng --path spec/demo.body.md --config $CFG
+expect 0 "token_ledger add read (S2, ranged)" sh gates/token_ledger.sh add --plan $BP --kind read --by S2 --path src/wallet.cs --range 2-2 --config $CFG
+expect 1 "token_ledger refuses a qa row into paths.code" sh gates/token_ledger.sh add --plan $BP --kind read --by S1 --aud qa --path src/wallet.cs --config $CFG
+[ "$LAST_RC" = 2 ] || { echo "FAIL  qa row into code should exit 2 (rc=$LAST_RC)"; fails=$((fails+1)); }
+expect 0 "token_ledger verify PASS" sh gates/token_ledger.sh verify --plan $BP --config $CFG
+twin "token_ledger (verify)" "$LAST_OUT" "$LAST_RC" gates/token_ledger.ps1 verify -Plan $BP -Config $CFG
+expect 0 "token_ledger report" sh gates/token_ledger.sh report --plan $BP --config $CFG
+names "token_ledger (report)" "tokens: plan admitted"
+names "token_ledger (report S2)" "tokens: S2 admitted"
+twin "token_ledger (report)" "$LAST_OUT" "$LAST_RC" gates/token_ledger.ps1 report -Plan $BP -Config $CFG
+git add -A >/dev/null && git commit -q -m "chore(DEMO-1): build plan"
+printf '// touched\n' >> src/wallet.cs
+expect 1 "token_ledger verify FAIL: stale row after file change" sh gates/token_ledger.sh verify --plan $BP --for S2 --config $CFG
+names "token_ledger (stale)" "STALE"
+twin "token_ledger (stale)" "$LAST_OUT" "$LAST_RC" gates/token_ledger.ps1 verify -Plan $BP -For S2 -Config $CFG
+git checkout -q -- src
+
 # Freeze: record the QA-frozen SHA; the gate then needs no base argument.
 expect 0 "freeze writes gates/.frozen" sh gates/freeze.sh --unit DEMO-1
 names "freeze" "sha="
@@ -121,6 +173,14 @@ twin "freeze" "$LAST_OUT" "$LAST_RC" gates/freeze.ps1 -Unit DEMO-1
 git add gates/.frozen && git commit -q -m "chore(DEMO-1): freeze tests"
 expect 0 "test_edit_ban PASS via .frozen (no base arg)" sh gates/test_edit_ban.sh --config $CFG
 twin "test_edit_ban (.frozen)" "$LAST_OUT" "$LAST_RC" gates/test_edit_ban.ps1 -Config $CFG
+# The approved diagram is frozen with the tests: an edit after the freeze FAILs naming the shard.
+expect 0 "structure_check --frozen PASS via .frozen" sh gates/structure_check.sh --frozen --config $CFG
+twin "structure_check (.frozen)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Frozen -Config $CFG
+printf '%%%% deviation\n' >> spec/working/DEMO-1.structure.body.md
+expect 1 "structure_check --frozen FAIL: diagram edited after freeze" sh gates/structure_check.sh --frozen --config $CFG
+names "structure_check (.frozen negative)" "DEMO-1.structure.body.md"
+twin "structure_check (.frozen negative)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Frozen -Config $CFG
+git checkout -q -- spec
 printf 'edited\n' >> tests/demo.smoke.test && git commit -q -am "engineer edits a test"
 expect 1 "test_edit_ban FAIL: committed edit vs .frozen" sh gates/test_edit_ban.sh --config $CFG
 names "test_edit_ban (.frozen negative)" "tests/demo.smoke.test"
@@ -138,5 +198,8 @@ git reset -q --hard HEAD~1
 expect 0 "run_all clean (base from .frozen)" sh gates/run_all.sh
 twin "run_all" "$LAST_OUT" "$LAST_RC" gates/run_all.ps1
 expect 0 "run_all HEAD clean" sh gates/run_all.sh HEAD
+expect 0 "run_all --pre-fold clean (frozen-diagram half runs)" sh gates/run_all.sh --pre-fold
+names "run_all (pre-fold)" "structure_check --frozen"
+twin "run_all (pre-fold)" "$LAST_OUT" "$LAST_RC" gates/run_all.ps1 -PreFold
 
 if [ "$fails" -eq 0 ]; then echo "SMOKE PASS"; else echo "SMOKE FAIL ($fails)"; exit 1; fi

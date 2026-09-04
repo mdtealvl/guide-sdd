@@ -31,6 +31,9 @@ A changelog item may be **picked up for work** only when **all** hold. A worker 
       `N/A — <reason>`, or an open question (which then blocks Ready). None silently unaddressed.
 - [ ] **Target spec shard(s) / clause-ID ranges identified** — or explicitly
       "spec authored in Stage 3" for design-bearing work.
+- [ ] **Structure shard approved with the spec** — the member-level class diagram (delta form,
+      `stages/1_design.md` step 6) PM-approved at Stage 3; or `structure: N/A — <reason>` on the item;
+      or "authored in Stage 3" alongside the spec.
 - [ ] **Prerequisites / viability noted** — dependencies & blockers known, not latent.
 - [ ] **Points assigned** (Fibonacci default; see `changelog-conventions.md`).
 - [ ] **Right-size route recorded** — mechanical / persona / parallel (the Stage 0 2×2 cell).
@@ -81,6 +84,13 @@ Validation accepts/declines the unit against it (the Orchestrator re-runs, never
 - [ ] **(Persona route) `frozen: <sha>` on the item**, and the authoritative `test_edit_ban` ran
       against **that SHA** (not a branch name) over the working tree — the proof that no test, gate
       script or gate config differs from what QA froze.
+- [ ] **Public surface = the approved structure shard** — `structure_check` green: the shard unchanged
+      vs the frozen SHA before the fold, every diagram class/member resolving in the code after it, no
+      `Removed` class present; Validation's reverse trace found no public member the diagram lacks;
+      every `[NEEDS-PO:structure]` answered by the **PM** and re-frozen. Never an Engineer edit.
+- [ ] **Token readout recorded** — a `tokens:` line per slice and one for the plan on the item
+      (`gates/token_ledger.* report`; estimates from bytes admitted, never billed), read as cost beside
+      `metrics.md`.
 - [ ] **Authoritative `run_all` gate bank green** (full bank incl. `fold_check`; `suiteCmd` set) over the
       folded + pinned + recompiled corpus.
 - [ ] **Fresh Validation accepts** — a context that did not build the thing, per the brief in
@@ -91,7 +101,8 @@ Validation accepts/declines the unit against it (the Orchestrator re-runs, never
       outside the unit's clause range changed.
 - [ ] **Docs updated in lockstep** — diagram-first where applicable, per slice, never batched.
 - [ ] **`spec/index.html` recompiled** (whole-corpus view never stale).
-- [ ] **Transient working-spec archived** (`git mv` to `spec/archive/`) — never deleted.
+- [ ] **Transient working-spec and build plan archived** (`git mv` to `spec/archive/`) — never deleted;
+      the structure delta folded into the area's canonical structure shard.
 - [ ] **Changelog item carries the ship-SHA and is transitioned Done** (per `project-details.md#CL-N`).
 
 Traceability is then closed: `clause-ID → scenario → test-ID → code → ship-SHA`.

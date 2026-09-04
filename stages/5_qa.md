@@ -2,7 +2,9 @@
 
 **Role:** QA sub-agent. **Scoped context:** constitution (verbatim) + this file + the frozen spec
 shard(s) from the manifest + the **PO-authored Stage-4 traceability matrix** (as input — you do not own
-it) + the `project-details.md#STK-N` test-home map + named seam rows (`project-details.md#SEAM-N`).
+it) + your slice's brief and the build plan's **`qa`-audience ledger rows only** (`stages/4b_buildplan.md`;
+never an `eng` row) + the `project-details.md#STK-N` test-home map + named seam rows
+(`project-details.md#SEAM-N`).
 **You do NOT see the implementation, the router, or any sibling working notes. That blindness is the
 independence.** With the GUIDE SDD plugin the dispatcher sets `/sdd-persona qa` first: the hook then
 denies any Read/Grep/Glob under `paths.code`. Without it, the `qa_import_ban` gate proves the structural
@@ -51,6 +53,11 @@ learn an expected value, stop: that value must come from the spec.
   resolves it.
 - Tests must be **red and compiling** at handoff — red because no impl yet; compiling so the Engineer
   has an executable acceptance bar.
+- **Ledger.** Open with `token_ledger verify --for <your slice>` (a STALE row is re-read, never trusted);
+  record every read (`token_ledger add --kind read --by <slice>`). Before handing back, **pin for the
+  Engineer** (`--kind pin --aud eng`) each test's name + assertion lines per clause, so it reads the
+  assertion, not the scaffolding. Close with `token_ledger report --slice <slice>` and write the
+  `tokens:` line on the item (`stages/4b_buildplan.md`).
 
 ## Ambiguity = spec bug (orchestrator-mediated)
 
@@ -73,6 +80,7 @@ ban holds for the Engineer regardless.
       (`harmless`/`reviewed`/`blocking`); any `blocking` gap surfaced.
 - [ ] No production internals imported beyond the contracted surface (`qa_import_ban` passes).
 - [ ] Tests red + compiling. No production code read or written.
+- [ ] Ledger: reads recorded, test-body pins written for the Engineer, the slice's `tokens:` line on the item.
 
 ---
 ### Gate(s) that close this stage
@@ -83,8 +91,10 @@ ban holds for the Engineer regardless.
 - **Freeze** (Orchestrator): commit QA's tests, then `pwsh gates/freeze.ps1 -Unit <ITEM-ID>` /
   `sh gates/freeze.sh --unit <ITEM-ID>`. It refuses a dirty tree, writes `gates/.frozen`, and prints the
   `frozen: <sha>` line — **record it on the changelog item** (the item's copy is authoritative; the file
-  is a mirror), then commit the marker. That SHA is the base every later `test_edit_ban` diffs against.
-Tests are now **frozen** — the Engineer cannot edit them, and neither can the gate config.
+  is a mirror), then commit the marker. That SHA is the base every later `test_edit_ban` **and
+  `structure_check --frozen`** diffs against.
+Tests are now **frozen** — and so is the PM-approved structure shard — the Engineer can edit neither,
+nor the gate config.
 ### Next
 Return to PROCESS.md §0 and load Stage 6 (Engineer). Read that stage file fully and follow it; this one
 is done.

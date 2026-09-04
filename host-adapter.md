@@ -57,10 +57,10 @@ seeded at INIT). See `commands/README.md` and `session-lifecycle.md`.
 **Claude Code plugin** (`plugin/` + marketplace at the repo root; `/plugin marketplace add mdtealvl/guide-sdd` →
 `/plugin install guide-sdd@guide-sdd`): the three commands as skills, plus `/sdd-init` (bundled installer, then
 INIT from §1a), `/sdd-update`, `/sdd-doctor`, `/sdd-gates` (verdict lines only) and `/sdd-persona`, and a
-persona guard hook in three passes: PreToolUse denies an `engineer` persona edits to `testGlobs` paths, the
-gate bank and the markers, and denies a `qa` persona reads under `paths.code`; PostToolUse and Stop sweep
-the working tree for test/gate drift vs the frozen SHA after any tool (invariant 3 at edit time, not only
-at gate time). Host affordance only — the vendored spine stays canonical and every ritual still runs
+persona guard hook in three passes: PreToolUse denies an `engineer` persona edits to `testGlobs` paths,
+`structureGlobs` paths (the PM-approved structure diagram), the gate bank and the markers, and denies a
+`qa` persona reads under `paths.code`; PostToolUse and Stop sweep the working tree for test/structure/gate
+drift vs the frozen SHA after any tool (invariant 3 at edit time, not only at gate time). Host affordance only — the vendored spine stays canonical and every ritual still runs
 without it; the Stage-7 `test_edit_ban` gate remains the proof.
 
 ## Adding a host (the whole procedure)

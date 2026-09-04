@@ -1,9 +1,10 @@
 # Stage 6 — Engineer (frozen tests)
 
 **Role:** Engineer sub-agent. **Scoped context:** constitution (verbatim) + this file + the spec
-shard(s) from the manifest + QA's frozen tests + the Stage-4 traceability matrix and QA's
-fixture/shape-gap notes + named seam rows (`project-details.md#SEAM-N`) and stack
-(`project-details.md#STK-N`). **You have NO write access to the tests.** The matrix and shape-gap notes
+shard(s) from the manifest + the **approved structure shard** (frozen) + QA's frozen tests + the Stage-4
+traceability matrix and QA's fixture/shape-gap notes + your slice's brief and the build plan's `eng` /
+`any` ledger rows (`stages/4b_buildplan.md`) + named seam rows (`project-details.md#SEAM-N`) and stack
+(`project-details.md#STK-N`). **You have NO write access to the tests or the structure shard.** The matrix and shape-gap notes
 are **not** the implementation, so they do not break QA⊥Engineer blindness (you already see the frozen
 tests); they let you avoid satisfying a test via a fixture stand-in that skips a required production path
 / test layer QA flagged.
@@ -15,10 +16,11 @@ passes the test and matches nothing in the spec. The spec is your target; the te
 
 Mechanical guard (Tier A with the GUIDE SDD plugin): the dispatcher runs `/sdd-persona engineer` before this
 stage and `/sdd-persona clear` after it. While the marker is set the plugin hook runs three passes: **pre**
-denies every Edit/Write to a `testGlobs` path (tests, snapshots, test-runner config), to the gate bank, and
-to the persona/frozen markers; **post** sweeps the working tree after any tool — a Bash heredoc, `sed -i`,
-`mv`, `git checkout` — and names any test or gate path that differs from the frozen SHA, with the revert
-command; **stop** repeats the sweep at turn end. Tier B: export `SDD_PERSONA=engineer` in the Engineer's
+denies every Edit/Write to a `testGlobs` path (tests, snapshots, test-runner config), to a `structureGlobs`
+path (the approved diagram), to the gate bank, and to the persona/frozen markers; **post** sweeps the
+working tree after any tool — a Bash heredoc, `sed -i`, `mv`, `git checkout` — and names any test,
+structure-shard or gate path that differs from the frozen SHA, with the revert command; **stop** repeats
+the sweep at turn end. Tier B: export `SDD_PERSONA=engineer` in the Engineer's
 session instead. The gate `test_edit_ban` still runs at Stage 7 against the item's `frozen:` SHA — the
 hook is the early tripwire, not the proof.
 
@@ -30,6 +32,19 @@ hook is the early tripwire, not the proof.
   diffs the frozen SHA against the working tree, untracked files and renames included, and fails if the
   gate config or scripts changed.)
 - **Conform to the spec, not just the tests.** Green is necessary, not sufficient.
+- **Structure is frozen.** The approved structure shard is the public surface you build: every public
+  member you add, change or remove is in it; private helpers are yours. A deviation you need — a public
+  member the diagram lacks, a different signature — **stops that member**: write
+  `[NEEDS-PO:structure] <Class.member: proposed signature — why>` on the item and continue on
+  unaffected members. The PO does not arbitrate structure; the **PM decides** (the PM approved the
+  diagram). Approved ⇒ the PO replaces the shard wholesale (own commit) and re-freezes (new `frozen:`
+  line); you resume. Declined ⇒ conform. `structure_check --frozen` proves the shard did not move under
+  you; the Stage-7 forward trace proves every planned member exists.
+- **Ledger.** Open each slice with `token_ledger verify --for <slice>` — a STALE row is re-read, never
+  trusted; record every read (`token_ledger add --kind read --by <slice>`); write `range` / `grep` /
+  `pin` / `skip` rows for later slices as you learn the files. Close the slice with
+  `token_ledger report --slice <slice>` and write its `tokens:` line on the item
+  (`stages/4b_buildplan.md`).
 - **Use the seams.** No bypassing the project's architecture boundaries (`project-details.md#SEAM-N`),
   even if a bypass would be greener faster. `seam_conformance` checks this at ship.
 - Iterate locally until the suite is green (the Orchestrator re-runs to verify — your "tests pass" is
@@ -64,13 +79,19 @@ that keep QA ⊥ Engineer honest.
 ## Exit criteria
 
 - [ ] Implementation conforms to the spec (not just passes tests).
+- [ ] Public surface matches the approved structure shard; every deviation went `[NEEDS-PO:structure]`
+      → PM → re-freeze, never an edit.
 - [ ] Seams respected; staged by path; droppings cleaned.
+- [ ] Ledger current for the next slice; a `tokens:` line per slice on the item.
 
 ---
 ### Gate(s) that close this stage
 - `test_edit_ban` — run the gate for your OS: `gates/test_edit_ban.ps1 <frozen-sha>` (Windows) /
   `gates/test_edit_ban.sh <frozen-sha>` (Linux/macOS); with no argument it reads `gates/.frozen`.
   (PASS: no test file, runner config, gate script or gate config differs from the frozen SHA.)
+- `structure_check --frozen` — `gates/structure_check.ps1 -Frozen <frozen-sha>` (Windows) /
+  `gates/structure_check.sh --frozen <frozen-sha>` (Linux/macOS); no argument reads `gates/.frozen`.
+  (PASS: no structure shard differs from the frozen SHA — the approved diagram did not move.)
 - `suite_green` — Orchestrator re-runs the project suite (`suiteCmd`); exit 0 required.
 ### Next
 Return to PROCESS.md §0 and load Stage 7 (gates + ship). Read that stage file fully and follow it; this

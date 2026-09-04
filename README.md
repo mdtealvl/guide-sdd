@@ -1,6 +1,6 @@
 # GUIDE SDD — Gated, Unified, Intent-Driven Engineering
 
-> **v1.12.0 — 2026-09-02.** A reusable, token-efficient, spec-first / persona-split development
+> **v1.13.0 — 2026-09-03.** A reusable, token-efficient, spec-first / persona-split development
 > method that drops into large, multi-developer projects worked by humans **and** AI agents. It
 > merges two mature in-house practices (Mistwright's *How We Work*, Polars' *How To Develop*) with
 > the published SOTA into one copyable **spine** + a small, indexed **per-project surface**.
@@ -55,7 +55,7 @@ The full non-negotiables are the **ten invariants** in `constitution.md` (tiny, 
 | Constitution — the 10 invariants | `constitution.md` | **Always** (via the agent carrier — `host-adapter.md`) |
 | Constitution amendment log | `constitution.changelog.md` | On demand (audit) |
 | Process spine — stage router/index | `PROCESS.md` | **§0 always**; stage bodies on demand |
-| Stage playbooks | `stages/0_triage.md` … `stages/7_ship.md` | One at a time |
+| Stage playbooks | `stages/0_triage.md` … `stages/4b_buildplan.md` … `stages/7_ship.md` | One at a time |
 | Spine: box roles + surface-back | `box-roles.md` | On demand |
 | Spine: changelog/ticket conventions | `changelog-conventions.md` | On demand |
 | Spine: DoR + DoD lifecycle gates | `definition-of-done.md` | On demand |
@@ -83,7 +83,7 @@ Decided once in Stage 0 (Triage) and recorded; everything downstream reads that 
 
 | | **Misread cheap / obvious** | **Misread expensive / non-obvious** |
 |---|---|---|
-| **Not decomposable** | **Mechanical** — single-context: stages 0 → 3 → 4 → 7 | **Coupled + risky** — full persona loop: stages 0–7 |
+| **Not decomposable** | **Mechanical** — single-context: stages 0 → 3 → 4 → 4b → 7 | **Coupled + risky** — full persona loop: stages 0–7 |
 | **Decomposable into slices** | **Independent + simple** — parallel dispatch of worktree workers; mechanical lane per worker | **Independent + risky** — parallel dispatch; persona loop per worker |
 
 Routes **compose** (e.g. contract-first FE/BE split, then a persona loop per lane). Conservative
@@ -111,6 +111,13 @@ is what enforces the two independences. Standing cost is therefore ~constant reg
 size. Mapped onto each host's mechanics (`host-adapter.md`): the agent carrier (always), stage files as
 on-demand reads / slash-commands, and personas as scoped sub-agent contexts (Tier A) or fresh sessions
 (Tier B).
+
+**The read ledger (v1.13) measures the other half.** Demand-loading governs what *framework* text a
+context admits; the Stage-4b build plan governs what *codebase* text it admits. It sequences the unit into
+slices and writes a ledger of what each later context must read — line ranges, grep anchors, pasted
+signatures, files not to open — hash-guarded against staleness and filtered by audience so QA stays blind.
+`token_ledger` then reports admitted vs saved tokens per slice and per plan, so the token economy is
+measured on the item, not asserted.
 
 ## Adopt it on a new project (7 steps)
 
@@ -351,6 +358,20 @@ numbered-question loop, domain screen, readiness verdict PASS/CONCERNS/FAIL), a 
 Validation with class routing, revert-and-re-derive, a decline cap and scoring, `[DEFER]` and `lesson:`
 lines, a reason enum for surface-backs, claim leases and terminal states, `metrics.md`. Full record in
 `constitution.changelog.md`; deferrals listed there.
+
+### v1.13.0 Amendment — structure diagram, build plan + read ledger, token readout (2026-09-03)
+
+No invariant change; still ten. `SDD-PROP-12`. **Structure:** Stage 1 ends with a member-level class
+diagram — a mermaid `classDiagram` in a structure shard, delta form — that the PM approves with the spec
+at Stage 3. It is frozen with the tests; the Engineer cannot edit it (`structure_check --frozen`, the
+plugin hook); a deviation is `[NEEDS-PO:structure]`, PM-only; the ship-time forward trace proves every
+planned member exists and every removed class is gone; the fold keeps a canonical structure shard per
+area that the next design pass reads first. **Build plan (Stage 4b, every route):** files, slices and a
+hash-guarded read ledger that tells each later context what to read — ranges, grep anchors, pasted pins,
+skip lists — filtered by audience so QA stays blind and Validation stays fresh. **Tokens:**
+`token_ledger` reports admitted vs saved per slice and per plan as `tokens:` item lines (slice end,
+Stage 7, `/wrap`), byte-estimated cost read beside the outcome metrics. CI carries a negative control per
+guard on both OS twins. Full record in `constitution.changelog.md`.
 
 ## Map to the source practices
 

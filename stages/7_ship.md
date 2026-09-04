@@ -2,7 +2,8 @@
 
 **Role:** Orchestrator runs gates + owns the merge; Validation sub-agent (fresh context) reviews.
 **Loaded with:** constitution + this file + `project-details.md#CL-N` (changelog binding) +
-`project-details.md#SPEC-N` (build command) + the changelog item. Validation is spawned **fresh** with
+`project-details.md#SPEC-N` (build command) + the changelog item + the build plan (for the fold of the
+structure shard and the plan readout, §4). Validation is spawned **fresh** with
 the brief in §2 — it did not build the thing.
 
 Closing stage in **every** route. Green is necessary, not sufficient. Mechanical gates run first
@@ -18,8 +19,9 @@ literal checklist Validation enforces. The changelog item transitions **Done** (
 
 Run the gate runner for your OS from anywhere inside the repo: `pwsh gates/run_all.ps1 <base> -PreFold`
 / `sh gates/run_all.sh <base> --pre-fold` (persona route) or add `-Mechanical` / `--mechanical`
-(mechanical route). It runs `link_check` + `prose_check` + `coverage_check` + (`test_edit_ban`, persona
-only) + `suite_green`, but **SKIPS** `fold_check` — the provenance pins do not exist yet (step 3).
+(mechanical route). It runs `link_check` + `prose_check` + `coverage_check` + (`test_edit_ban` +
+`structure_check --frozen`, persona only) + `structure_check` + `suite_green`, but **SKIPS** `fold_check` —
+the provenance pins do not exist yet (step 3).
 
 `<base>` is the **QA-frozen SHA** from the item's `frozen:` line (persona route; written by
 `gates/freeze.*` at Stage 5 exit and mirrored in `gates/.frozen`) or the pre-work base (mechanical).
@@ -31,6 +33,7 @@ exit 2, never a skip.
 |---|---|---|
 | `coverage_check` | every clause-ID → ≥1 test-ID (both directions); tags in notes do not count; skip/only markers are named | generic script |
 | `test_edit_ban` | no test file, test-runner config, gate script or gate config differs from the frozen SHA (working tree incl. untracked; renames not collapsed) — persona route only | generic script |
+| `structure_check` | pre-fold, persona only: no structure shard differs from the frozen SHA (the PM-approved diagram did not move); every pass: every class and member in every structure shard resolves to an identifier under `paths.code`, and a class under `Removed` is absent | generic script |
 | `link_check` | every spec cross-ref resolves to a real anchor/shard | generic script |
 | `constitution_lint` | project principle checks hold | template + config |
 | `seam_conformance` | architecture seams (`#SEAM-N`) not bypassed | template + config |
@@ -46,8 +49,8 @@ accepted. (Project-specific gates run only if their concrete script + rules exis
 
 | HANDED | NOT HANDED |
 |---|---|
-| `git diff <frozen-sha>..HEAD` (the full diff, not a summary) | the Orchestrator's transcript or notes |
-| the shard manifest's spec clauses + the constitution | the Engineer's or QA's reports ("tests pass", "done") |
+| `git diff <frozen-sha>..HEAD` (the full diff, not a summary) | the Orchestrator's transcript or notes, the build plan and its ledger |
+| the shard manifest's spec clauses + the approved structure shard + the constitution | the Engineer's or QA's reports ("tests pass", "done") |
 | the changelog item: verbatim request, ACs, Boundaries, Stage-4 matrix, QA's fixture-gap notes | `HANDOFF.md`, memory, prior verdicts |
 | the suite output, filtered to verdict lines + failure names | anything the diff does not touch |
 | Project Details rows for the touched seams + applicable non-functional categories | |
@@ -64,7 +67,10 @@ left **blank** (the Orchestrator sets it, §3). Then one verdict line: `accept` 
   traces to a clause-ID **and** every behaviour-affecting diff has a linked clause (reverse trace) ·
   constitution invariants + the feature's coverage matrix satisfied · each acceptance test declares an
   oracle source; fixture gaps classified, **no `blocking` gap** · non-functional floor: each applicable
-  category met or `N/A — <reason>`.
+  category met or `N/A — <reason>` · **structure**: every public member added, changed or removed in the
+  diff is in the approved structure shard, and every diagram member is in the diff or pre-existed
+  (`structure_check` proves the forward half; read the diff for the reverse — a public member the
+  diagram lacks is a finding: class `spec` if the design needed it, `code` if it did not).
 - **2b Hunt** (a second fresh context, the diff only): *list at least ten concrete findings; look for
   what is missing, not only what is wrong; no severity, no ranking.* Fewer than ten ⇒ re-check before
   stopping. Same-model, no persona framing — the floor and the "what is missing" question are what
@@ -93,7 +99,7 @@ Write the verdict on the item: `validated: <frozen-sha>..<head-sha> accept` or `
 
 | Class | Root cause | Route |
 |---|---|---|
-| `spec` | the clause was wrong, ambiguous or missing | write `KEEP: <what must survive>` and `AVOID: <the known-bad state>` on the item → **reset the branch to `<frozen-sha>`** (the tests are the floor; the code re-derives) → Stage 3 (PO patches the spec: negotiate → replace wholesale → commit solo) → Stage 5 (QA revises the affected tests; freeze again) → Stage 6 re-run with the KEEP/AVOID lines in the brief |
+| `spec` | the clause was wrong, ambiguous or missing — or the approved structure shard lacks a member the design needed | write `KEEP: <what must survive>` and `AVOID: <the known-bad state>` on the item → **reset the branch to `<frozen-sha>`** (the tests are the floor; the code re-derives) → Stage 3 (PO patches the spec: negotiate → replace wholesale → commit solo; a structure change is the **PM's** decision) → Stage 5 (QA revises the affected tests; freeze again) → Stage 6 re-run with the KEEP/AVOID lines in the brief |
 | `test` | a test misreads a correct spec, or verification is missing/weak | Stage 5 (QA fixes or adds; freeze again) → Stage 6 re-run for the affected tests |
 | `code` | implementation diverges from a correct spec + correct test | Stage 6: the Engineer patches; the Orchestrator re-runs step 1 |
 | `migration` | data / config / dependency shape changed without its migration or rollback | Stage 2 (viability of the migration) → Stage 3 if it needs a clause → Stage 6 |
@@ -118,7 +124,15 @@ changelog Mode A and Mode B):
    decisions only, no rationale or history (`stages/3_spec.md` §"Spec form"); replaced text goes wholesale.
 2. Pin provenance on each folded clause: `(§X per <unit-id>, YYYY-MM-DD)` — `<unit-id>` is a Jira key
    (Mode A) or backlog id (Mode B); identical syntax in both.
-3. **Archive, don't delete** the transient working spec (`git mv` to `spec/archive/`).
+2b. **Fold the structure shard.** The transient delta (`<ITEM-ID>.structure.body.md`) folds into the
+   area's canonical structure shard (`<section>.structure.body.md`, current state): `Added` classes
+   appended, a `Changed` class's members replaced wholesale, `Removed` ones retired with a lifecycle tag
+   (`lifecycle-states.md`); pin each touched class with a `%% (§X per <unit-id>, YYYY-MM-DD)` comment
+   line inside the block. The next unit's Stage 1 reads this shard first.
+2c. **Plan readout.** `token_ledger report` (`gates/token_ledger.*`) → write the `tokens: plan …` line on
+   the item beside the per-slice lines. Cost, read beside `metrics.md`, never instead of it.
+3. **Archive, don't delete** the transient working spec **and the build plan** (`git mv` to
+   `spec/archive/`).
 4. Record the ship-SHA back onto the changelog item per `project-details.md#CL-N` (transition Done + SHA
    comment in Mode A; appended `SHIPPED <sha> <date>` line in Mode B).
 5. Recompile `spec/index.html` via the `project-details.md#SPEC-3` build command so the whole-corpus
@@ -170,7 +184,10 @@ pushed) and the **PO box** runs §2–§3 + the merge (`box-roles.md` §"Box loo
 - [ ] Validation `accept` written as `validated: <base>..<head> accept` on the item — all four lenses,
       findings routed by class, out-of-range findings deferred, no `blocking` fixture gap, non-functional
       floor met or `N/A — reason`.
-- [ ] Transient spec folded + pinned + archived; `spec/index.html` recompiled.
+- [ ] Transient spec + structure delta folded + pinned; working spec and build plan archived;
+      `spec/index.html` recompiled.
+- [ ] `structure_check` green — frozen half pre-fold, forward trace post-fold; Validation found no
+      unapproved public member. `tokens: plan` line on the item.
 - [ ] Authoritative `run_all` (full bank incl. `fold_check --strict` in CI) green over the folded corpus.
 - [ ] Merged to published branch; ship-SHA recorded + release state set on the changelog item.
 

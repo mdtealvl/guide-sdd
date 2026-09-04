@@ -3,10 +3,12 @@
 # failing gate, so it drops into CI and pre-merge hooks unchanged.
 #
 # Order (Stage 7 ship):
-#   link_check -> prose_check -> coverage_check -> test_edit_ban -> suite_green
+#   link_check -> prose_check -> coverage_check -> test_edit_ban -> structure_check -> suite_green
 #     -> constitution_lint* -> seam_conformance* -> qa_import_ban* -> fold_check
 #     -> suite_green (re-run)
 # (*) project gates run only if their concrete (non-template) .ps1 script exists.
+# structure_check runs its -Frozen half (approved diagram unchanged vs the frozen base) only on
+# the persona route's -PreFold pass; the forward trace runs in every pass.
 #
 # Working directory: the PROJECT ROOT - the git top-level of the tree the gates live in
 # (so a spine vendored at sdd/ still resolves `spec/**`, `tests/**` from the repo root).
@@ -128,6 +130,21 @@ if ($Mechanical) {
     Invoke-Gate 'test_edit_ban.ps1' $tebArgs
     if ($LASTEXITCODE -ne 0) { Fail 'test_edit_ban' }
 }
+
+# structure_check: on the persona route's pre-fold pass the PM-approved diagram must equal the frozen
+# base (the fold itself rewrites the canonical shard, so the post-fold pass skips this half); the
+# forward trace (every diagram class/member exists under paths.code) runs in every pass.
+if (-not $Mechanical -and $PreFold) {
+    Write-Output "== structure_check --frozen =="
+    $scArgs = @('-Frozen')
+    if ($base) { $scArgs += $base }
+    $scArgs += @('-Config', $CFG)
+    Invoke-Gate 'structure_check.ps1' $scArgs
+    if ($LASTEXITCODE -ne 0) { Fail 'structure_check' }
+}
+Write-Output "== structure_check =="
+Invoke-Gate 'structure_check.ps1' @('-Config', $CFG)
+if ($LASTEXITCODE -ne 0) { Fail 'structure_check' }
 
 Invoke-Suite
 

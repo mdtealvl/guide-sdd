@@ -14,6 +14,7 @@
 > - **PROP-07** → v1.8 (`PROCESS.md` §0 "Dispatch frugally"). **PROP-08 / PROP-09** → v1.9 (`stages/3_spec.md`
 >   update method + spec form, and the docs each names). **PROP-06** remains OPEN. **PROP-10** (installer
 > & distribution) OPEN, only visibility left. **PROP-11** (adversarial review vs BMAD v6.11) phase 1 shipped in v1.12.0, phase 2 deferred — see its Status block.
+> **PROP-12** (structure diagram + deviation guard, Stage-4b build plan + read ledger, token readout) shipped in v1.13.0.
 >
 > Full record: `constitution.changelog.md` v1.7. Original proposal bodies preserved below.
 
@@ -386,3 +387,75 @@ SDD-PROP-11/AC-8 — The spine shall provide intake.md, the readiness verdict in
   - Bash read-guard for the `qa` persona; the route recorded on a committed artifact so `--mechanical` is
     not the agent's say-so.
   - **PROP-06** (`any_match` rule kind) — still OPEN since 2026-07-14.
+
+---
+
+## SDD-PROP-12 — Story — Structure diagram + deviation guard, build plan with read ledger, token readout — **RATIFIED & IMPLEMENTED in v1.13.0 (PO-directed 2026-09-03)**
+
+- **Verbatim request.** "Add three things to SDD: 1. a sub-step at the end of the plan phase where we build
+  a class diagram at the member level -- classes, properties, methods -- for what we expect to produce.
+  Require approval of this diagram along with the spec. Make a guard where deviating from this diagram
+  later requires PM approval. 2. Build a system after plan approval that does a meta-plan of how the work
+  will be implemented: what files will be touched, in what sequence. This stage is intended to optimize
+  for token usage. Flag points where we can tell a later stage metadata about a file to reduce what is
+  read in. For example, if we know that Slice 3 will read File X, and Slice 6 will later need to read
+  File X, have S3 write to a ledger for S6 "You need to pick up from Line 700 onward, but lines 1-699 are
+  pointless for you". Be a little creative with other ways to optimize. 3. Measure the tokens spent as
+  part of (2), above, and measure estimated tokens saved by storing that to the ledger. At the end of
+  each slice and at the end of a plan, as part of readout, report token savings."
+- **Why.** Decisions about the type surface lived in design prose; a public member added mid-build was
+  invisible until review. Later contexts re-read whole files an earlier context had already understood,
+  and nothing measured that cost. The PM wants the surface approved once and held, and the token economy
+  measured rather than asserted.
+- **The change.** A structure shard (member-level mermaid `classDiagram`, delta form) drafted as the last
+  sub-step of Stage 1, approved with the spec at Stage 3, frozen at Stage 5, guarded by `structure_check`
+  and the plugin hook, deviations PM-only via `[NEEDS-PO:structure]`, folded per area at Stage 7. A
+  Stage-4b build plan (every route) with a hash-guarded, audience-tagged read ledger. `token_ledger`
+  computing admitted / saved tokens per slice and per plan, reported as `tokens:` lines at slice end, plan
+  end and `/wrap`.
+- **Success signal.** Every guard has a CI negative control that FAILs naming the path on both OS twins;
+  a scratch unit's `tokens: plan` line recomputes from its ledger alone.
+- **Boundaries.** Always: no invariant change; text is the source (mermaid), the drawing derives; QA stays
+  blind (a `qa` ledger row into `paths.code` is refused; Validation receives no ledger rows); every token
+  number is labelled an estimate. Ask first: renumbering the stages (`4b` was chosen to avoid churning
+  every cross-reference). Never: a language-specific parser in a generic gate; billed-token claims from
+  byte counts.
+- **Open questions / Assumptions.** A1 (ratified by shipping): "plan phase" = Stages 1–3; "plan approval"
+  = the Stage-3 PM gate. A2: the diagram covers the public surface; private members are the Engineer's.
+  A3: the build plan is a build record — archived with the working spec, never folded.
+- **Route.** persona (framework self-application). **8 pts.**
+
+### ACs
+
+```
+SDD-PROP-12/AC-1  — When Stage 1 closes on the persona route, the unit shall carry a structure shard at member
+                    level (every added/changed class with every public property and method, delta form) or a
+                    `structure: N/A — <reason>` line on the item.
+SDD-PROP-12/AC-2  — When the PM approves the Stage-3 spec diff, the structure shard shall be part of that diff;
+                    structure_check --plan shall PASS.
+SDD-PROP-12/AC-3  — While the tests are frozen, if any structureGlobs path differs from the frozen SHA in the
+                    working tree then structure_check --frozen shall FAIL naming the path (exit 2 on a base that
+                    does not resolve or is not an ancestor of HEAD).
+SDD-PROP-12/AC-4  — While the engineer persona is set, the plugin hook shall deny an edit to a structureGlobs
+                    path and shall report structure drift in the post/stop sweeps.
+SDD-PROP-12/AC-5  — At Stage 7, structure_check shall FAIL naming <shard>: <Class>.<member> for any diagram
+                    class/member with no identifier under paths.code, and for any Removed class still present.
+SDD-PROP-12/AC-6  — After Stage 4 closes, the unit shall carry a build plan with a file map, an ordered slice
+                    sequence, per-slice briefs and a read ledger whose rows carry a blob hash and an audience.
+SDD-PROP-12/AC-7  — If a qa-audience ledger row points into paths.code then token_ledger add shall refuse it (exit 2).
+SDD-PROP-12/AC-8  — When a ledger row's file differs from its recorded hash, token_ledger verify shall print a
+                    STALE line naming the row and exit 1.
+SDD-PROP-12/AC-9  — token_ledger report shall print one `tokens:` line per slice (admitted, saved, percent,
+                    honoured/total) and one for the plan including the planning cost, byte-identical on both OS.
+SDD-PROP-12/AC-10 — At each slice end and at Stage 7 the `tokens:` line shall be written on the item; /wrap shall
+                    report the session's slice lines.
+```
+
+### Status
+
+- **Shipped v1.13.0** (2026-09-03): AC-1..AC-10. Gates `structure_check` + `token_ledger` (sh + ps1),
+  `stages/4b_buildplan.md`, the hook extension, CI controls (`ci/smoke.*`; `ci/hook_test.sh` 36 → 41
+  cases). Full record `constitution.changelog.md` v1.13.0.
+- **Deferred, each a Task when picked up:** a language-aware reverse trace (no public member in the diff
+  the diagram lacks) as a gate; host-metered token counts (`tokenMeterCmd`, e.g. Claude Code transcript
+  usage) beside the byte estimate; mermaid rendering in the compiled spec (`_layout.html`).

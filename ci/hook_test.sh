@@ -9,7 +9,7 @@ P="$T/proj"
 mkdir -p "$P/sdd/gates" "$P/tests" "$P/src" "$P/spec"
 cp "$REPO/gates/gates.config.template.json" "$P/sdd/gates/gates.config.json"
 ( cd "$P" && git init -q -b main . && git config user.email ci@guide-sdd && git config user.name ci \
-  && printf 'ok\n' > tests/a.test && printf 'code\n' > src/foo.ts && printf 'x\n' > spec/x.body.md \
+  && printf 'ok\n' > tests/a.test && printf 'code\n' > src/foo.ts && printf 'x\n' > spec/x.body.md && printf 's\n' > spec/x.structure.body.md \
   && git add -A && git commit -q -m seed ) || { echo "setup failed"; exit 1; }
 fails=0
 run() { # <want> <label> <mode> <persona-env> <marker> <json>
@@ -37,6 +37,9 @@ run 2 "engineer env + .persona marker"          --pre engineer ""       "$(edit 
 run 2 "engineer + NotebookEdit test path"       --pre engineer ""       "$(printf '{"tool_name":"NotebookEdit","tool_input":{"notebook_path":"%s"}}' "$P/tests/nb.ipynb")"
 run 0 "engineer env + src path"                 --pre engineer ""       "$(edit Edit "$P/src/foo.ts")"
 run 0 "engineer env + spec shard"               --pre engineer ""       "$(edit Edit "$P/spec/x.body.md")"
+run 2 "engineer env + structure shard (frozen diagram)" --pre engineer "" "$(edit Edit "$P/spec/x.structure.body.md")"
+run 2 "engineer env + new structure shard anywhere" --pre engineer ""   "$(edit Write "$P/spec/working/NEW-1.structure.body.md")"
+run 0 "qa env + structure shard"                --pre qa       ""       "$(edit Edit "$P/spec/x.structure.body.md")"
 run 0 "engineer Read of a test (allowed)"       --pre engineer ""       "$(read_ Read "$P/tests/a.test")"
 run 2 "marker engineer + tests path"            --pre ""       engineer "$(edit Edit "$P/tests/a.test")"
 run 2 "engineer + windows-style escaped path"   --pre engineer ""       "$(edit Edit "C:\\\\work\\\\proj\\\\tests\\\\a.test")"
@@ -71,6 +74,10 @@ run 0 "post sweep: qa persona ignores dirt"     --post qa       ""      "$BASH"
 printf 'new\n' > "$P/tests/new.test"
 run 2 "post sweep: untracked new test"          --post engineer ""      "$BASH"
 rm "$P/tests/new.test"
+printf 'edited\n' >> "$P/spec/x.structure.body.md"
+run 2 "post sweep: dirty structure shard"       --post engineer ""      "$BASH"
+run 0 "post sweep: qa persona, dirty structure shard" --post qa  ""      "$BASH"
+( cd "$P" && git checkout -q -- spec )
 ( cd "$P" && git mv tests/a.test src/a_helper.js )
 run 2 "post sweep: test renamed out of tests/"  --post engineer ""      "$BASH"
 ( cd "$P" && git mv src/a_helper.js tests/a.test )

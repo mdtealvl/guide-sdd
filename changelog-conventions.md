@@ -118,10 +118,12 @@ script can triage without reading prose.
 
 | Line | Use when | Transition |
 |------|----------|------------|
-| `[NEEDS-PO:<reason>] <question>` — reason ∈ `fork` · `threshold` · `ac-unreachable` · `spec-gap` · `intent-gap` | a spec or design **decision** the worker may not make | → PO-attention; stop on the item |
+| `[NEEDS-PO:<reason>] <question>` — reason ∈ `fork` · `threshold` · `ac-unreachable` · `spec-gap` · `intent-gap` · `structure` | a spec or design **decision** the worker may not make. `structure` = a deviation from the PM-approved structure shard (a public member the diagram lacks, a changed signature): **PM-only**, never PO-arbitrated; approved ⇒ the PO replaces the shard wholesale and re-freezes | → PO-attention; stop on the member (other members may continue) |
 | `[BLOCKED:<reason>] <detail>` — reason ∈ `dor-fail` · `base-unresolved` · `suite-red-at-pickup` · `prereq-missing` · `fixture-blocking` · `non-convergence` · `merge-conflict` | the item cannot proceed until something lands | → PO-attention; stop on the item |
 | `[DEFER] <summary> — evidence: <file:line>` | a finding **outside this unit's clause range** (pre-existing, incidental). Never fixed in this unit — that would break reverse trace | no transition; the PO loop converts each to a Bug/Task at intake |
-| `frozen: <sha>` | Stage 5 exit: the QA-frozen commit `test_edit_ban` diffs against (mirrored in `gates/.frozen`) | — |
+| `frozen: <sha>` | Stage 5 exit: the QA-frozen commit `test_edit_ban` and `structure_check --frozen` diff against (mirrored in `gates/.frozen`) | — |
+| `structure: N/A — <reason>` | a unit that adds no class and no public member, so no structure shard (Stage 1 / Stage 3) | — |
+| `tokens: <slice\|plan> admitted ~A; saved ~V (P%); ledger H/N honoured` | every slice end (`token_ledger report --slice`) and the plan end at Stage 7 (`report`); an estimate from bytes admitted, never a billed count (`stages/4b_buildplan.md`) | — |
 | `validated: <base>..<head> accept\|decline [class]` | every Stage 7 Validation pass, with the SHA range it read | decline → Rework:<class> (`box-roles.md`) |
 | `lesson: <rule or stage that would have caught it> — source: <file:line\|sha>` | one per decline, written by the Orchestrator; the PO reads open lessons at intake | — |
 | `split-from: <ITEM-ID>` · `kept-whole: PM <date>` | intake scope decisions (`intake.md` §2) | — |
@@ -160,7 +162,8 @@ never a silent delete. See `lifecycle-states.md`.
 
 - **`intake.md`** — a raw request becomes this entry.
 - **Stage 0** (`stages/0_triage.md`) — file/find the item; right-size route.
-- **Stage 3** (`stages/3_spec.md`) — ACs are the **seed clauses** for the canonical spec.
+- **Stage 3** (`stages/3_spec.md`) — ACs are the **seed clauses** for the canonical spec; the structure shard is approved with it.
+- **Stage 4b** (`stages/4b_buildplan.md`) — the build plan whose ledger the `tokens:` lines summarize.
 - **Stage 7** (`stages/7_ship.md`) — the `validated:` / `[DEFER]` / `lesson:` lines.
 - **`definition-of-done.md`** — the DoR (Ready bar + readiness verdict) and DoD this entry is measured against.
 - **`box-roles.md`** — PO vs worker authority; the surface-back protocol; item state machine.

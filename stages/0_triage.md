@@ -39,7 +39,7 @@ Ask in order. **Q0 confirms one goal; Q1 sets rigor; Q2 sets whether to parallel
 
 | | one coupled unit | independent slices |
 |---|---|---|
-| **low-risk** | **Mechanical** — just do it, single context `0→3→4→7`; no QA/Engineer split | **Parallel dispatch** — fan out worktree workers (mechanical each); coordinator owns the merge-train |
+| **low-risk** | **Mechanical** — just do it, single context `0→3→4→4b→7`; no QA/Engineer split | **Parallel dispatch** — fan out worktree workers (mechanical each); coordinator owns the merge-train |
 | **high-risk** | **Persona loop** — full `0–7`: QA writes tests blind to the code, Engineer can't edit them, fresh Validation reviews | **Parallel + persona loop per lane** — pin the shared contract first, then a persona loop in each lane |
 
 Worked examples:
@@ -69,7 +69,7 @@ doubt, round up.
 3. Open/find the changelog item per the changelog binding (`project-details.md#CL-N`): Jira issue
    (Mode A) or on-disk `backlog/CL-####.md` (Mode B). Record the chosen route + ceremony on it.
 4. Write the **Triage record** (the output stages 1–7 read), naming:
-   - the active stages (mechanical activates `0/3/4/7`; persona activates all),
+   - the active stages (mechanical activates `0/3/4/4b/7`; persona activates all),
    - the target **spec shard IDs / clause-ID ranges** this work touches (seed of the Stage-3 shard manifest).
 
 ## Exit criteria

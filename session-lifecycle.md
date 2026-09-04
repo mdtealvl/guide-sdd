@@ -44,7 +44,8 @@ Run at an **unambiguous** close, in order (Tier-A: `/wrap`):
 6. **Overwrite the HANDOFF card** — in-flight lanes with resume points, the shipped list as
    commit/decision *pointers* (not prose), verdicts owed, parked decisions, a one-line-per-decision
    index. Wholesale replace; history belongs in the backlog.
-7. **Report** ≤10 lines and stop; do not start new work.
+7. **Report** ≤10 lines — including the `tokens:` line of every slice closed this session
+   (`gates/token_ledger.* report`) — and stop; do not start new work.
 
 ## Auto-wrap trigger
 Wrap fires automatically **only on an unambiguous close signal** (the PM signals end-of-session or an

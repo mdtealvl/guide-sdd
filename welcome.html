@@ -160,7 +160,7 @@
 <header class="hero">
   <div class="bgblob"></div>
   <div class="wrap">
-    <span class="pill"><span class="dot"></span> v1.12.0 · a dogfooded spec · for humans <b style="color:var(--ink)">&amp;</b> AI agents</span>
+    <span class="pill"><span class="dot"></span> v1.13.0 · a dogfooded spec · for humans <b style="color:var(--ink)">&amp;</b> AI agents</span>
     <h1>GUIDE<br><span class="grad">SDD</span></h1>
     <p class="tag">The spec is the prompt. The code <b>conforms</b>. One copyable method that drops into any project and makes <b>intent drift</b> very hard to ship — token-efficient, persona-split, gated end to end.</p>
     <div class="cta">
@@ -193,10 +193,11 @@
       <div class="stage ph-spec" data-st="1"><div class="bar"></div><div class="s">stage 1–2</div><div class="t">Design + recon</div><div class="gate">PM approves</div></div>
       <div class="stage ph-spec" data-st="2"><div class="bar"></div><div class="s">stage 3</div><div class="t">Spec-first (EARS)</div><div class="gate">link_check + prose_check</div></div>
       <div class="stage ph-test" data-st="3"><div class="bar"></div><div class="s">stage 4</div><div class="t">Test plan</div><div class="gate">coverage_check</div></div>
-      <div class="stage ph-test" data-st="4"><div class="bar"></div><div class="s">stage 5</div><div class="t">QA · spec-only</div><div class="gate">red, frozen</div></div>
-      <div class="stage ph-test" data-st="5"><div class="bar"></div><div class="s">stage 6</div><div class="t">Engineer</div><div class="gate">test_edit_ban</div></div>
-      <div class="stage ph-ship" data-st="6"><div class="bar"></div><div class="s">stage 7</div><div class="t">Gates + ship</div><div class="gate">run_all · validate</div></div>
-      <div class="stage ph-ship" data-st="7"><div class="bar"></div><div class="s">on done</div><div class="t">Fold + pin</div><div class="gate">spec = fold(ships)</div></div>
+      <div class="stage ph-test" data-st="4"><div class="bar"></div><div class="s">stage 4b</div><div class="t">Build plan</div><div class="gate">read ledger · tokens</div></div>
+      <div class="stage ph-test" data-st="5"><div class="bar"></div><div class="s">stage 5</div><div class="t">QA · spec-only</div><div class="gate">red, frozen</div></div>
+      <div class="stage ph-test" data-st="6"><div class="bar"></div><div class="s">stage 6</div><div class="t">Engineer</div><div class="gate">test_edit_ban</div></div>
+      <div class="stage ph-ship" data-st="7"><div class="bar"></div><div class="s">stage 7</div><div class="t">Gates + ship</div><div class="gate">run_all · validate</div></div>
+      <div class="stage ph-ship" data-st="8"><div class="bar"></div><div class="s">on done</div><div class="t">Fold + pin</div><div class="gate">spec = fold(ships)</div></div>
     </div>
     <div class="stagedetail" id="sd"><div class="inner"></div></div>
     <div class="legend">
@@ -218,7 +219,7 @@
       <div class="mh">misread cheap / obvious</div>
       <div class="mh">misread expensive / non-obvious</div>
       <div class="mh mside">not decomposable</div>
-      <div class="cell" data-cell="0"><b>Mechanical</b><span>single context · 0→3→4→7</span></div>
+      <div class="cell" data-cell="0"><b>Mechanical</b><span>single context · 0→3→4→4b→7</span></div>
       <div class="cell" data-cell="1"><b>Coupled + risky</b><span>full persona loop · 0–7</span></div>
       <div class="mh mside">decomposable</div>
       <div class="cell" data-cell="2"><b>Independent + simple</b><span>parallel worktree workers</span></div>
@@ -314,7 +315,7 @@ Do not continue ad-hoc work. If unsure of your stage, you are in Stage 0.</pre>
           <tr><th>Brownfield</th><td class="sdd"><b>Discover Spec</b> (reconstruct + coverage/mutation)</td><td>Analyst flows</td><td>Greenfield-leaning</td><td>TDD on existing code</td></tr>
           <tr><th>Platform</th><td class="sdd">Cross-agent via <code>AGENTS.md</code> (Claude / Codex / Cursor / Gemini / Copilot); <b>PowerShell + Bash</b> gates; Claude Code plugin</td><td>Any IDE/model, <b>domain-agnostic</b></td><td>CLI + many agent hosts</td><td>Claude Code + harnesses (plugin)</td></tr>
           <tr><th>Install / adopt</th><td class="sdd"><b>Installer pair</b> (<code>install.ps1</code> / <code>install.sh</code>: install · update · doctor, manifest-tracked), <b>Claude Code plugin</b> (<code>/plugin install guide-sdd@guide-sdd</code>), or unzip + runbook → INIT (3 questions) → gate smoke test. <b>No toolchain.</b></td><td><code>npx bmad-method install</code></td><td><code>uvx … specify init</code></td><td><code>/plugin install superpowers</code></td></tr>
-          <tr><th>Maturity</th><td class="sdd">v1.12.0 · GitHub repo, CI on Windows + Ubuntu with negative controls, release-on-tag, dogfooded on 3 projects</td><td>52.6k★, v6.11 skills-based, large community</td><td>Official GitHub, growing</td><td>Dominant skills framework</td></tr>
+          <tr><th>Maturity</th><td class="sdd">v1.13.0 · GitHub repo, CI on Windows + Ubuntu with negative controls, release-on-tag, dogfooded on 3 projects</td><td>52.6k★, v6.11 skills-based, large community</td><td>Official GitHub, growing</td><td>Dominant skills framework</td></tr>
         </tbody>
       </table>
     </div>
@@ -344,7 +345,7 @@ Do not continue ad-hoc work. If unsure of your stage, you are in Stage 0.</pre>
 </section>
 
 <footer>
-  <b>GUIDE SDD v1.12.0</b> — merged from Mistwright &amp; Polars + SOTA · the spec is boss · trust artifacts, not narratives
+  <b>GUIDE SDD v1.13.0</b> — merged from Mistwright &amp; Polars + SOTA · the spec is boss · trust artifacts, not narratives
 </footer>
 
 <script>
@@ -360,6 +361,7 @@ Do not continue ad-hoc work. If unsure of your stage, you are in Stage 0.</pre>
     {l:"stage 1–2 · spec phase",t:"Design + recon",c:"#8b7bff",g:"PM approves",d:`A prose design pass with the PM: surface the unknowns, decide the forks explicitly, and read the existing spec first — it probably already has what you were about to reinvent. Then recon: verify the prerequisites actually exist before committing, so the plan can't fail at integration. Persona route only.`},
     {l:"stage 3 · spec phase",t:"Spec-first (EARS)",c:"#8b7bff",g:"link_check + prose_check + PM approves",d:`Write the behaviour as EARS clauses with stable IDs, implementation-grade — every constant and threshold traceable to a source. The ticket's acceptance criteria are the seed clauses, and the decision lands in the spec the same exchange it's made. Closes on link_check and prose_check (spec form is measured: decisions only, one fact per line) plus PM approval: the pre-code gate.`},
     {l:"stage 4 · test phase",t:"Test plan",c:"#39d3b0",g:"coverage_check",d:`Every behavioural clause maps to at least one numbered scenario across the four test layers — unit, integration, lifecycle, visual — or "N/A, with a reason." Authored by the PO, so the coverage map stays independent of whoever writes the tests. coverage_check verifies it before a single test exists.`},
+    {l:"stage 4b · test phase",t:"Build plan",c:"#39d3b0",g:"structure_check --plan · token_ledger",d:`After the spec and its member-level structure diagram are approved: map the diagram's classes to files, cut the work into slices, and write the read ledger — which lines, anchors and pasted signatures each later context needs, and which files it must not open. Hash-guarded, audience-filtered so QA stays blind. token_ledger reports admitted vs saved tokens per slice and per plan, so the token economy is measured on the item, not asserted.`},
     {l:"stage 5 · test phase",t:"QA · spec-only",c:"#39d3b0",g:"red, then frozen",d:`QA writes the tests from the spec alone — never seeing the implementation. Expected values come from the spec (the oracle rule), never captured from the code under test. The tests compile, run red, and are then frozen. That blindness is the independence.`},
     {l:"stage 6 · test phase",t:"Engineer",c:"#39d3b0",g:"test_edit_ban",d:`Implements against the frozen tests and the spec — and cannot edit the tests. A disagreement is filed to the Orchestrator, never resolved by bending a test. Uses the project's named seams and conforms to the spec, not just "make it green."`},
     {l:"stage 7 · ship phase",t:"Gates + ship",c:"#f2b34b",g:"run_all · validate",d:`Mechanical gates run first — link, coverage, test-edit-ban, the full suite — then a fresh-context Validation reviews the diff against the spec and the constitution, because green is necessary but not sufficient. The Orchestrator owns the single serialized merge to trunk.`},
@@ -377,7 +379,7 @@ Do not continue ad-hoc work. If unsure of your stage, you are in Stage 0.</pre>
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&opened>=0)closeSD()});
 
   const MD=[
-    {l:"not decomposable · misread cheap",t:"Mechanical",c:"#39d3b0",ec:"#39d3b0",n:1,e:"lowest ceremony",r:"single context · 0→3→4→7",d:`One mind, one context, no persona split. Reach for it when the change is small and the values are already decided — a typo, a mechanical repoint, a config-only edit, a tweak where a misread is cheap and obvious to catch. You still keep the spec discipline: review the spec for conflicts, ship the tests in the same commit, run the whole suite green. The trap here is over-applying the persona loop — treating a mechanical change as if it needed four agents is its own kind of waste.`},
+    {l:"not decomposable · misread cheap",t:"Mechanical",c:"#39d3b0",ec:"#39d3b0",n:1,e:"lowest ceremony",r:"single context · 0→3→4→4b→7",d:`One mind, one context, no persona split. Reach for it when the change is small and the values are already decided — a typo, a mechanical repoint, a config-only edit, a tweak where a misread is cheap and obvious to catch. You still keep the spec discipline: review the spec for conflicts, ship the tests in the same commit, run the whole suite green. The trap here is over-applying the persona loop — treating a mechanical change as if it needed four agents is its own kind of waste.`},
     {l:"not decomposable · misread expensive",t:"Coupled + risky",c:"#8b7bff",ec:"#8b7bff",n:3,e:"high — one feature",r:"full persona loop · 0–7",d:`A single feature that can't be cleanly split, where a misread is expensive and not self-evident: money or combat math, a behaviour-preserving refactor of a load-bearing path, anything touching more than one core system. Run the full persona loop, stages 0–7 — QA writes the tests from the spec blind to the code, the Engineer implements against frozen tests it can't edit, and fresh Validation reviews the diff against the spec. The point is independence by construction: a misread has to survive more than one reader to ship.`},
     {l:"decomposable · misread cheap",t:"Independent + simple",c:"#5aa9ff",ec:"#5aa9ff",n:2,e:"low, parallelized",r:"parallel worktree workers",d:`Low ceremony per item, but parallelized for throughput. Use it when you have several well-specified, simple stories that don't depend on each other — each only a few points, a single surface, no TBDs, no workflow-config-shape changes. Fan them out to worktree workers, each running the mechanical route; the coordinator owns triage, the serialized merge-train, and all ticket interaction. They're independent, so they can't step on each other — speed without coordination overhead.`},
     {l:"decomposable · misread expensive",t:"Independent + risky",c:"#f2b34b",ec:"#f2b34b",n:4,e:"highest",r:"parallel · persona loop each",d:`The most effort — parallel and rigorous at once. Use it when decomposable work is also risky in each slice: a feature spanning frontend and backend, say. Pin the API contract first, then fan out — but each lane runs its own full persona loop. It composes the two independences: across slices (they don't collide) and within each slice (the misread must survive QA blind to the Engineer). Reserve it for genuinely big, genuinely risky work; the overhead is real.`}

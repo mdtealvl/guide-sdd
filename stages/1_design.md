@@ -29,6 +29,16 @@ common expensive mistake. (Standing rule, not a preference.)
 5. **Brownfield:** if the touched area has no authoritative spec (`greenfield-vs-brownfield.md`), do
    **not** design over behaviour inferred from code — flag the gap to the PM (worker box surfaces
    `[NEEDS-PO]`) and get the intended behaviour decided before designing on top of it.
+6. **Structure diagram — the last sub-step.** With the forks decided, draw the **member-level class
+   diagram** of what the unit will produce: every class / interface / enum it adds or changes, with
+   every **public** property and method (name, parameters, return type). A mermaid `classDiagram` in a
+   **structure shard** — `<ITEM-ID>.structure.body.md` in the working-spec home
+   (`spec-format/README.md` §3) — in **delta form**: `## Added` / `## Changed` (the class, with only
+   the members that change) / `## Removed`. Read the area's canonical structure shard first and
+   conform to it — the diagram's form of "don't fork a parallel hierarchy". A member the diagram
+   cannot name is an undecided fork: decide it (step 2) or escalate. Text is the source; the drawing
+   derives. A unit that adds no class and no public member records `structure: N/A — <reason>` on the
+   item instead.
 
 ## Anti-patterns
 
@@ -41,11 +51,15 @@ common expensive mistake. (Standing rule, not a preference.)
 - [ ] Every fork decided explicitly (or escalated to PM and answered).
 - [ ] Any brownfield spec gap in the touched area flagged to the PM and resolved — not designed over.
 - [ ] Prerequisites enumerated for recon.
-- [ ] PM has signed off on the prose plan.
+- [ ] Structure shard drafted at member level — public surface complete, delta form — or
+      `structure: N/A — <reason>` on the item.
+- [ ] PM has signed off on the prose plan and the draft diagram.
 
 ---
 ### Gate(s) that close this stage
-- PM approves the design prose (human gate).
+- PM approves the design prose + the draft structure diagram (human gate). The diagram is approved
+  **finally** with the spec at Stage 3 and frozen with the tests at Stage 5; from then on a deviation is
+  `[NEEDS-PO:structure]` — a PM decision, never an edit (`stages/6_engineer.md`).
 ### Return
 Return to PROCESS.md §0 and load Stage 2 (recon) if the plan rests on unverified prerequisites, else
 Stage 3 (spec). Read that stage file fully and follow it; this one is done.
