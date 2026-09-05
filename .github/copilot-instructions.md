@@ -11,6 +11,8 @@ ad-hoc work. Read `AGENTS.md` (repo root) for the full always-loaded core; the e
 - **To do any work:** start at `sdd/PROCESS.md` §0 (boot protocol / stage router) — load ONLY your
   current stage + the shards it names. Never bulk-load the framework.
 - **Project specifics:** `sdd/project-config/project-details.md`, one section on demand.
+- **Bugs in GUIDE itself** (stage, gate, hook, installer, spine doc): file it at
+  https://github.com/mdtealvl/guide-sdd/issues with `sdd/VERSION`, the step, and the output — never edit the spine.
 - **Box role:** `$SDD_BOX_ROLE` (default `po`), id `$SDD_BOX_ID` — a worker executes Ready items and
   surfaces concerns to the changelog item; it never authors specs, decides forks, or merges
   (`sdd/box-roles.md`).

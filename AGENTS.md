@@ -15,6 +15,10 @@ On your first action here, **say so**, then operate under SDD — do NOT continu
   current stage + the shards it names. Never bulk-load the framework.
 - **Project specifics** (seams, stack, tracker, spec home): `sdd/project-config/project-details.md` —
   one section on demand, never the whole file.
+- **Bugs in GUIDE itself** (a stage, gate, hook, installer, or spine doc misbehaving — not a project
+  problem): file it at https://github.com/mdtealvl/guide-sdd/issues (`gh issue create --repo
+  mdtealvl/guide-sdd`) with `sdd/VERSION`, the step or command, and the output; work around it on the
+  changelog item, never by editing the spine.
 
 ## This box's role
 
