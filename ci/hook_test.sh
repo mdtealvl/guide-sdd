@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 # Unit test for plugin/hooks/persona-guard.sh: feeds hook JSON on stdin and checks exit codes for the
-# three passes (--pre edit/read deny, --post and --stop working-tree sweeps).
+# four passes (--pre edit/read deny, --post and --stop working-tree sweeps, --session-end marker removal),
+# the marker session stamp, and the sweep cost bound.
 set -u
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 HOOK="$REPO/plugin/hooks/persona-guard.sh"
@@ -89,5 +90,54 @@ run 2 "post sweep: gate config edited"          --post engineer ""      "$BASH"
   && printf 'edited\n' >> tests/a.test && git commit -q -am "sneaky" )
 run 2 "post sweep: committed test edit vs .frozen" --post engineer ""   "$BASH"
 run 0 "post sweep: qa persona, committed edit"  --post qa       ""      "$BASH"
+( cd "$P" && git reset -q --hard HEAD~2 )
+
+echo "-- marker session stamp (stale marker is ignored, never obeyed)"
+sedit() { printf '{"session_id":"%s","tool_name":"%s","tool_input":{"file_path":"%s","old_string":"a","new_string":"b"}}' "$1" "$2" "$3"; }
+check() { if [ "$1" = "$2" ]; then echo "ok    $3"; else echo "FAIL  $3 (got [$1] want [$2])"; fails=$((fails+1)); fi; }
+run 2 "own-session stamp + tests path"          --pre "" "engineer
+session=S1"                                                            "$(sedit S1 Edit "$P/tests/a.test")"
+run 0 "foreign-session stamp + tests path"      --pre "" "engineer
+session=S1"                                                            "$(sedit S2 Edit "$P/tests/a.test")"
+check "$(test -f "$P/sdd/.persona" && echo kept)" kept "foreign-stamped marker is left in place"
+run 0 "foreign-session stamp: post sweep skipped" --post "" "engineer
+session=S1"                                                            "$(printf '{"session_id":"S2","tool_name":"Bash","tool_input":{"command":"x"}}')"
+run 0 "unstamped marker + src path (adopts session)" --pre "" engineer "$(sedit S1 Edit "$P/src/foo.ts")"
+check "$(sed -n 's/^session=//p' "$P/sdd/.persona")" S1 "marker stamped with the first session seen"
+check "$(head -1 "$P/sdd/.persona" | tr -d '\r\n')" engineer "persona line intact after stamping"
+printf 'engineer' > "$P/sdd/.persona"   # no trailing newline (a Write-tool marker)
+rc=$(printf '%s' "$(sedit S1 Edit "$P/src/foo.ts")" | CLAUDE_PROJECT_DIR="$P" sh "$HOOK" --pre 2>/dev/null; echo $?)
+check "$rc" 0 "unterminated marker + src path"
+check "$(head -1 "$P/sdd/.persona" | tr -d '\r\n')" engineer "unterminated marker gains a newline before the stamp"
+check "$(sed -n 's/^session=//p' "$P/sdd/.persona")" S1 "unterminated marker stamped"
+run 2 "no session_id in input: legacy marker still enforced" --pre "" engineer "$(edit Edit "$P/tests/a.test")"
+run 0 "no marker + session_id: allowed"                --pre "" ""       "$(sedit S1 Edit "$P/tests/a.test")"
+: > "$P/sdd/.persona"; rc=$(printf '%s' "$(sedit S1 Edit "$P/src/foo.ts")" | CLAUDE_PROJECT_DIR="$P" sh "$HOOK" --pre 2>/dev/null; echo $?)
+check "$rc$(cat "$P/sdd/.persona")" 0 "empty marker stays empty (no stamp without a persona)"
+run 0 "env persona beats a foreign stamp (qa env, src edit)" --pre qa "engineer
+session=S9"                                                            "$(sedit S1 Edit "$P/src/foo.ts")"
+
+echo "-- session-end clears the marker"
+run 0 "session-end, unstamped marker"           --session-end "" engineer "$(printf '{"session_id":"S1","reason":"other"}')"
+check "$(test -f "$P/sdd/.persona" && echo kept || echo removed)" removed "unstamped marker removed at session end"
+run 0 "session-end, own stamp"                  --session-end "" "engineer
+session=S1"                                                            "$(printf '{"session_id":"S1","reason":"clear"}')"
+check "$(test -f "$P/sdd/.persona" && echo kept || echo removed)" removed "own-stamped marker removed at session end"
+run 0 "session-end, foreign stamp"              --session-end "" "engineer
+session=S1"                                                            "$(printf '{"session_id":"S2","reason":"other"}')"
+check "$(test -f "$P/sdd/.persona" && echo kept || echo removed)" kept "another session's marker survives our session end"
+run 0 "session-end, no marker"                  --session-end "" ""      "$(printf '{"session_id":"S1"}')"
+
+echo "-- sweep cost is O(globs), not O(paths)"
+mkdir -p "$P/assets"; i=0; while [ $i -lt 500 ]; do printf 'x' > "$P/assets/f$i.png"; i=$((i+1)); done
+printf 'new\n' > "$P/tests/new.test"
+t0=$(date +%s)
+run 2 "post sweep: 500 untracked assets + 1 untracked test" --post engineer "" "$BASH"
+t1=$(date +%s)
+echo "      sweep over 501 untracked paths took $((t1-t0))s"
+check "$(grep -c 'tests/new.test (testGlob' "$T/err")" 1 "sweep names the test once"
+check "$(grep -c 'assets/' "$T/err")" 0 "sweep names no asset"
+[ $((t1-t0)) -le 30 ] || { echo "FAIL  sweep exceeded 30s"; fails=$((fails+1)); }
+rm -rf "$P/assets" "$P/tests/new.test"
 
 if [ "$fails" -eq 0 ]; then echo "HOOK PASS"; else echo "HOOK FAIL ($fails)"; exit 1; fi

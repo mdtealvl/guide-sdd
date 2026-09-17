@@ -11,7 +11,7 @@ Argument: $ARGUMENTS.
 
 - `engineer` → write `engineer` to `sdd/.persona`. From now on the plugin hook denies Edit/Write to any path matching `gates.config.json` `testGlobs` or `structureGlobs` (the PM-approved structure diagram), to the gate bank and to the markers, and sweeps the working tree after every tool and at turn end for test/structure/gate drift vs `gates/.frozen` (invariant 3: the Engineer never edits QA's tests; a structure deviation is `[NEEDS-PO:structure]`, a PM decision). Set this when dispatching the Stage-6 Engineer.
 - `qa` → write `qa`. Edits to tests allowed; Read/Grep/Glob under `paths.code` are denied (QA is blind to the implementation; expected values come from the spec). Set this when dispatching the Stage-5 QA.
-- `clear` → delete `sdd/.persona`.
+- `clear` → delete `sdd/.persona`. (The hook also deletes it at SessionEnd, and stamps it `session=<id>` on first sight so a marker left by another session is ignored rather than obeyed.)
 - `show` → print the marker and whether `SDD_PERSONA` is set in the environment (the env var wins over the file).
 
 Keep `sdd/.persona` out of version control (add it to `.gitignore` once). On Tier-B hosts, export `SDD_PERSONA=engineer` in the Engineer's session instead.
