@@ -64,7 +64,8 @@ per-feature personas). Declare each box's role **locally and uncommitted**:
 
 - env `SDD_BOX_ROLE=po|worker` (+ `SDD_BOX_ID=<short id>`, e.g. the hostname — required on a worker; it
   stamps claims), **or** a `project-config/box-role.local` file holding both. If you use the file, add it
-  to the repo `.gitignore` (and `sdd/.persona`, the plugin's persona marker) — these are per-box and **never committed**.
+  to the repo `.gitignore` (and `sdd/.persona` + `sdd/.persona-state/`, the plugin's persona marker and
+  its per-session/per-agent state — `install.sh`/`install.ps1` add both automatically) — these are per-box and **never committed**.
 - Default = **po** (an unset/solo box does everything: triage, design, spec authoring, fork
   decisions, merge). A **worker** box only executes Ready (DoR-met) items and surfaces concerns back
   — it never authors the spec or decides forks. See `sdd/box-roles.md`.

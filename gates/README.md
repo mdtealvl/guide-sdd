@@ -37,6 +37,16 @@ gates source; keep them next to the gates. Runs on a fresh clone with no project
 > spends its attention on diff-vs-spec *intent*, the thing only a fresh reader catches — not on
 > link hygiene a script already settled.
 
+## One gate bank per git repository
+
+Every gate resolves its root with `git -C <its own location> rev-parse --show-toplevel` — it cannot
+see inside a **nested git repo** (a submodule/gitlink, or a plain subdirectory with its own `.git`;
+GitHub issue #2). `install.sh` / `install.ps1` detect these after install/update (a gitlink, or a
+first-level subdirectory holding `.git`) and print a `WARN nested git repo '<path>': ...` line naming
+the fix: install a **second** gate bank there with `install.sh --gates-only <path>` (or
+`install.ps1 --gates-only <path>`) — it copies only `gates/`, seeds `gates.config.json` from the
+template if absent, and never touches an existing config. One bank per repository boundary, always.
+
 ## The bank at a glance
 
 | Gate | Files (Win / *nix) | Kind | Proves | Closes stage |

@@ -11,12 +11,18 @@
 #                            [--commands] [--source <dir|zip>] [--repo owner/repo] [--force]
 #   pwsh install.ps1 update  [--version vX.Y.Z|latest] [--dest sdd] [--source <dir|zip>] [--repo owner/repo] [--force]
 #   pwsh install.ps1 doctor  [--dest sdd]
+#   pwsh install.ps1 --gates-only <target-dir> [--source <dir|zip>] [--repo owner/repo] [--version vX.Y.Z|latest]
 # Exit: 0 ok · 1 doctor found drift / update refused · 2 usage or source error.
 # Needs: pwsh 7, git. Downloads: gh (works on a private repo) or Invoke-WebRequest (public).
 $ErrorActionPreference = 'Stop'
-function Usage { Get-Content $PSCommandPath | Select-Object -Skip 1 -First 19 | ForEach-Object { $_ -replace '^# ?', '' } }
+function Usage { Get-Content $PSCommandPath | Select-Object -Skip 1 -First 20 | ForEach-Object { $_ -replace '^# ?', '' } }
 $Verb = if ($args.Count -gt 0) { [string]$args[0] } else { '' }
 $rest = if ($args.Count -gt 1) { $args[1..($args.Count - 1)] } else { @() }
+$GatesTarget = ''
+if ($Verb -eq '--gates-only') {
+    $GatesTarget = if ($rest.Count -gt 0) { [string]$rest[0] } else { '' }
+    $rest = if ($rest.Count -gt 1) { $rest[1..($rest.Count - 1)] } else { @() }
+}
 $Version = 'latest'; $Dest = 'sdd'; $Carriers = ''; $Commands = $false; $Source = ''; $Repo = 'mdtealvl/guide-sdd'; $Force = $false
 for ($i = 0; $i -lt $rest.Count; $i++) {
     switch ($rest[$i]) {
@@ -31,7 +37,7 @@ for ($i = 0; $i -lt $rest.Count; $i++) {
         default { [Console]::Error.WriteLine("install.ps1: unknown argument '$($rest[$i])'"); Usage | ForEach-Object { [Console]::Error.WriteLine($_) }; exit 2 }
     }
 }
-if ($Verb -notin 'install', 'update', 'doctor') { Usage | ForEach-Object { [Console]::Error.WriteLine($_) }; exit 2 }
+if ($Verb -notin 'install', 'update', 'doctor', '--gates-only') { Usage | ForEach-Object { [Console]::Error.WriteLine($_) }; exit 2 }
 $Dest = $Dest.TrimEnd('/', '\')
 $Manifest = Join-Path $Dest '.sdd-manifest.json'
 $script:Work = $null
@@ -131,6 +137,35 @@ function PlaceCommands([string]$src) {
         Write-Output "commands  $d/ ($n written)"
     }
 }
+function WarnNested {
+    # nested git repos: the gate bank resolves its root from its own location (gates/) and cannot see
+    # inside a gitlink or a first-level subdir with its own .git (GitHub issue #2)
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return }
+    & git rev-parse --is-inside-work-tree 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) { return }
+    $nested = [Collections.Generic.SortedSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($line in (& git ls-files -s 2>$null)) {
+        if ($line -match '^160000\s+\S+\s+\S+\s+(.+)$') { [void]$nested.Add($Matches[1]) }
+    }
+    foreach ($d in Get-ChildItem -Directory -Force -ErrorAction SilentlyContinue) {
+        if (Test-Path (Join-Path $d.FullName '.git')) { [void]$nested.Add($d.Name) }
+    }
+    foreach ($p in $nested) {
+        Write-Output "WARN nested git repo '$p': the gate bank resolves its root from its own location and cannot see inside it; install the gates there too: install.ps1 --gates-only $p"
+    }
+}
+function EnsureGitignore([string]$root) {  # append sdd/.persona + sdd/.persona-state/ if missing (idempotent)
+    $gi = Join-Path $root '.gitignore'
+    # Built unconditionally, then populated (not assigned from an if/else expression): an empty
+    # collection returned from a branch unrolls to $null on assignment, which breaks $lines.Add below.
+    $lines = [Collections.Generic.List[string]]::new()
+    if (Test-Path $gi) { foreach ($l in (Get-Content $gi)) { $lines.Add($l) } }
+    $changed = $false
+    foreach ($want in 'sdd/.persona', 'sdd/.persona-state/') {
+        if (-not ($lines -contains $want)) { $lines.Add($want); $changed = $true }
+    }
+    if ($changed -or -not (Test-Path $gi)) { [IO.File]::WriteAllText($gi, (($lines -join "`n") + "`n"), $utf8) }
+}
 
 # --- verbs ---------------------------------------------------------------------------------------
 function Do-Install {
@@ -149,7 +184,9 @@ function Do-Install {
     $cfg = Join-Path $Dest 'gates/gates.config.json'
     if (-not (Test-Path $cfg)) { Copy-Item (Join-Path $Dest 'gates/gates.config.template.json') $cfg; Write-Output "config    $Dest/gates/gates.config.json (seeded from template; fill the keys per INIT section 5)" }
     PlaceCarriers $src; PlaceCommands $src
+    EnsureGitignore '.'
     Write-Output "next      open $Dest/project-config/INIT.md at section 1a - the box tier/role and the three ASKs are yours"
+    WarnNested
 }
 function Do-Update {
     if (-not (Test-Path $Manifest)) { Die "no $Manifest — run 'install' first" }
@@ -175,8 +212,30 @@ function Do-Update {
         elseif ((Sha $from) -ne (Sha $to)) { Copy-Item $from $to; Write-Output "  UPDATED $Dest/$f"; $upd++ }
     }
     WriteManifest $src $v
+    EnsureGitignore '.'
     Write-Output "update    guide-sdd $old -> $v at $Dest/ ($upd updated, $add added, nothing removed)"
     Write-Output "next      commit the spine bump by itself, before any code (spec-edit law)"
+    WarnNested
+}
+function Do-GatesOnly([string]$target) {
+    # installs only gates/ into <target>/sdd/gates/ (no spine, no carriers, no manifest)
+    if (-not $target) { Die "--gates-only needs a target directory" }
+    $target = $target.TrimEnd('/', '\')
+    $src = Acquire; $v = SrcVersion $src
+    $gd = "$target/sdd/gates"
+    $srcGates = Join-Path $src 'gates'
+    $files = OrdinalSort (Get-ChildItem -LiteralPath $srcGates -Recurse -File -Force | ForEach-Object {
+        $_.FullName.Substring($srcGates.Length).TrimStart('\', '/') -replace '\\', '/'
+    })
+    foreach ($f in $files) {
+        $to = Join-Path $gd $f; $d = Split-Path $to -Parent
+        if ($d) { New-Item -ItemType Directory -Force $d | Out-Null }
+        Copy-Item (Join-Path $srcGates $f) $to
+    }
+    Write-Output "gates-only guide-sdd $v -> $gd/ ($($files.Count) files)"
+    $cfg = Join-Path $gd 'gates.config.json'
+    if (-not (Test-Path $cfg)) { Copy-Item (Join-Path $gd 'gates.config.template.json') $cfg; Write-Output "config    $gd/gates.config.json (seeded from template; fill the keys per INIT section 5)" }
+    EnsureGitignore $target
 }
 function Do-Doctor {
     if (-not (Test-Path $Manifest)) { Die "no $Manifest at $Dest/ — not installed" }
@@ -194,5 +253,5 @@ function Do-Doctor {
     if ($bad -eq 0) { Write-Output "  ok      $total files match the manifest" } else { Write-Output "  $bad of $total files differ from the manifest"; Cleanup; exit 1 }
 }
 try {
-    switch ($Verb) { 'install' { Do-Install } 'update' { Do-Update } 'doctor' { Do-Doctor } }
+    switch ($Verb) { 'install' { Do-Install } 'update' { Do-Update } 'doctor' { Do-Doctor } '--gates-only' { Do-GatesOnly $GatesTarget } }
 } finally { Cleanup }

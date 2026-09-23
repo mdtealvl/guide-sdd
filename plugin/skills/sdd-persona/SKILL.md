@@ -14,4 +14,4 @@ Argument: $ARGUMENTS.
 - `clear` → delete `sdd/.persona`. (The hook also deletes it at SessionEnd, and stamps it `session=<id>` on first sight so a marker left by another session is ignored rather than obeyed.)
 - `show` → print the marker and whether `SDD_PERSONA` is set in the environment (the env var wins over the file).
 
-Keep `sdd/.persona` out of version control (add it to `.gitignore` once). On Tier-B hosts, export `SDD_PERSONA=engineer` in the Engineer's session instead.
+Keep `sdd/.persona` out of version control (add it to `.gitignore` once); `sdd/.persona-state/` (the hook's per-session/per-agent snapshots, PG.5/PG.8) is per-box state too and belongs in the same `.gitignore` entry — `install.sh`/`install.ps1` add both lines automatically. On Tier-B hosts, export `SDD_PERSONA=engineer` in the Engineer's session instead.

@@ -1,6 +1,6 @@
 # GUIDE SDD — Gated, Unified, Intent-Driven Engineering
 
-> **v1.13.0 — 2026-09-03.** A reusable, token-efficient, spec-first / persona-split development
+> **v1.14.0 — 2026-09-22.** A reusable, token-efficient, spec-first / persona-split development
 > method that drops into large, multi-developer projects worked by humans **and** AI agents. It
 > merges two mature in-house practices (Mistwright's *How We Work*, Polars' *How To Develop*) with
 > the published SOTA into one copyable **spine** + a small, indexed **per-project surface**.
@@ -375,6 +375,19 @@ skip lists — filtered by audience so QA stays blind and Validation stays fresh
 `token_ledger` reports admitted vs saved per slice and per plan as `tokens:` item lines (slice end,
 Stage 7, `/wrap`), byte-estimated cost read beside the outcome metrics. CI carries a negative control per
 guard on both OS twins. Full record in `constitution.changelog.md`.
+
+### v1.14.0 Amendment — concurrent personas, nested-repo gate banks (2026-09-22)
+
+No invariant change; still ten. **Persona guard:** `agent_type` `qa`/`engineer` (or `qa-*`/`engineer-*`)
+sets the persona directly, no marker read or stamped, so QA and Engineer sub-agents run concurrently
+without racing on `sdd/.persona` (PG.1); a `qa` persona's Bash calls are checked against `paths.code`
+path tokens (PG.4); an `engineer` persona's own Bash calls are swept against a `--pre`-time snapshot,
+attributing only what that agent changed (PG.5); every sweep also reads nested repos under a
+`testGlobs` path (PG.6). **Installer:** `install.sh` / `install.ps1` warn on a nested git repo (gitlink
+or first-level subdirectory with its own `.git`) the gate bank cannot see into, and a new
+`--gates-only <target>` flag installs a second, minimal gate bank there; both also gitignore
+`sdd/.persona` and `sdd/.persona-state/`. Closes GitHub issues #2 and #3. Full record in
+`constitution.changelog.md`.
 
 ## Map to the source practices
 

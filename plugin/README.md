@@ -27,6 +27,21 @@ four passes:
 Runs under `sh`; on Windows that is Git Bash, which Claude Code already requires. A tripwire, not the
 proof: the Stage-7 `test_edit_ban` and `structure_check --frozen` gates diff the QA-frozen SHA. Tested by `ci/hook_test.sh` (75 cases). The marker is stamped `session=<id>` by the first pass that sees it; a marker stamped by another session is ignored, never obeyed (a crashed session cannot leave a persona behind). Builtins only - the only processes are `git` in the sweep and `rm` at session end - so a pass costs one shell start (~0.3 s on Windows), a sweep of a 500-path tree ~1 s.
 
+**Persona from sub-agent type (PG.1).** The hook input's `agent_type` sets the persona directly when
+it's `qa`/`engineer` (or `qa-*`/`engineer-*`) — no marker read or stamped — so QA and Engineer
+sub-agents can run **concurrently** without racing on `sdd/.persona`. Any other `agent_type` falls
+back to env `SDD_PERSONA`, then the `sdd/.persona` marker file. Pin a sub-agent's type in its
+frontmatter, e.g. `.claude/agents/qa.md`:
+
+```yaml
+name: qa
+description: QA persona — writes tests from spec, blind to the implementation.
+model: sonnet
+```
+
+Pin `model` there — an unpinned sub-agent inherits the session's model, which can silently drift the
+persona onto whatever model started the session.
+
 `bin/install.sh` and `bin/install.ps1` are byte-identical copies of the repo-root installers (CI checks).
 Plugin version = the framework `VERSION`; plugin tags are `guide-sdd--vX.Y.Z`.
 

@@ -12,12 +12,15 @@
 #                         [--commands] [--source <dir|zip>] [--repo owner/repo] [--force]
 #   sh install.sh update  [--version vX.Y.Z|latest] [--dest sdd] [--source <dir|zip>] [--repo owner/repo] [--force]
 #   sh install.sh doctor  [--dest sdd]
+#   sh install.sh --gates-only <target-dir> [--source <dir|zip>] [--repo owner/repo] [--version vX.Y.Z|latest]
 # Exit: 0 ok · 1 doctor found drift / update refused · 2 usage or source error.
 # Needs: sh, git, sha256sum or shasum. Downloads: gh (works on a private repo) or curl + unzip (public).
 set -eu
 
-usage() { sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; }
 VERB="${1:-}"; [ $# -gt 0 ] && shift
+GATES_TARGET=""
+if [ "$VERB" = "--gates-only" ]; then GATES_TARGET="${1:-}"; [ $# -gt 0 ] && shift; fi
 VERSION=latest; DEST=sdd; CARRIERS=""; COMMANDS=0; SOURCE=""; REPO=mdtealvl/guide-sdd; FORCE=0
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -27,7 +30,7 @@ while [ $# -gt 0 ]; do
     *) echo "install.sh: unknown argument '$1'" >&2; usage >&2; exit 2 ;;
   esac
 done
-case "$VERB" in install|update|doctor) ;; *) usage >&2; exit 2 ;; esac
+case "$VERB" in install|update|doctor|--gates-only) ;; *) usage >&2; exit 2 ;; esac
 DEST=${DEST%/}
 MANIFEST="$DEST/.sdd-manifest.json"
 WORK=$(mktemp -d); cleanup() { rm -rf "$WORK"; :; }; trap cleanup EXIT
@@ -109,6 +112,26 @@ place_commands() {  # <srcdir>
     echo "commands  $d/ ($n written)"
   done
 }
+warn_nested() {  # nested git repos: the gate bank resolves its root from its own location (gates/) and
+                 # cannot see inside a gitlink or a first-level subdir with its own .git (GitHub issue #2)
+  command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+  {
+    git ls-files -s 2>/dev/null | while read -r mode _ _ p; do [ "$mode" = 160000 ] && printf '%s\n' "$p"; done
+    for d in */; do
+      d=${d%/}; [ -d "$d" ] || continue
+      [ -e "$d/.git" ] && printf '%s\n' "$d"
+    done
+  } | LC_ALL=C sort -u | while read -r p; do
+    echo "WARN nested git repo '$p': the gate bank resolves its root from its own location and cannot see inside it; install the gates there too: install.sh --gates-only $p"
+  done
+}
+ensure_gitignore() {  # <root> — append sdd/.persona + sdd/.persona-state/ if missing (idempotent)
+  gi="${1%/}/.gitignore"
+  [ -f "$gi" ] || : > "$gi"
+  for line in "sdd/.persona" "sdd/.persona-state/"; do
+    grep -qxF "$line" "$gi" 2>/dev/null || printf '%s\n' "$line" >> "$gi"
+  done
+}
 
 # --- verbs ---------------------------------------------------------------------------------------
 do_install() {
@@ -123,7 +146,9 @@ do_install() {
   echo "install   guide-sdd $V -> $DEST/ ($n files)"
   if [ ! -f "$DEST/gates/gates.config.json" ]; then cp "$DEST/gates/gates.config.template.json" "$DEST/gates/gates.config.json"; echo "config    $DEST/gates/gates.config.json (seeded from template; fill the keys per INIT section 5)"; fi
   place_carriers "$SRC"; place_commands "$SRC"
+  ensure_gitignore .
   echo "next      open $DEST/project-config/INIT.md at section 1a - the box tier/role and the three ASKs are yours"
+  warn_nested
 }
 do_update() {
   [ -f "$MANIFEST" ] || die "no $MANIFEST — run 'install' first"
@@ -148,8 +173,22 @@ do_update() {
     elif [ "$(sha "$SRC/$f")" != "$(sha "$DEST/$f")" ]; then cp "$SRC/$f" "$DEST/$f"; echo "  UPDATED $DEST/$f"; upd=$((upd+1)); fi
   done < "$WORK/list"
   write_manifest "$SRC" "$V"
+  ensure_gitignore .
   echo "update    guide-sdd $OLD -> $V at $DEST/ ($upd updated, $add added, nothing removed)"
   echo "next      commit the spine bump by itself, before any code (spec-edit law)"
+  warn_nested
+}
+do_gates_only() {  # <target> — installs only gates/ into <target>/sdd/gates/ (no spine, no carriers, no manifest)
+  T="${1:-}"; [ -n "$T" ] || die "--gates-only needs a target directory"
+  T=${T%/}
+  acquire; V=$(src_version "$SRC")
+  GD="$T/sdd/gates"
+  (cd "$SRC/gates" && find . -type f | sed 's|^\./||' | LC_ALL=C sort) > "$WORK/gateslist"
+  n=$(wc -l < "$WORK/gateslist" | tr -d ' ')
+  while read -r f; do mkdir -p "$GD/$(dirname "$f")"; cp "$SRC/gates/$f" "$GD/$f"; done < "$WORK/gateslist"
+  echo "gates-only guide-sdd $V -> $GD/ ($n files)"
+  if [ ! -f "$GD/gates.config.json" ]; then cp "$GD/gates.config.template.json" "$GD/gates.config.json"; echo "config    $GD/gates.config.json (seeded from template; fill the keys per INIT section 5)"; fi
+  ensure_gitignore "$T"
 }
 do_doctor() {
   [ -f "$MANIFEST" ] || die "no $MANIFEST at $DEST/ — not installed"
@@ -167,4 +206,4 @@ do_doctor() {
   [ -f "$DEST/project-config/project-details.md" ] && echo "  project $DEST/project-config/project-details.md"
   if [ "$bad" -eq 0 ]; then echo "  ok      $total files match the manifest"; else echo "  $bad of $total files differ from the manifest"; exit 1; fi
 }
-case "$VERB" in install) do_install ;; update) do_update ;; doctor) do_doctor ;; esac
+case "$VERB" in install) do_install ;; update) do_update ;; doctor) do_doctor ;; --gates-only) do_gates_only "$GATES_TARGET" ;; esac
