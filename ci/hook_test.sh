@@ -240,6 +240,9 @@ run 0 "PG.4 engineer bash cat src file allowed (tripwire is qa-only)" --pre engi
 run 0 "PG.4 qa bash different top dir (src2) is not a prefix match, allowed" --pre qa "" "$(bash_ "cat src2/notes.txt")"
 run 2 "PG.4 qa bash directory-only src token denied" --pre qa "" "$(bash_ "rm -rf src/")"
 run 2 "PG.4 qa bash mixed args: one token matches testGlobs, one doesn't -> still denied" --pre qa "" "$(bash_ "diff src/foo.ts src/foo.test.ts")"
+run 2 "F2 qa bash escaped quotes don't truncate the command (code path still seen)" --pre qa "" "$(bash_ 'echo \"a\", ; cat src/foo.ts')"
+run 2 "F2 qa bash embedded fake JSON keys in the command don't confuse parsing (code path still seen)" --pre qa "" "$(bash_ 'echo {\"agent_type\":\"x\"} src/foo.ts')"
+run 0 "F2 control: same escaped-quote shape naming only a test path is allowed" --pre qa "" "$(bash_ 'echo \"a\", ; cat tests/a.test')"
 
 echo "-- PG.5 engineer-agent (agent_type) sweep is attributed to agent_id, snapshotted at --pre on a Bash call"
 ( cd "$P" && git checkout -q -- tests spec ) 2>/dev/null
@@ -279,6 +282,35 @@ echo "-- PG.5c orchestrator ruling: --stop does no sweep for agent_type=engineer
 printf 'dirty test for stop no-sweep check\n' >> "$P/tests/a.test"
 run 0 "PG.5c stop for agent_type=engineer does no sweep (exit 0 despite dirty test)" --stop "" "" "$(stop_agent engineer AG11)"
 run 2 "PG.5c control: marker/env engineer stop still sweeps whole tree (today's behaviour)" --stop engineer "" "$STOP"
+( cd "$P" && git checkout -q -- tests )
+
+echo "-- F1 / PG.5d: the engineer sweep must also run on a FAILED Bash call, and hooks.json must wire PostToolUseFailure"
+HOOKSJSON="$REPO/plugin/hooks/hooks.json"
+startln=$(grep -n '"PostToolUseFailure"' "$HOOKSJSON" | head -1 | cut -d: -f1)
+if [ -n "$startln" ]; then
+  relend=$(tail -n +"$((startln+1))" "$HOOKSJSON" | grep -n '^    "[A-Za-z]*":' | head -1 | cut -d: -f1)
+  if [ -n "$relend" ]; then endln=$((startln+relend-1)); else endln=$((startln+20)); fi
+  block=$(sed -n "${startln},${endln}p" "$HOOKSJSON")
+else
+  block=""
+fi
+if printf '%s\n' "$block" | grep -qi '"matcher".*bash'; then matchok=yes; else matchok=no; fi
+check "$matchok" yes "F1 hooks.json PostToolUseFailure matcher includes Bash"
+if printf '%s\n' "$block" | grep -Eq '"command":.*--post"[[:space:]]*$'; then cmdok=yes; else cmdok=no; fi
+check "$cmdok" yes "F1 hooks.json PostToolUseFailure command ends in --post"
+failure_json() { printf '{"hook_event_name":"PostToolUseFailure","agent_type":"%s","agent_id":"%s","tool_name":"Bash","tool_input":{"command":"%s"},"tool_response":{}}' "$1" "$2" "$3"; }
+run 0 "F1 pre snapshot before a failed-call post check (agent AGF)" --pre "" "" "$(bash_agent engineer AGF true)"
+printf 'dirt introduced by the failed bash call\n' >> "$P/tests/a.test"
+run 2 "F1 post denies on a PostToolUseFailure-shaped input (a failed Bash call is still swept)" --post "" "" "$(failure_json engineer AGF true)"
+( cd "$P" && git checkout -q -- tests )
+
+echo "-- F3 / PG.5: two concurrent engineer agent_ids in the same session don't collide in the per-agent snapshot state"
+( cd "$P" && git checkout -q -- tests ) 2>/dev/null
+run 0 "F3 pre snapshot (agent A, session SF3)" --pre "" "" "$(bash_agent engineer AGA true SF3)"
+printf 'agent A dirtied this between the two pre snapshots\n' >> "$P/tests/a.test"
+run 0 "F3 pre snapshot (agent B, session SF3); tree already shows A's dirt" --pre "" "" "$(bash_agent engineer AGB true SF3)"
+run 2 "F3 post denies for agent A (path was new since A's own snapshot)" --post "" "" "$(bash_agent engineer AGA true SF3)"
+run 0 "F3 post allows for agent B (same path already dirty at B's snapshot; no cross-agent hash collision)" --post "" "" "$(bash_agent engineer AGB true SF3)"
 ( cd "$P" && git checkout -q -- tests )
 
 echo "-- PG.6 nested repo under a testGlobs glob: sweeps also check dirty/untracked inside it"
