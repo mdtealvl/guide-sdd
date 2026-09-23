@@ -97,7 +97,7 @@ arr() { # $1 key -> A: the strings of the JSON array "key": [ ... ] in the gate 
   done
 }
 
-# --- root + marker: the no-persona case leaves here without reading stdin ------------------------
+# --- root + marker + input (PG.1: agent_type is in stdin, so stdin is read before the no-persona exit) --
 root=${CLAUDE_PROJECT_DIR:-}
 [ -n "$root" ] || root=$(git rev-parse --show-toplevel 2>/dev/null)
 [ -n "$root" ] || root=$PWD
@@ -107,14 +107,20 @@ marker=""
 for m in "$root/sdd/.persona" "$root/.persona"; do
   if [ -f "$m" ]; then marker=$m; break; fi
 done
-[ -n "${SDD_PERSONA:-}" ] || [ -n "$marker" ] || exit 0
 
 in=""; while IFS= read -r l || [ -n "$l" ]; do in="$in$l"; done
 jstr tool_name; tool=$J
 jstr session_id; sid=$J
+jstr agent_type; apersona=""
+case $J in qa|qa-*) apersona=qa ;; engineer|engineer-*) apersona=engineer ;; esac   # PG.1a
+sdir="$root/sdd/.persona-state/${sid:-_}"   # PG.5 snapshots, per session
+
+if [ "$mode" != session-end ] && [ -z "$apersona" ] && [ -z "${SDD_PERSONA:-}" ] && [ -z "$marker" ]; then
+  exit 0   # PG.2
+fi
 
 persona=${SDD_PERSONA:-}; first=""; stamped=""; unterminated=0
-if [ -n "$marker" ]; then
+if [ -n "$marker" ] && { [ -z "$apersona" ] || [ "$mode" = session-end ]; }; then
   n=0
   while IFS= read -r l || { [ -n "$l" ] && unterminated=1; }; do
     n=$((n+1)); [ $n = 1 ] && first=$l
@@ -126,12 +132,13 @@ fi
 if [ "$mode" = session-end ]; then
   # remove our own (or an unstamped) marker; never another live session's
   if [ -n "$marker" ] && { [ -z "$stamped" ] || [ "$stamped" = "$sid" ]; }; then rm -f "$marker"; fi
+  if [ -d "$sdir" ]; then rm -rf "$sdir"; fi   # PG.8
   exit 0
 fi
 
-[ -n "$persona" ] || persona=$first
+if [ -n "$apersona" ]; then persona=$apersona; else [ -n "$persona" ] || persona=$first; fi
 case "$persona" in engineer|qa) ;; *) exit 0 ;; esac
-if [ -z "${SDD_PERSONA:-}" ] && [ -n "$sid" ]; then
+if [ -z "$apersona" ] && [ -z "${SDD_PERSONA:-}" ] && [ -n "$sid" ]; then
   # marker-sourced persona - session stamp: adopt on first sight; a marker stamped by another session is
   # ignored, not obeyed (stale after a crash, or another live session on a shared checkout - use
   # SDD_PERSONA or a worktree for that)
