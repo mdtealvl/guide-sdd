@@ -286,11 +286,23 @@ fi
 # first label per path wins, gate bank first. The pipeline's status is that subshell's exit.
 {
   git status --porcelain --untracked-files=all 2>/dev/null
+  n_l=$globs   # PG.6: a testGlob whose first segment is a nested repo - the outer status cannot see inside it
+  while [ -n "$n_l" ]; do
+    n_g=${n_l%%"$nl"*}; n_l=${n_l#*"$nl"}
+    case $n_g in */*) ;; *) continue ;; esac
+    n_d=${n_g%%/*}
+    case $n_d in ''|*[*?[]*) continue ;; esac
+    [ -e "$n_d/.git" ] || continue
+    litdir "$n_g"; n_r=${LD#"$n_d"}; n_r=${n_r#/}
+    echo "@@nest $n_d"
+    git -C "$n_d" status --porcelain --untracked-files=all -- "${n_r:-.}" 2>/dev/null
+  done
   if [ -n "$sha" ]; then echo "@@diff"; git diff --name-only --no-renames "$sha" -- . 2>/dev/null; fi
 } | {
-  seen=$nl; bad=""; indiff=0
+  seen=$nl; bad=""; indiff=0; pfx=""
   while IFS= read -r l || [ -n "$l" ]; do
-    if [ "$l" = "@@diff" ]; then indiff=1; continue; fi
+    if [ "$l" = "@@diff" ]; then indiff=1; pfx=""; continue; fi
+    case $l in "@@nest "*) pfx="${l#@@nest }/"; continue ;; esac
     if [ $indiff = 1 ]; then p1=$l; p2=""
     else
       l=${l#???}
@@ -300,6 +312,7 @@ fi
       [ -n "$p" ] || continue
       case $p in *\\*) fs "$p"; p=$R ;; esac
       case $p in \"*\") p=${p#\"}; p=${p%\"} ;; esac
+      p="$pfx$p"
       if [ $indiff = 1 ]; then case $seen in *"$nl$p$nl"*) continue ;; esac; fi   # status paths are unique
       seen="$seen$p$nl"
       case $p in
