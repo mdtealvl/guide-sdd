@@ -8,11 +8,16 @@
 #                                 qa: deny Read/Grep/Glob whose path is under paths.code - QA is blind to the
 #                                 implementation (invariant 3); it reads spec + tests only. paths.code is a
 #                                 string or an array of globs; every one applies (PG.3).
-#                                 qa (PG.3b): when tests live inside paths.code (paths.code src/**, testGlobs
-#                                 src/Tests/**), that same deny is lifted for a path that matches a testGlob,
-#                                 or that sits at/under a testGlob's literal directory prefix (src/Tests itself,
-#                                 not just files under it) - QA may still read its own tests. An ancestor dir of
-#                                 the testGlob prefix (src) is not under it, so it stays denied.
+#                                 qa (PG.3b): qa may read files matching testGlobs, and directories under a
+#                                 "<dir>/**" testGlob, inside paths.code; ".." segments denied. When tests live
+#                                 inside paths.code (paths.code src/**, testGlobs src/Tests/**), that same deny
+#                                 is lifted for a path that matches a testGlob, or that sits at/under the
+#                                 literal directory of a testGlob of the exact form "<dir>/**" (src/Tests itself,
+#                                 not just files under it) - QA may still read its own tests. A narrower testGlob
+#                                 (src/**/*.test, src/*.test) grants no directory-wide carve-out - only a full
+#                                 file match does; an ancestor dir of the testGlob prefix (src) is not under it,
+#                                 so it stays denied. Any '..' path segment is denied before either carve-out is
+#                                 considered, so a literal "Tests/../Core/X.cs" cannot borrow Tests' carve-out.
 #                                 qa + Bash (PG.4): deny when a command token lies under the literal directory
 #                                 prefix of any paths.code glob (before its first wildcard; compared by whole
 #                                 segment, / and \ alike: src/** trips src/x and src\x, not src2/x), unless
@@ -329,14 +334,23 @@ if [ "$mode" = pre ] && [ "$tool" != Bash ]; then
     done
     [ -n "$code" ] || exit 0
   fi
+  # PG.3b: a '..' path segment defeats either carve-out below (the literal string can start with a
+  # test dir yet resolve outside it via '..') - deny before considering either one, naming it, same as
+  # 1.14.0 denied it via the plain paths.code check.
+  case "/$rel/" in */../*)
+    echo "GUIDE SDD persona guard: $psrc is blind to the implementation ($rel contains a '..' path segment - not a testGlob carve-out). Expected values come from the spec, never the code (invariant 4); read the spec shards and the test plan." >&2
+    exit 2 ;;
+  esac
   # PG.3b: tests can live inside paths.code (e.g. client/Assets/Scripts/Tests/** under
-  # client/Assets/Scripts/**) - a path that matches a testGlob, or sits at/under a testGlob's literal
-  # directory prefix, is QA's own and stays readable.
+  # client/Assets/Scripts/**) - a path that matches a testGlob, or sits at/under the literal directory
+  # of a testGlob of the exact form "<dir>/**", is QA's own and stays readable. A narrower testGlob
+  # (src/**/*.test, src/*.test) grants no directory-wide carve-out - only a full file match does.
   first_match "$rel" "$globs" "$cglobs" && exit 0
   t_l=$globs
   while [ -n "$t_l" ]; do
     t_g=${t_l%%"$nl"*}; t_l=${t_l#*"$nl"}
     litdir "$t_g"; [ -n "$LD" ] || continue
+    case "$t_g" in "$LD/**") ;; *) continue ;; esac
     case "$rel" in "$LD"|"$LD"/*) exit 0 ;; esac
   done
   echo "GUIDE SDD persona guard: $psrc is blind to the implementation ($rel is under paths.code '$code'). Expected values come from the spec, never the code (invariant 4); read the spec shards and the test plan." >&2

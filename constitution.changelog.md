@@ -387,4 +387,4 @@ second bank there; both gitignore `sdd/.persona` + `sdd/.persona-state/`. Closes
 
 ## v1.14.1 — qa may read test files inside paths.code (per SDD-amend-v1.14.1, 2026-09-23)
 
-Persona guard: qa's Read/Grep/Glob deny under `paths.code` is lifted for a path matching a testGlob, or at/under a testGlob's literal directory prefix (PG.3b) — closes GitHub issue #4.
+Persona guard: qa may read files matching testGlobs, and directories under a `<dir>/**` testGlob, inside paths.code; `..` segments denied (PG.3b); closes #4.
