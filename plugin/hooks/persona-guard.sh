@@ -173,13 +173,17 @@ gd=${cfg%/*}; gd=${gd#"$root"/}
 cfgtxt=""; while IFS= read -r l || [ -n "$l" ]; do cfgtxt="$cfgtxt$l"; done < "$cfg"
 arr testGlobs; globs=$A; cglobs=$AC
 arr structureGlobs; sglobs=$A; csglobs=$AC
-code=""
+codes=""; ccodes=""   # PG.3: paths.code is a string or an array of globs -> one per line
 case $cfgtxt in *'"paths":'*)
   p_x=${cfgtxt#*'"paths":'}; p_x=${p_x%%\}*}
   case $p_x in *'"code":'*)
-    p_x=${p_x#*'"code":'}
-    while case $p_x in [[:space:]]*) true ;; *) false ;; esac; do p_x=${p_x#?}; done
-    case $p_x in \"*) p_x=${p_x#\"}; code=${p_x%%\"*} ;; esac ;;
+    p_s=${p_x#*'"code":'}
+    while case $p_s in [[:space:]]*) true ;; *) false ;; esac; do p_s=${p_s#?}; done
+    case $p_s in
+      \"*) p_s=${p_s#\"}; p_s=${p_s%%\"*}
+           if [ -n "$p_s" ]; then coarse "$p_s"; codes="$p_s$nl"; ccodes="$C$nl"; fi ;;
+      \[*) c_sv=$cfgtxt; cfgtxt=$p_x; arr code; codes=$A; ccodes=$AC; cfgtxt=$c_sv ;;
+    esac ;;
   esac ;;
 esac
 
@@ -195,6 +199,39 @@ relpath() { # $1 absolute or relative tool path -> REL: root-relative, forward s
        esac ;;
   esac
 }
+
+litdir() { # $1 glob -> LD: its literal directory prefix (the part before the first wildcard, cut back to a
+           # whole segment; no trailing slash). "src/**" -> src, "src/a*.ts" -> src, "**/x" -> ""
+  LD=${1%%[*?[]*}
+  if [ "$LD" != "$1" ]; then case $LD in */*) LD=${LD%/*} ;; *) LD="" ;; esac; fi
+  LD=${LD%/}
+}
+
+# --- pre, Bash: qa tripwire (PG.4) ----------------------------------------------------------------
+amode=""
+if [ "$mode" = pre ] && [ "$tool" = Bash ]; then
+  if [ "$persona" = qa ]; then
+    [ -n "$codes" ] || exit 0
+    case $in in *'"command":'*) ;; *) exit 0 ;; esac
+    b_c=${in#*'"command":'}; b_c=${b_c%%'"}'*}; b_c=${b_c%%'",'*}   # the raw JSON string; escapes stay
+    set -f; o_ifs=$IFS; IFS=" 	;|&()<>\"'=\`"; set -- $b_c; IFS=$o_ifs; set +f
+    for tok in "$@"; do
+      relpath "$tok"; tok=$REL
+      q_l=$codes
+      while [ -n "$q_l" ]; do
+        q_g=${q_l%%"$nl"*}; q_l=${q_l#*"$nl"}
+        litdir "$q_g"; [ -n "$LD" ] || continue
+        case $tok in "$LD"|"$LD"/*)
+          first_match "$tok" "$globs" "$cglobs" && continue   # a test file under the code dir is QA's own
+          echo "GUIDE SDD persona guard: SDD_PERSONA=qa is blind to the implementation - this Bash command names '$tok', under paths.code '$q_g'. This is a heuristic tripwire on path tokens, not proof; QA reads spec + tests only (invariant 3)." >&2
+          exit 2 ;;
+        esac
+      done
+    done
+    exit 0
+  fi
+  exit 0
+fi
 
 # --- pre: edit-time deny --------------------------------------------------------------------------
 if [ "$mode" = pre ]; then
@@ -217,13 +254,18 @@ if [ "$mode" = pre ]; then
     echo "GUIDE SDD persona guard: SDD_PERSONA=engineer may not edit test files ($rel matches testGlob '$HIT'). Tests belong to QA (invariant 3) - surface the need in the changelog item instead." >&2
     exit 2
   fi
-  # qa: blind to the implementation
+  # qa: blind to the implementation - every paths.code glob (PG.3)
   case "$tool" in Read|Grep|Glob) ;; *) exit 0 ;; esac
-  [ -n "$code" ] || exit 0
-  coarse "$code"
-  if ! first_match "$rel" "$code$nl" "$C$nl"; then
-    base=${code%/\*\*}   # "src/**" or a bare "src": the directory itself and anything under it
-    case "$rel" in "$base"|"$base"/*) ;; *) exit 0 ;; esac
+  [ -n "$codes" ] || exit 0
+  if first_match "$rel" "$codes" "$ccodes"; then code=$HIT
+  else
+    code=""; q_l=$codes
+    while [ -n "$q_l" ]; do
+      q_g=${q_l%%"$nl"*}; q_l=${q_l#*"$nl"}
+      base=${q_g%/\*\*}   # "src/**" or a bare "src": the directory itself and anything under it
+      case "$rel" in "$base"|"$base"/*) code=$q_g; break ;; esac
+    done
+    [ -n "$code" ] || exit 0
   fi
   echo "GUIDE SDD persona guard: SDD_PERSONA=qa is blind to the implementation ($rel is under paths.code '$code'). Expected values come from the spec, never the code (invariant 4); read the spec shards and the test plan." >&2
   exit 2
