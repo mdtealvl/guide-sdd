@@ -235,7 +235,16 @@ if [ "$mode" = pre ] && [ "$tool" = Bash ]; then
   if [ "$persona" = qa ]; then
     [ -n "$codes" ] || exit 0
     case $in in *'"command":'*) ;; *) exit 0 ;; esac
-    b_c=${in#*'"command":'}; b_c=${b_c%%'"}'*}; b_c=${b_c%%'",'*}   # the raw JSON string; escapes stay
+    b_r=${in#*'"command":'}   # the raw JSON string, up to its first unescaped quote; escapes stay
+    while case $b_r in [[:space:]]*) true ;; *) false ;; esac; do b_r=${b_r#?}; done
+    b_r=${b_r#\"}; b_c=""
+    while case $b_r in *\"*) true ;; *) false ;; esac; do
+      b_p=${b_r%%\"*}; b_r=${b_r#*\"}; b_c="$b_c$b_p"
+      b_t=$b_p; b_n=0   # an odd run of backslashes before the quote escapes it; an even one (\\") does not
+      while case $b_t in *\\) true ;; *) false ;; esac; do b_t=${b_t%?}; b_n=$((b_n+1)); done
+      [ $((b_n % 2)) = 1 ] || break
+      b_c="$b_c\""
+    done
     set -f; o_ifs=$IFS; IFS=" 	;|&()<>\"'=\`"; set -- $b_c; IFS=$o_ifs; set +f
     for tok in "$@"; do
       relpath "$tok"; tok=$REL
@@ -298,7 +307,7 @@ fi
 if [ -n "$apersona" ]; then   # PG.5: an agent_type engineer is swept around its own Bash calls only
   [ "$tool" = Bash ] || exit 0   # PG.5b (a Stop event carries no tool_name: PG.5c)
   case $mode in pre) amode=snap ;; post) amode=check ;; *) exit 0 ;; esac
-  jstr agent_id; sf="$sdir/${J:-_}"; hf="$sdir/.hash"
+  jstr agent_id; sf="$sdir/${J:-_}"; hf="$sf.hash"
 fi
 cd "$root" 2>/dev/null || exit 0
 [ -e .git ] || exit 0
