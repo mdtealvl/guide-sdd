@@ -384,3 +384,7 @@ QA/Engineer, PG.1), a `qa` Bash path-token tripwire (PG.4), an attributed `engin
 own Bash calls (PG.5), and nested-repo reads inside the sweep (PG.6). Installer: `install.sh`/`install.ps1`
 warn on a nested git repo the gate bank cannot see into and add `--gates-only <target>` to install a
 second bank there; both gitignore `sdd/.persona` + `sdd/.persona-state/`. Closes GitHub issues #2, #3.
+
+## v1.14.1 — qa may read test files inside paths.code (per SDD-amend-v1.14.1, 2026-09-23)
+
+Persona guard: qa's Read/Grep/Glob deny under `paths.code` is lifted for a path matching a testGlob, or at/under a testGlob's literal directory prefix (PG.3b) — closes GitHub issue #4.
