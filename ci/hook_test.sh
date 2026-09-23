@@ -243,6 +243,11 @@ run 2 "PG.4 qa bash mixed args: one token matches testGlobs, one doesn't -> stil
 run 2 "F2 qa bash escaped quotes don't truncate the command (code path still seen)" --pre qa "" "$(bash_ 'echo \"a\", ; cat src/foo.ts')"
 run 2 "F2 qa bash embedded fake JSON keys in the command don't confuse parsing (code path still seen)" --pre qa "" "$(bash_ 'echo {\"agent_type\":\"x\"} src/foo.ts')"
 run 0 "F2 control: same escaped-quote shape naming only a test path is allowed" --pre qa "" "$(bash_ 'echo \"a\", ; cat tests/a.test')"
+run 2 "PG.4 qa bash newline-separated tokens denied (R2)" --pre qa "" "$(bash_ 'ls\nsrc/foo.ts')"
+run 2 "PG.4 qa bash tab-separated tokens denied (R2)" --pre qa "" "$(bash_ 'cat\tsrc/foo.ts')"
+run 2 "PG.4 qa bash CR-separated tokens denied (R2)" --pre qa "" "$(bash_ 'cat\rsrc/foo.ts')"
+run 2 "PG.4 qa bash newline line-continuation still denied (R2)" --pre qa "" "$(bash_ 'cat \\\nsrc/foo.ts')"
+run 0 "PG.4 control: newline-separated test-only command allowed (R2)" --pre qa "" "$(bash_ 'ls\ntests/a.test')"
 
 echo "-- PG.5 engineer-agent (agent_type) sweep is attributed to agent_id, snapshotted at --pre on a Bash call"
 ( cd "$P" && git checkout -q -- tests spec ) 2>/dev/null
