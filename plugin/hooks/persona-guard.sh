@@ -16,8 +16,7 @@
 #                                 not just files under it) - QA may still read its own tests. A narrower testGlob
 #                                 (src/**/*.test, src/*.test) grants no directory-wide carve-out - only a full
 #                                 file match does; an ancestor dir of the testGlob prefix (src) is not under it,
-#                                 so it stays denied. Any '..' path segment is denied before either carve-out is
-#                                 considered, so a literal "Tests/../Core/X.cs" cannot borrow Tests' carve-out.
+#                                 so it stays denied. Any `..` path segment in a qa path under paths.code is denied (before either carve-out), so a literal "Tests/../Core/X.cs" cannot borrow Tests' carve-out.
 #                                 qa + Bash (PG.4): deny when a command token lies under the literal directory
 #                                 prefix of any paths.code glob (before its first wildcard; compared by whole
 #                                 segment, / and \ alike: src/** trips src/x and src\x, not src2/x), unless
