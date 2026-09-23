@@ -6,27 +6,49 @@
 #                                 (config + scripts) and to the .persona/.frozen markers;
 #                                 FAIL CLOSED (deny) when the gate config cannot be read.
 #                                 qa: deny Read/Grep/Glob whose path is under paths.code - QA is blind to the
-#                                 implementation (invariant 3); it reads spec + tests only.
+#                                 implementation (invariant 3); it reads spec + tests only. paths.code is a
+#                                 string or an array of globs; every one applies (PG.3).
+#                                 qa + Bash (PG.4): deny when a command token lies under the literal directory
+#                                 prefix of any paths.code glob (before its first wildcard; compared by whole
+#                                 segment, / and \ alike: src/** trips src/x and src\x, not src2/x), unless
+#                                 that token matches a testGlob. A heuristic tripwire on path tokens only.
+#                                 agent_type engineer + Bash (PG.5): snapshot the dirty test/structure/gate set
+#                                 (the sweep's own path computation, plus a git hash-object per dirty path) to
+#                                 sdd/.persona-state/<session_id>/<agent_id>.
 #   --post (PostToolUse)          engineer: sweep the working tree after ANY tool (Bash heredocs, sed -i, mv,
 #                                 git checkout, NotebookEdit): a test path, structure shard or gate file that
 #                                 differs from the frozen base (gates/.frozen) or is dirty/untracked -> exit 2
 #                                 naming the paths and the revert command. The write already happened; the
 #                                 sweep makes it loud.
+#                                 agent_type engineer (PG.5): only after Bash, and only the paths new or
+#                                 changed since that agent's --pre snapshot; no snapshot = empty baseline, so
+#                                 every dirty path fails (PG.5a); no sweep after a non-Bash tool (PG.5b).
+#                                 Race caveat: a concurrent writer (another agent, the orchestrator) touching a
+#                                 test path during the engineer's Bash call is attributed to the engineer -
+#                                 it fails loud, never silent.
 #   --stop (Stop)                 engineer: the same sweep at turn end - catches a codegen script that wrote
-#                                 files it never named. Skipped when stop_hook_active is set (no loops).
+#                                 files it never named. Skipped when stop_hook_active is set (no loops), and
+#                                 for an agent_type persona (PG.5c; its Bash calls were swept one by one).
 #   --session-end (SessionEnd)    remove this session's marker: a persona is per dispatch, per session, and
-#                                 must not outlive the session that set it (see "stale marker").
-# Persona source, first match wins: env SDD_PERSONA, else line 1 of the marker file sdd/.persona (written by
-# the sdd-persona skill). Anything but engineer / qa allows everything.
+#                                 must not outlive the session that set it (see "stale marker"); also remove
+#                                 sdd/.persona-state/<session_id>/ (PG.8).
+# Nested repos (PG.6): git status does not look inside an embedded repo. For a testGlob whose first segment
+# is a directory with its own .git, every sweep (whole-tree and PG.5) also runs git -C <dir> status on the
+# rest of the glob's literal prefix and prefixes the paths with <dir>/.
+# Persona source, first match wins (PG.1): (a) hook input agent_type qa / engineer, or qa-* / engineer-* -
+# no marker is read or stamped; (b) env SDD_PERSONA; (c) line 1 of the marker file sdd/.persona (written by
+# the sdd-persona skill). Any other agent_type (general-purpose, Explore, ...) falls through to (b)/(c).
+# Anything but engineer / qa allows everything; with no persona every pass exits 0 (PG.2).
 # Stale marker (2026-09-17): the hook input carries session_id (shared by a session's sub-agents). The first
 # pass that sees an unstamped marker appends "session=<id>"; a pass whose session_id differs treats the
 # marker as another session's - dead, or live on a shared checkout - and IGNORES it (allow, note on stderr),
 # never obeys or deletes it. Before this, an engineer marker left by a crashed session blocked edits and
 # ran the sweep on every tool call of every later session.
-# Cost (2026-09-17): builtins only - no $(...), no pipes, no sed/grep/awk. The only processes are git (sweep)
-# and rm (session end). On a Windows box where every fork costs ~80 ms and every exec ~200 ms the old
-# script spent ~5 s per PreToolUse and >10 min per sweep of a tree with ~500 untracked files; the
-# no-persona case now exits before reading stdin. POSIX sh (dash + Git Bash), no bashisms.
+# Cost (2026-09-17): builtins only - no $(...), no pipes, no sed/grep/awk. The only processes are git (sweep,
+# snapshot), rm (session end) and one mkdir per session for the PG.5 state dir. On a Windows box where every
+# fork costs ~80 ms and every exec ~200 ms the old script spent ~5 s per PreToolUse and >10 min per sweep of
+# a tree with ~500 untracked files. stdin is read with builtins before the no-persona exit (agent_type lives
+# there), so that exit spawns no process (PG.9). POSIX sh (dash + Git Bash), no bashisms.
 # Exit 0 = allow · exit 2 = deny (message on stderr goes back to the agent).
 # Tripwire, not proof: the Stage-7 gate test_edit_ban is the proof (it diffs the QA-frozen SHA).
 
