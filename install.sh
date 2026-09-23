@@ -115,6 +115,7 @@ place_commands() {  # <srcdir>
 warn_nested() {  # nested git repos: the gate bank resolves its root from its own location (gates/) and
                  # cannot see inside a gitlink or a first-level subdir with its own .git (GitHub issue #2)
   command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+  root=$(pwd); root=${root%/}
   {
     git ls-files -s 2>/dev/null | while read -r mode _ _ p; do [ "$mode" = 160000 ] && printf '%s\n' "$p"; done
     for d in */; do
@@ -122,7 +123,7 @@ warn_nested() {  # nested git repos: the gate bank resolves its root from its ow
       [ -e "$d/.git" ] && printf '%s\n' "$d"
     done
   } | LC_ALL=C sort -u | while read -r p; do
-    echo "WARN nested git repo '$p': the gate bank resolves its root from its own location and cannot see inside it; install the gates there too: install.sh --gates-only $p"
+    echo "WARN nested git repo '$p': the gate bank resolves its root from its own location and cannot see inside it; install the gates there too: install.sh --gates-only $root/$p"
   done
 }
 ensure_gitignore() {  # <root> — append sdd/.persona + sdd/.persona-state/ if missing (idempotent)

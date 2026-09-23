@@ -150,8 +150,9 @@ function WarnNested {
     foreach ($d in Get-ChildItem -Directory -Force -ErrorAction SilentlyContinue) {
         if (Test-Path (Join-Path $d.FullName '.git')) { [void]$nested.Add($d.Name) }
     }
+    $root = (Get-Location).Path.TrimEnd('/', '\') -replace '\\', '/'
     foreach ($p in $nested) {
-        Write-Output "WARN nested git repo '$p': the gate bank resolves its root from its own location and cannot see inside it; install the gates there too: install.ps1 --gates-only $p"
+        Write-Output "WARN nested git repo '$p': the gate bank resolves its root from its own location and cannot see inside it; install the gates there too: install.ps1 --gates-only $root/$p"
     }
 }
 function EnsureGitignore([string]$root) {  # append sdd/.persona + sdd/.persona-state/ if missing (idempotent)
