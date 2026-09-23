@@ -23,6 +23,19 @@ run() { # <want> <label> <mode> <persona-env> <marker> <json>
 edit() { printf '{"tool_name":"%s","tool_input":{"file_path":"%s","old_string":"a","new_string":"b"}}' "$1" "$2"; }
 read_() { printf '{"tool_name":"%s","tool_input":{"file_path":"%s"}}' "$1" "$2"; }
 grep_() { printf '{"tool_name":"Grep","tool_input":{"pattern":"x","path":"%s"}}' "$1"; }
+# PG.1: same shapes as edit()/read_() but carrying agent_type, for agent_type-derived personas.
+edit_agent() { printf '{"agent_type":"%s","tool_name":"%s","tool_input":{"file_path":"%s","old_string":"a","new_string":"b"}}' "$3" "$1" "$2"; }
+read_agent() { printf '{"agent_type":"%s","tool_name":"%s","tool_input":{"file_path":"%s"}}' "$3" "$1" "$2"; }
+# PG.4: a plain Bash call (no agent fields) for the qa tripwire cases.
+bash_() { printf '{"tool_name":"Bash","tool_input":{"command":"%s"}}' "$1"; }
+# PG.5/PG.8: an attributed Bash call — <agent_type> <agent_id> <command> [session_id].
+bash_agent() {
+  if [ -n "${4:-}" ]; then
+    printf '{"session_id":"%s","agent_type":"%s","agent_id":"%s","tool_name":"Bash","tool_input":{"command":"%s"},"tool_response":{}}' "$4" "$1" "$2" "$3"
+  else
+    printf '{"agent_type":"%s","agent_id":"%s","tool_name":"Bash","tool_input":{"command":"%s"},"tool_response":{}}' "$1" "$2" "$3"
+  fi
+}
 
 echo "-- pre: engineer edit deny"
 run 2 "engineer env + tests/ path"              --pre engineer ""       "$(edit Edit "$P/tests/a.test")"
@@ -139,5 +152,169 @@ check "$(grep -c 'tests/new.test (testGlob' "$T/err")" 1 "sweep names the test o
 check "$(grep -c 'assets/' "$T/err")" 0 "sweep names no asset"
 [ $((t1-t0)) -le 30 ] || { echo "FAIL  sweep exceeded 30s"; fails=$((fails+1)); }
 rm -rf "$P/assets" "$P/tests/new.test"
+
+echo "-- PG.1 persona source precedence: agent_type first, then env, then marker"
+run 2 "PG.1a agent_type=qa denies Read of src (blind), no env/marker" --pre "" "" "$(read_agent Read "$P/src/foo.ts" qa)"
+check "$(test -f "$P/sdd/.persona" && echo present || echo absent)" absent "PG.1a agent_type persona (qa) writes no session stamp/marker"
+run 2 "PG.1a agent_type=engineer denies Edit of tests, no env/marker" --pre "" "" "$(edit_agent Edit "$P/tests/a.test" engineer)"
+check "$(test -f "$P/sdd/.persona" && echo present || echo absent)" absent "PG.1a agent_type persona (engineer) writes no session stamp/marker"
+run 2 "PG.1a agent_type=qa-explore (qa- prefix) denies Read of src" --pre "" "" "$(read_agent Read "$P/src/foo.ts" qa-explore)"
+run 2 "PG.1a agent_type=engineer-subagent (engineer- prefix) denies Edit tests" --pre "" "" "$(edit_agent Edit "$P/tests/a.test" engineer-subagent)"
+run 0 "PG.1a agent_type=qax (no hyphen boundary) is not qa, falls through, allowed" --pre "" "" "$(read_agent Read "$P/src/foo.ts" qax)"
+run 0 "PG.1a agent_type=engineerx (no hyphen boundary) is not engineer, falls through, allowed" --pre "" "" "$(edit_agent Edit "$P/tests/a.test" engineerx)"
+run 0 "PG.1a agent_type=general-purpose, no env/marker: falls through, allowed" --pre "" "" "$(edit_agent Edit "$P/tests/a.test" general-purpose)"
+run 2 "PG.1a agent_type=general-purpose falls through to env engineer" --pre engineer "" "$(edit_agent Edit "$P/tests/a.test" general-purpose)"
+run 2 "PG.1a agent_type=Explore falls through to marker engineer" --pre "" engineer "$(edit_agent Edit "$P/tests/a.test" Explore)"
+run 2 "PG.1a agent_type=validation falls through to marker engineer" --pre "" engineer "$(edit_agent Edit "$P/tests/a.test" validation)"
+run 0 "PG.1a agent_type=qa overrides env engineer (Edit to tests allowed; qa doesn't gate edits)" --pre engineer "" "$(edit_agent Edit "$P/tests/a.test" qa)"
+run 2 "PG.1a agent_type=engineer overrides env qa (Edit to tests still denied)" --pre qa "" "$(edit_agent Edit "$P/tests/a.test" engineer)"
+run 2 "PG.1a agent_type=qa overrides env engineer (Read of src still denied)" --pre engineer "" "$(read_agent Read "$P/src/foo.ts" qa)"
+run 0 "PG.1a agent_type=engineer overrides env qa (Read of src allowed)" --pre qa "" "$(read_agent Read "$P/src/foo.ts" engineer)"
+run 2 "PG.1b no agent_type field, env engineer, tests path (fallback confirmed)" --pre engineer "" "$(edit Edit "$P/tests/a.test")"
+run 2 "PG.1b agent_type empty string treated as absent, env engineer, tests path" --pre engineer "" "$(edit_agent Edit "$P/tests/a.test" "")"
+run 2 "PG.1c no agent_type, no env, marker engineer, tests path (fallback confirmed)" --pre "" engineer "$(edit Edit "$P/tests/a.test")"
+run 0 "PG.1c agent_type empty string, no env, marker qa, tests path (qa marker allows edit)" --pre "" qa "$(edit_agent Edit "$P/tests/a.test" "")"
+
+echo "-- PG.2 no env, no marker, no persona agent_type: every pass exits 0"
+run 0 "PG.2 --pre Edit tests, fully persona-less" --pre "" "" "$(edit Edit "$P/tests/a.test")"
+run 0 "PG.2 --pre Read of code, fully persona-less" --pre "" "" "$(read_ Read "$P/src/foo.ts")"
+printf 'dirt\n' >> "$P/tests/a.test"
+run 0 "PG.2 --post sweep, fully persona-less, dirty test present" --post "" "" "$BASH"
+run 0 "PG.2 --stop sweep, fully persona-less, dirty test present" --stop "" "" "$STOP"
+( cd "$P" && git checkout -q -- tests )
+run 0 "PG.2 --session-end, fully persona-less" --session-end "" "" "$(printf '{"session_id":"Z1"}')"
+
+echo "-- PG.3 paths.code as a JSON array: qa blindness applies to every glob"
+cp "$P/sdd/gates/gates.config.json" "$T/cfg.orig.json"
+cat > "$P/sdd/gates/gates.config.json" <<'EOF'
+{
+  "clauseIdRegex": "\\b[A-Z]{2,}\\.\\d+\\b",
+  "testClauseTag": "@clause:",
+  "paths": {
+    "spec": "spec/**/*.body.md",
+    "tests": "tests/**",
+    "code": ["src/**", "lib/**"]
+  },
+  "testGlobs": ["**/tests/**", "**/__tests__/**", "**/__mocks__/**", "**/*.test.*", "**/*.spec.*", "**/*Tests.cs", "**/*.snap", "**/jest.config.*", "**/vitest.config.*", "**/pytest.ini", "**/conftest.py"],
+  "testTagExcludeGlobs": ["**/*.md", "**/*.txt"],
+  "structureGlobs": ["**/*.structure.body.md"],
+  "buildPlan": { "glob": "**/*.buildplan.md", "tokensPerChar": 0.25 },
+  "baseRef": "main",
+  "suiteCmd": "true",
+  "unitIdRegex": "\\b[A-Z]{2,}-\\d+\\b",
+  "foldCheck": { "backlogRoot": "backlog", "resolveCmd": null },
+  "proseCheck": { "mode": "warn", "maxParaShare": 0.35, "maxParaWords": 100, "minWords": 120, "excludeGlobs": [] },
+  "constitutionRules": [],
+  "seamRules": [],
+  "qaImportRules": []
+}
+EOF
+mkdir -p "$P/lib"; printf 'more code\n' > "$P/lib/bar.ts"
+run 2 "PG.3 qa Read denied under first array element (src/**)" --pre qa "" "$(read_ Read "$P/src/foo.ts")"
+run 2 "PG.3 qa Read denied under second array element (lib/**)" --pre qa "" "$(read_ Read "$P/lib/bar.ts")"
+run 2 "PG.3 qa Grep denied under second array element (lib/**)" --pre qa "" "$(grep_ "$P/lib")"
+run 0 "PG.3 qa Read of spec still allowed (array config, unrelated path)" --pre qa "" "$(read_ Read "$P/spec/x.body.md")"
+run 0 "PG.3 engineer Read of lib allowed (array config; engineer unaffected)" --pre engineer "" "$(read_ Read "$P/lib/bar.ts")"
+cp "$T/cfg.orig.json" "$P/sdd/gates/gates.config.json"
+rm -rf "$P/lib"
+
+echo "-- PG.4 qa Bash tripwire: paths.code touched by a shell command"
+run 2 "PG.4 qa bash cat src file denied (tripwire)" --pre qa "" "$(bash_ "cat src/foo.ts")"
+check "$(grep -qi tripwire "$T/err" && echo yes || echo no)" yes "PG.4 tripwire deny message names itself a tripwire"
+run 0 "PG.4 qa bash cat src test file allowed (matches testGlobs exception)" --pre qa "" "$(bash_ "cat src/foo.test.ts")"
+run 0 "PG.4 qa bash dotnet test filter allowed (no code path token)" --pre qa "" "$(bash_ "dotnet test --filter X")"
+run 0 "PG.4 qa bash cat spec file allowed" --pre qa "" "$(bash_ "cat spec/x.body.md")"
+run 0 "PG.4 qa bash no path tokens allowed" --pre qa "" "$(bash_ "echo hello world")"
+run 2 "PG.4 qa bash backslash-style src path denied (slash/backslash equivalent)" --pre qa "" "$(bash_ "type src\\\\foo.ts")"
+run 0 "PG.4 engineer bash cat src file allowed (tripwire is qa-only)" --pre engineer "" "$(bash_ "cat src/foo.ts")"
+run 0 "PG.4 qa bash different top dir (src2) is not a prefix match, allowed" --pre qa "" "$(bash_ "cat src2/notes.txt")"
+run 2 "PG.4 qa bash directory-only src token denied" --pre qa "" "$(bash_ "rm -rf src/")"
+run 2 "PG.4 qa bash mixed args: one token matches testGlobs, one doesn't -> still denied" --pre qa "" "$(bash_ "diff src/foo.ts src/foo.test.ts")"
+
+echo "-- PG.5 engineer-agent (agent_type) sweep is attributed to agent_id, snapshotted at --pre on a Bash call"
+( cd "$P" && git checkout -q -- tests spec ) 2>/dev/null
+printf 'preexisting-dirt-from-someone-else\n' >> "$P/tests/a.test"
+run 0 "PG.5 pre snapshot captures pre-existing dirt (agent AG1)" --pre "" "" "$(bash_agent engineer AG1 true)"
+run 0 "PG.5 post forgives pre-existing dirt unchanged since snapshot (agent AG1)" --post "" "" "$(bash_agent engineer AG1 true)"
+( cd "$P" && git checkout -q -- tests )
+run 0 "PG.5 pre snapshot on clean tree (agent AG2)" --pre "" "" "$(bash_agent engineer AG2 true)"
+printf 'the attributed call wrote this\n' >> "$P/tests/a.test"
+run 2 "PG.5 post denies path dirtied by the attributed call itself (agent AG2)" --post "" "" "$(bash_agent engineer AG2 true)"
+( cd "$P" && git checkout -q -- tests )
+printf 'baseline dirt\n' >> "$P/tests/a.test"
+run 0 "PG.5 pre snapshot with pre-existing dirt (agent AG3)" --pre "" "" "$(bash_agent engineer AG3 true)"
+printf 'further changed after snapshot\n' >> "$P/tests/a.test"
+run 2 "PG.5 post denies pre-existing path that changed further since snapshot (agent AG3)" --post "" "" "$(bash_agent engineer AG3 true)"
+( cd "$P" && git checkout -q -- tests )
+printf 'preexisting struct dirt\n' >> "$P/spec/x.structure.body.md"
+run 0 "PG.5 pre snapshot captures pre-existing structure dirt (agent AG4)" --pre "" "" "$(bash_agent engineer AG4 true)"
+run 0 "PG.5 post forgives pre-existing structure dirt unchanged (agent AG4)" --post "" "" "$(bash_agent engineer AG4 true)"
+( cd "$P" && git checkout -q -- spec )
+printf 'dirt via marker/env persona (no attribution)\n' >> "$P/tests/a.test"
+run 2 "PG.5 marker/env engineer persona keeps whole-tree sweep, unaffected by any snapshot" --post engineer "" "$BASH"
+( cd "$P" && git checkout -q -- tests )
+
+echo "-- PG.6 nested repo under a testGlobs glob: sweeps also check dirty/untracked inside it"
+mkdir -p "$P/nested/tests"
+( cd "$P/nested" && git init -q -b main . && git config user.email ci@guide-sdd && git config user.name ci \
+  && printf 'ok\n' > tests/n.test && git add -A && git commit -q -m seed ) || { echo "FAIL  PG.6 nested repo setup"; fails=$((fails+1)); }
+cp "$P/sdd/gates/gates.config.json" "$T/cfg.orig2.json"
+cat > "$P/sdd/gates/gates.config.json" <<'EOF'
+{
+  "clauseIdRegex": "\\b[A-Z]{2,}\\.\\d+\\b",
+  "testClauseTag": "@clause:",
+  "paths": {
+    "spec": "spec/**/*.body.md",
+    "tests": "tests/**",
+    "code": "src/**"
+  },
+  "testGlobs": ["**/tests/**", "**/__tests__/**", "**/__mocks__/**", "**/*.test.*", "**/*.spec.*", "**/*Tests.cs", "**/*.snap", "**/jest.config.*", "**/vitest.config.*", "**/pytest.ini", "**/conftest.py", "nested/tests/**"],
+  "testTagExcludeGlobs": ["**/*.md", "**/*.txt"],
+  "structureGlobs": ["**/*.structure.body.md"],
+  "buildPlan": { "glob": "**/*.buildplan.md", "tokensPerChar": 0.25 },
+  "baseRef": "main",
+  "suiteCmd": "true",
+  "unitIdRegex": "\\b[A-Z]{2,}-\\d+\\b",
+  "foldCheck": { "backlogRoot": "backlog", "resolveCmd": null },
+  "proseCheck": { "mode": "warn", "maxParaShare": 0.35, "maxParaWords": 100, "minWords": 120, "excludeGlobs": [] },
+  "constitutionRules": [],
+  "seamRules": [],
+  "qaImportRules": []
+}
+EOF
+( cd "$P" && git add sdd/gates/gates.config.json && git commit -q -m "test: nested testGlobs config" )
+run 0 "PG.6 post sweep clean (nested repo committed clean)" --post engineer "" "$BASH"
+printf 'edited\n' >> "$P/nested/tests/n.test"
+run 2 "PG.6 post sweep detects dirty tracked file inside nested repo" --post engineer "" "$BASH"
+( cd "$P/nested" && git checkout -q -- tests )
+printf 'new\n' > "$P/nested/tests/new.test"
+run 2 "PG.6 post sweep detects untracked new file inside nested repo" --post engineer "" "$BASH"
+run 2 "PG.6 stop sweep detects untracked new file inside nested repo" --stop engineer "" "$STOP"
+rm "$P/nested/tests/new.test"
+printf 'edited\n' >> "$P/nested/tests/n.test"
+run 0 "PG.6 post sweep: qa persona ignores nested dirt too" --post qa "" "$BASH"
+( cd "$P/nested" && git checkout -q -- tests )
+cp "$T/cfg.orig2.json" "$P/sdd/gates/gates.config.json"
+( cd "$P" && git add sdd/gates/gates.config.json && git commit -q -m "test: restore config" )
+
+echo "-- PG.7 (regression) satisfied by the unmodified cases above still passing; no new case needed"
+
+echo "-- PG.8 --session-end removes this session's attributed-sweep snapshot state too"
+( cd "$P" && git checkout -q -- tests ) 2>/dev/null
+printf 'preexisting dirt for session snapshot test\n' >> "$P/tests/a.test"
+run 0 "PG.8 pre snapshot before session-end (agent AGZ, session SS1)" --pre "" "" "$(bash_agent engineer AGZ true SS1)"
+run 0 "PG.8 post forgives pre-existing dirt while snapshot lives (session SS1)" --post "" "" "$(bash_agent engineer AGZ true SS1)"
+run 0 "PG.8 session-end SS1" --session-end "" "" "$(printf '{"session_id":"SS1","reason":"other"}')"
+run 2 "PG.8 post no longer forgives same dirt after session-end cleared the snapshot" --post "" "" "$(bash_agent engineer AGZ true SS1)"
+( cd "$P" && git checkout -q -- tests )
+
+echo "-- PG.9 cost: --pre for a non-Bash tool with no persona spawns no process (proxy: near-instant, ignores tree size)"
+mkdir -p "$P/assets2"; i=0; while [ $i -lt 500 ]; do printf 'x' > "$P/assets2/g$i.png"; i=$((i+1)); done
+t0=$(date +%s)
+run 0 "PG.9 pre no-persona Read is cheap, ignores untracked tree size" --pre "" "" "$(read_ Read "$P/src/foo.ts")"
+t1=$(date +%s)
+echo "      no-persona pre over 500 untracked assets took $((t1-t0))s"
+[ $((t1-t0)) -le 5 ] || { echo "FAIL  PG.9 no-persona pre exceeded 5s bound (expected near-instant / no process spawn)"; fails=$((fails+1)); }
+rm -rf "$P/assets2"
 
 if [ "$fails" -eq 0 ]; then echo "HOOK PASS"; else echo "HOOK FAIL ($fails)"; exit 1; fi
