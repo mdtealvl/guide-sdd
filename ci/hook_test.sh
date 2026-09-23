@@ -23,6 +23,7 @@ run() { # <want> <label> <mode> <persona-env> <marker> <json>
 edit() { printf '{"tool_name":"%s","tool_input":{"file_path":"%s","old_string":"a","new_string":"b"}}' "$1" "$2"; }
 read_() { printf '{"tool_name":"%s","tool_input":{"file_path":"%s"}}' "$1" "$2"; }
 grep_() { printf '{"tool_name":"Grep","tool_input":{"pattern":"x","path":"%s"}}' "$1"; }
+glob_() { printf '{"tool_name":"Glob","tool_input":{"pattern":"*","path":"%s"}}' "$1"; }
 # PG.1: same shapes as edit()/read_() but carrying agent_type, for agent_type-derived personas.
 edit_agent() { printf '{"agent_type":"%s","tool_name":"%s","tool_input":{"file_path":"%s","old_string":"a","new_string":"b"}}' "$3" "$1" "$2"; }
 read_agent() { printf '{"agent_type":"%s","tool_name":"%s","tool_input":{"file_path":"%s"}}' "$3" "$1" "$2"; }
@@ -227,6 +228,50 @@ run 0 "PG.3 qa Read of spec still allowed (array config, unrelated path)" --pre 
 run 0 "PG.3 engineer Read of lib allowed (array config; engineer unaffected)" --pre engineer "" "$(read_ Read "$P/lib/bar.ts")"
 cp "$T/cfg.orig.json" "$P/sdd/gates/gates.config.json"
 rm -rf "$P/lib"
+
+echo "-- PG.3b qa may Read/Grep/Glob test files that live inside paths.code, but not other code (issue #4)"
+cp "$P/sdd/gates/gates.config.json" "$T/cfg.orig3.json"
+cat > "$P/sdd/gates/gates.config.json" <<'EOF'
+{
+  "clauseIdRegex": "\\b[A-Z]{2,}\\.\\d+\\b",
+  "testClauseTag": "@clause:",
+  "paths": {
+    "spec": "spec/**/*.body.md",
+    "tests": "tests/**",
+    "code": "src/**"
+  },
+  "testGlobs": ["**/tests/**", "**/__tests__/**", "**/__mocks__/**", "**/*.test.*", "**/*.spec.*", "**/*Tests.cs", "**/*.snap", "**/jest.config.*", "**/vitest.config.*", "**/pytest.ini", "**/conftest.py", "src/Tests/**"],
+  "testTagExcludeGlobs": ["**/*.md", "**/*.txt"],
+  "structureGlobs": ["**/*.structure.body.md"],
+  "buildPlan": { "glob": "**/*.buildplan.md", "tokensPerChar": 0.25 },
+  "baseRef": "main",
+  "suiteCmd": "true",
+  "unitIdRegex": "\\b[A-Z]{2,}-\\d+\\b",
+  "foldCheck": { "backlogRoot": "backlog", "resolveCmd": null },
+  "proseCheck": { "mode": "warn", "maxParaShare": 0.35, "maxParaWords": 100, "minWords": 120, "excludeGlobs": [] },
+  "constitutionRules": [],
+  "seamRules": [],
+  "qaImportRules": []
+}
+EOF
+mkdir -p "$P/src/Tests"; printf 'ok\n' > "$P/src/Tests/a.test"
+( cd "$P" && git add -A && git commit -q -m "test: PG.3b test dir nested in paths.code" )
+run 0 "PG.3b env qa Read of test file inside paths.code allowed (testGlobs carve-out)" --pre qa "" "$(read_ Read "$P/src/Tests/a.test")"
+run 2 "PG.3b env qa Read of plain code file under same code dir still denied" --pre qa "" "$(read_ Read "$P/src/foo.ts")"
+run 2 "PG.3b env qa Grep on ancestor code dir (src) still denied" --pre qa "" "$(grep_ "$P/src")"
+run 2 "PG.3b env qa Glob on ancestor code dir (src) still denied" --pre qa "" "$(glob_ "$P/src")"
+run 0 "PG.3b env qa Grep on testGlobs directory prefix (src/Tests) allowed" --pre qa "" "$(grep_ "$P/src/Tests")"
+run 0 "PG.3b env qa Glob on testGlobs directory prefix (src/Tests) allowed" --pre qa "" "$(glob_ "$P/src/Tests")"
+run 0 "PG.3b env qa Read allowed, backslash-style relative path (slash/backslash equivalent)" --pre qa "" "$(read_ Read "$P/src\\\\Tests\\\\a.test")"
+run 2 "PG.3b env qa Read denied, backslash-style relative path (slash/backslash equivalent)" --pre qa "" "$(read_ Read "$P/src\\\\foo.ts")"
+run 0 "PG.3b agent_type=qa Read of test file inside paths.code allowed" --pre "" "" "$(read_agent Read "$P/src/Tests/a.test" qa)"
+run 2 "PG.3b agent_type=qa Read of plain code file still denied" --pre "" "" "$(read_agent Read "$P/src/foo.ts" qa)"
+run 0 "PG.3b marker qa Read of test file inside paths.code allowed" --pre "" qa "$(read_ Read "$P/src/Tests/a.test")"
+run 2 "PG.3b marker qa Read of plain code file still denied" --pre "" qa "$(read_ Read "$P/src/foo.ts")"
+run 0 "PG.3b engineer Read of test file inside paths.code allowed (unaffected control)" --pre engineer "" "$(read_ Read "$P/src/Tests/a.test")"
+cp "$T/cfg.orig3.json" "$P/sdd/gates/gates.config.json"
+rm -rf "$P/src/Tests"
+( cd "$P" && git add -A && git commit -q -m "test: restore config after PG.3b" )
 
 echo "-- PG.4 qa Bash tripwire: paths.code touched by a shell command"
 run 2 "PG.4 qa bash cat src file denied (tripwire)" --pre qa "" "$(bash_ "cat src/foo.ts")"
