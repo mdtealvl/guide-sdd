@@ -261,6 +261,16 @@ if [ "$mode" = pre ] && [ "$tool" = Bash ]; then
       [ $((b_n % 2)) = 1 ] || break
       b_c="$b_c\""
     done
+    b_s=$b_c; b_c=""   # each backslash takes the next char as a pair: \n \t \r -> blank, any other pair kept
+    while case $b_s in *\\*) true ;; *) false ;; esac; do
+      b_c="$b_c${b_s%%\\*}"; b_s=${b_s#*\\}
+      case $b_s in
+        [ntr]*) b_c="$b_c " ;;
+        *) b_c="$b_c\\${b_s%"${b_s#?}"}" ;;
+      esac
+      b_s=${b_s#?}
+    done
+    b_c="$b_c$b_s"
     set -f; o_ifs=$IFS; IFS=" 	;|&()<>\"'=\`"; set -- $b_c; IFS=$o_ifs; set +f
     for tok in "$@"; do
       relpath "$tok"; tok=$REL
@@ -400,6 +410,11 @@ hashes() { # $1 nl-list of paths -> HS: "<blob hash> <path>" per path, same orde
     exit 0
   fi
   [ -n "$bad" ] || exit 0
+  why=""
+  if [ "$amode" = check ]; then
+    if [ -f "$sf" ]; then why=" and changed during this agent's Bash call"
+    else why="; no snapshot for this agent: every dirty path counts (PG.5a)"; fi
+  fi
   if [ "$amode" = check ] && [ -f "$sf" ]; then   # PG.5: forgive what is unchanged since the snapshot
     snap=$nl; while IFS= read -r l || [ -n "$l" ]; do snap="$snap$l$nl"; done < "$sf"
     hashes "$bp"; h_l=$HS; b_l=$bad; bad=""      # PG.5a: no snapshot file -> nothing is forgiven
@@ -411,7 +426,7 @@ hashes() { # $1 nl-list of paths -> HS: "<blob hash> <path>" per path, same orde
     [ -n "$bad" ] || exit 0
   fi
   {
-    echo "GUIDE SDD persona guard ($mode sweep): $psrc - test or gate paths differ from the frozen base${sha:+ $sha}${amode:+ and changed during this agent's Bash call}:"
+    echo "GUIDE SDD persona guard ($mode sweep): $psrc - test or gate paths differ from the frozen base${sha:+ $sha}$why:"
     printf '%s' "$bad"
     echo "Revert them now (git checkout -- <path>, or rm an untracked file) and surface the need in the changelog item. test_edit_ban will fail at Stage 7 otherwise."
   } >&2
