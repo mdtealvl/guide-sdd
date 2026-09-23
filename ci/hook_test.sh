@@ -273,6 +273,109 @@ cp "$T/cfg.orig3.json" "$P/sdd/gates/gates.config.json"
 rm -rf "$P/src/Tests"
 ( cd "$P" && git add -A && git commit -q -m "test: restore config after PG.3b" )
 
+echo "-- PG.3b-R1a (Validation R1): a testGlob whose literal prefix equals paths.code's prefix must not over-match everything under it"
+cp "$P/sdd/gates/gates.config.json" "$T/cfg.orig4.json"
+cat > "$P/sdd/gates/gates.config.json" <<'EOF'
+{
+  "clauseIdRegex": "\\b[A-Z]{2,}\\.\\d+\\b",
+  "testClauseTag": "@clause:",
+  "paths": {
+    "spec": "spec/**/*.body.md",
+    "tests": "tests/**",
+    "code": "src/**"
+  },
+  "testGlobs": ["src/**/*.test"],
+  "testTagExcludeGlobs": ["**/*.md", "**/*.txt"],
+  "structureGlobs": ["**/*.structure.body.md"],
+  "buildPlan": { "glob": "**/*.buildplan.md", "tokensPerChar": 0.25 },
+  "baseRef": "main",
+  "suiteCmd": "true",
+  "unitIdRegex": "\\b[A-Z]{2,}-\\d+\\b",
+  "foldCheck": { "backlogRoot": "backlog", "resolveCmd": null },
+  "proseCheck": { "mode": "warn", "maxParaShare": 0.35, "maxParaWords": 100, "minWords": 120, "excludeGlobs": [] },
+  "constitutionRules": [],
+  "seamRules": [],
+  "qaImportRules": []
+}
+EOF
+mkdir -p "$P/src/a"; printf 'code\n' > "$P/src/a/b.ts"; printf 'test\n' > "$P/src/a/b.test"
+( cd "$P" && git add -A && git commit -q -m "test: PG.3b-R1a isolated testGlob src/**/*.test" )
+run 2 "PG.3b-R1a env qa Read of src/foo.ts denied (literal-prefix carve-out must not over-match)" --pre qa "" "$(read_ Read "$P/src/foo.ts")"
+run 2 "PG.3b-R1a env qa Read of src/a/b.ts denied (nested code file, not a .test)" --pre qa "" "$(read_ Read "$P/src/a/b.ts")"
+run 2 "PG.3b-R1a env qa Grep on code dir (src) still denied" --pre qa "" "$(grep_ "$P/src")"
+run 0 "PG.3b-R1a positive control: Read of src/a/b.test allowed (fully matches the testGlob)" --pre qa "" "$(read_ Read "$P/src/a/b.test")"
+cp "$T/cfg.orig4.json" "$P/sdd/gates/gates.config.json"
+rm -rf "$P/src/a"
+( cd "$P" && git add -A && git commit -q -m "test: restore config after PG.3b-R1a" )
+
+echo "-- PG.3b-R1b (Validation R1): a single-level testGlob's literal prefix must not over-match either"
+cp "$P/sdd/gates/gates.config.json" "$T/cfg.orig5.json"
+cat > "$P/sdd/gates/gates.config.json" <<'EOF'
+{
+  "clauseIdRegex": "\\b[A-Z]{2,}\\.\\d+\\b",
+  "testClauseTag": "@clause:",
+  "paths": {
+    "spec": "spec/**/*.body.md",
+    "tests": "tests/**",
+    "code": "src/**"
+  },
+  "testGlobs": ["src/*.test"],
+  "testTagExcludeGlobs": ["**/*.md", "**/*.txt"],
+  "structureGlobs": ["**/*.structure.body.md"],
+  "buildPlan": { "glob": "**/*.buildplan.md", "tokensPerChar": 0.25 },
+  "baseRef": "main",
+  "suiteCmd": "true",
+  "unitIdRegex": "\\b[A-Z]{2,}-\\d+\\b",
+  "foldCheck": { "backlogRoot": "backlog", "resolveCmd": null },
+  "proseCheck": { "mode": "warn", "maxParaShare": 0.35, "maxParaWords": 100, "minWords": 120, "excludeGlobs": [] },
+  "constitutionRules": [],
+  "seamRules": [],
+  "qaImportRules": []
+}
+EOF
+( cd "$P" && git add -A && git commit -q -m "test: PG.3b-R1b isolated testGlob src/*.test" )
+run 2 "PG.3b-R1b env qa Read of src/foo.ts denied (single-level testGlob, literal-prefix carve-out must not over-match)" --pre qa "" "$(read_ Read "$P/src/foo.ts")"
+cp "$T/cfg.orig5.json" "$P/sdd/gates/gates.config.json"
+( cd "$P" && git add -A && git commit -q -m "test: restore config after PG.3b-R1b" )
+
+echo "-- PG.3b-R1c/d (Validation R1): the usual config -- .. segments and sibling-name prefixes stay denied"
+cp "$P/sdd/gates/gates.config.json" "$T/cfg.orig6.json"
+cat > "$P/sdd/gates/gates.config.json" <<'EOF'
+{
+  "clauseIdRegex": "\\b[A-Z]{2,}\\.\\d+\\b",
+  "testClauseTag": "@clause:",
+  "paths": {
+    "spec": "spec/**/*.body.md",
+    "tests": "tests/**",
+    "code": "src/**"
+  },
+  "testGlobs": ["**/tests/**", "**/__tests__/**", "**/__mocks__/**", "**/*.test.*", "**/*.spec.*", "**/*Tests.cs", "**/*.snap", "**/jest.config.*", "**/vitest.config.*", "**/pytest.ini", "**/conftest.py", "src/Tests/**"],
+  "testTagExcludeGlobs": ["**/*.md", "**/*.txt"],
+  "structureGlobs": ["**/*.structure.body.md"],
+  "buildPlan": { "glob": "**/*.buildplan.md", "tokensPerChar": 0.25 },
+  "baseRef": "main",
+  "suiteCmd": "true",
+  "unitIdRegex": "\\b[A-Z]{2,}-\\d+\\b",
+  "foldCheck": { "backlogRoot": "backlog", "resolveCmd": null },
+  "proseCheck": { "mode": "warn", "maxParaShare": 0.35, "maxParaWords": 100, "minWords": 120, "excludeGlobs": [] },
+  "constitutionRules": [],
+  "seamRules": [],
+  "qaImportRules": []
+}
+EOF
+mkdir -p "$P/src/Tests" "$P/src/Testsx"
+printf 'test\n' > "$P/src/Tests/a.test"
+printf 'code\n' > "$P/src/Testsx/a.ts"
+printf 'code\n' > "$P/src/TestsHelper.ts"
+( cd "$P" && git add -A && git commit -q -m "test: PG.3b-R1(c,d) usual config plus traversal/sibling fixtures" )
+run 2 "PG.3b-R1c env qa Read of src/Tests/../foo.ts denied (.. segment escapes the testGlobs dir back to code)" --pre qa "" "$(read_ Read "$P/src/Tests/../foo.ts")"
+run 2 "PG.3b-R1c env qa Grep on src/Tests/.. denied (.. resolves the testGlobs dir to the ancestor code dir)" --pre qa "" "$(grep_ "$P/src/Tests/..")"
+run 2 "PG.3b-R1d env qa Read of src/Testsx/a.ts denied (sibling dir shares only a string prefix with Tests)" --pre qa "" "$(read_ Read "$P/src/Testsx/a.ts")"
+run 2 "PG.3b-R1d env qa Read of src/TestsHelper.ts denied (sibling file shares only a string prefix with Tests)" --pre qa "" "$(read_ Read "$P/src/TestsHelper.ts")"
+cp "$T/cfg.orig6.json" "$P/sdd/gates/gates.config.json"
+rm -rf "$P/src/Tests" "$P/src/Testsx" "$P/src/TestsHelper.ts"
+( cd "$P" && git add -A && git commit -q -m "test: restore config after PG.3b-R1c/d" )
+
 echo "-- PG.4 qa Bash tripwire: paths.code touched by a shell command"
 run 2 "PG.4 qa bash cat src file denied (tripwire)" --pre qa "" "$(bash_ "cat src/foo.ts")"
 check "$(grep -qi tripwire "$T/err" && echo yes || echo no)" yes "PG.4 tripwire deny message names itself a tripwire"
