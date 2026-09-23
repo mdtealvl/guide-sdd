@@ -36,6 +36,16 @@ bash_agent() {
     printf '{"agent_type":"%s","agent_id":"%s","tool_name":"Bash","tool_input":{"command":"%s"},"tool_response":{}}' "$1" "$2" "$3"
   fi
 }
+# PG.5b: an Edit/Write-shaped --post/--stop call — <tool> <path> [agent_type] [agent_id].
+post_edit() {
+  if [ -n "${3:-}" ]; then
+    printf '{"agent_type":"%s","agent_id":"%s","tool_name":"%s","tool_input":{"file_path":"%s","old_string":"a","new_string":"b"},"tool_response":{}}' "$3" "${4:-}" "$1" "$2"
+  else
+    printf '{"tool_name":"%s","tool_input":{"file_path":"%s","old_string":"a","new_string":"b"},"tool_response":{}}' "$1" "$2"
+  fi
+}
+# PG.5c: a Stop-shaped call carrying agent_type/agent_id (no tool_name — Stop events carry none).
+stop_agent() { printf '{"agent_type":"%s","agent_id":"%s","stop_hook_active":false}' "$1" "$2"; }
 
 echo "-- pre: engineer edit deny"
 run 2 "engineer env + tests/ path"              --pre engineer ""       "$(edit Edit "$P/tests/a.test")"
@@ -252,6 +262,23 @@ run 0 "PG.5 post forgives pre-existing structure dirt unchanged (agent AG4)" --p
 ( cd "$P" && git checkout -q -- spec )
 printf 'dirt via marker/env persona (no attribution)\n' >> "$P/tests/a.test"
 run 2 "PG.5 marker/env engineer persona keeps whole-tree sweep, unaffected by any snapshot" --post engineer "" "$BASH"
+( cd "$P" && git checkout -q -- tests )
+
+echo "-- PG.5a orchestrator ruling: no snapshot (never taken, or cleared) => empty baseline, any dirty test path denied"
+printf 'dirty with no snapshot ever taken for this agent_id\n' >> "$P/tests/a.test"
+run 2 "PG.5a post denies dirty test with no prior --pre snapshot for this agent_id (empty baseline)" --post "" "" "$(bash_agent engineer AG9 true)"
+( cd "$P" && git checkout -q -- tests )
+
+echo "-- PG.5b orchestrator ruling: --post after a non-Bash tool (Edit/Write) does no sweep for agent_type=engineer"
+printf 'dirty test, but the --post tool is Edit, not Bash\n' >> "$P/tests/a.test"
+run 0 "PG.5b post after non-Bash tool (Edit) for agent_type=engineer does no sweep" --post "" "" "$(post_edit Edit "$P/tests/a.test" engineer AG10)"
+run 2 "PG.5b control: marker/env engineer post after Edit still sweeps whole tree (today's behaviour)" --post engineer "" "$(post_edit Edit "$P/tests/a.test")"
+( cd "$P" && git checkout -q -- tests )
+
+echo "-- PG.5c orchestrator ruling: --stop does no sweep for agent_type=engineer"
+printf 'dirty test for stop no-sweep check\n' >> "$P/tests/a.test"
+run 0 "PG.5c stop for agent_type=engineer does no sweep (exit 0 despite dirty test)" --stop "" "" "$(stop_agent engineer AG11)"
+run 2 "PG.5c control: marker/env engineer stop still sweeps whole tree (today's behaviour)" --stop engineer "" "$STOP"
 ( cd "$P" && git checkout -q -- tests )
 
 echo "-- PG.6 nested repo under a testGlobs glob: sweeps also check dirty/untracked inside it"
