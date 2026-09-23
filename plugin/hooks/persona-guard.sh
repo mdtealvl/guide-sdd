@@ -230,11 +230,11 @@ if [ "$mode" = pre ] && [ "$tool" = Bash ]; then
     done
     exit 0
   fi
-  exit 0
+  [ -n "$apersona" ] || exit 0   # an agent_type engineer falls through to the PG.5 snapshot below
 fi
 
 # --- pre: edit-time deny --------------------------------------------------------------------------
-if [ "$mode" = pre ]; then
+if [ "$mode" = pre ] && [ "$tool" != Bash ]; then
   jstr file_path; fp=$J
   [ -n "$fp" ] || { jstr notebook_path; fp=$J; }
   [ -n "$fp" ] || { jstr path; fp=$J; }
@@ -273,6 +273,11 @@ fi
 
 # --- post / stop: working-tree sweep (engineer only) ---------------------------------------------
 [ "$persona" = engineer ] || exit 0
+if [ -n "$apersona" ]; then   # PG.5: an agent_type engineer is swept around its own Bash calls only
+  [ "$tool" = Bash ] || exit 0   # PG.5b (a Stop event carries no tool_name: PG.5c)
+  case $mode in pre) amode=snap ;; post) amode=check ;; *) exit 0 ;; esac
+  jstr agent_id; sf="$sdir/${J:-_}"; hf="$sdir/.hash"
+fi
 cd "$root" 2>/dev/null || exit 0
 [ -e .git ] || exit 0
 sha=""
@@ -282,6 +287,22 @@ if [ -f "$gd/.frozen" ]; then
   done < "$gd/.frozen"
   case $sha in *[!0-9A-Fa-f]*) sha=${sha%%[!0-9A-Fa-f]*} ;; esac
 fi
+hashes() { # $1 nl-list of paths -> HS: "<blob hash> <path>" per path, same order ("-" for an absent file,
+           # "?" when git gave no hash); one git hash-object for them all, its output read from $hf
+  HS=""; h_all=$1; h_l=$1; set --
+  while [ -n "$h_l" ]; do h_p=${h_l%%"$nl"*}; h_l=${h_l#*"$nl"}; [ -e "$h_p" ] && set -- "$@" "$h_p"; done
+  h_o=""
+  if [ $# -gt 0 ]; then
+    git hash-object --no-filters -- "$@" > "$hf" 2>/dev/null
+    while IFS= read -r l || [ -n "$l" ]; do h_o="$h_o$l$nl"; done < "$hf"
+  fi
+  h_l=$h_all
+  while [ -n "$h_l" ]; do
+    h_p=${h_l%%"$nl"*}; h_l=${h_l#*"$nl"}
+    if [ -e "$h_p" ]; then h=${h_o%%"$nl"*}; h_o=${h_o#*"$nl"}; else h=-; fi
+    HS="$HS${h:-?} $h_p$nl"
+  done
+}
 # git's output is read by a subshell (the only fork): classify every path with the builtin matcher,
 # first label per path wins, gate bank first. The pipeline's status is that subshell's exit.
 {
@@ -299,7 +320,7 @@ fi
   done
   if [ -n "$sha" ]; then echo "@@diff"; git diff --name-only --no-renames "$sha" -- . 2>/dev/null; fi
 } | {
-  seen=$nl; bad=""; indiff=0; pfx=""
+  seen=$nl; bad=""; bp=""; indiff=0; pfx=""
   while IFS= read -r l || [ -n "$l" ]; do
     if [ "$l" = "@@diff" ]; then indiff=1; pfx=""; continue; fi
     case $l in "@@nest "*) pfx="${l#@@nest }/"; continue ;; esac
@@ -315,17 +336,35 @@ fi
       p="$pfx$p"
       if [ $indiff = 1 ]; then case $seen in *"$nl$p$nl"*) continue ;; esac; fi   # status paths are unique
       seen="$seen$p$nl"
+      lb=""
       case $p in
         "$gd"/.frozen) continue ;;
-        "$gd"/*) bad="$bad  $p (gate bank)$nl"; continue ;;
+        "$gd"/*) lb="gate bank" ;;
+        *) if first_match "$p" "$sglobs" "$csglobs"; then lb="structureGlob '$HIT'"
+           elif first_match "$p" "$globs" "$cglobs"; then lb="testGlob '$HIT'"; fi ;;
       esac
-      if first_match "$p" "$sglobs" "$csglobs"; then bad="$bad  $p (structureGlob '$HIT')$nl"; continue; fi
-      if first_match "$p" "$globs" "$cglobs"; then bad="$bad  $p (testGlob '$HIT')$nl"; fi
+      [ -n "$lb" ] || continue
+      bad="$bad  $p ($lb)$nl"; bp="$bp$p$nl"
     done
   done
+  if [ "$amode" = snap ]; then   # PG.5: record this agent's baseline before its Bash call runs
+    [ -d "$sdir" ] || mkdir -p "$sdir" || exit 0
+    hashes "$bp"; printf '%s' "$HS" > "$sf"
+    exit 0
+  fi
   [ -n "$bad" ] || exit 0
+  if [ "$amode" = check ] && [ -f "$sf" ]; then   # PG.5: forgive what is unchanged since the snapshot
+    snap=$nl; while IFS= read -r l || [ -n "$l" ]; do snap="$snap$l$nl"; done < "$sf"
+    hashes "$bp"; h_l=$HS; b_l=$bad; bad=""      # PG.5a: no snapshot file -> nothing is forgiven
+    while [ -n "$h_l" ]; do
+      h=${h_l%%"$nl"*}; h_l=${h_l#*"$nl"}; b=${b_l%%"$nl"*}; b_l=${b_l#*"$nl"}
+      case $h in '?'*) bad="$bad$b$nl"; continue ;; esac
+      case $snap in *"$nl$h$nl"*) ;; *) bad="$bad$b$nl" ;; esac
+    done
+    [ -n "$bad" ] || exit 0
+  fi
   {
-    echo "GUIDE SDD persona guard ($mode sweep): SDD_PERSONA=engineer - test or gate paths differ from the frozen base${sha:+ $sha}:"
+    echo "GUIDE SDD persona guard ($mode sweep): SDD_PERSONA=engineer - test or gate paths differ from the frozen base${sha:+ $sha}${amode:+ and changed during this agent's Bash call}:"
     printf '%s' "$bad"
     echo "Revert them now (git checkout -- <path>, or rm an untracked file) and surface the need in the changelog item. test_edit_ban will fail at Stage 7 otherwise."
   } >&2
