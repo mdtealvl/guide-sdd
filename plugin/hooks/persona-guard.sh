@@ -15,23 +15,31 @@
 #                                 agent_type engineer + Bash (PG.5): snapshot the dirty test/structure/gate set
 #                                 (the sweep's own path computation, plus a git hash-object per dirty path) to
 #                                 sdd/.persona-state/<session_id>/<agent_id>.
-#   --post (PostToolUse)          engineer: sweep the working tree after ANY tool (Bash heredocs, sed -i, mv,
-#                                 git checkout, NotebookEdit): a test path, structure shard or gate file that
-#                                 differs from the frozen base (gates/.frozen) or is dirty/untracked -> exit 2
-#                                 naming the paths and the revert command. The write already happened; the
-#                                 sweep makes it loud.
+#   --post (PostToolUse and       engineer: sweep the working tree after Bash, Edit, Write, MultiEdit and
+#    PostToolUseFailure)          NotebookEdit (the hooks.json matchers; Bash covers heredocs, sed -i, mv, git
+#                                 checkout): a test path, structure shard or gate file that differs from the
+#                                 frozen base (gates/.frozen) or is dirty/untracked -> exit 2 naming the paths
+#                                 and the revert command. The write already happened; the sweep makes it loud.
 #                                 agent_type engineer (PG.5): only after Bash, and only the paths new or
 #                                 changed since that agent's --pre snapshot; no snapshot = empty baseline, so
 #                                 every dirty path fails (PG.5a); no sweep after a non-Bash tool (PG.5b).
+#                                 PG.5d: a failed Bash call fires PostToolUseFailure, not PostToolUse, so --post
+#                                 is registered on both; --post only reads the snapshot, so running it twice
+#                                 gives the same verdict. --pre never compares against the previous snapshot.
 #                                 Race caveat: a concurrent writer (another agent, the orchestrator) touching a
-#                                 test path during the engineer's Bash call is attributed to the engineer -
-#                                 it fails loud, never silent.
+#                                 test path during the engineer's Bash call is attributed to the engineer and
+#                                 fails loud. A Bash call that fires neither post event (e.g. interrupted) is
+#                                 not swept, and its writes join the next --pre baseline: test_edit_ban is the
+#                                 backstop.
 #   --stop (Stop)                 engineer: the same sweep at turn end - catches a codegen script that wrote
 #                                 files it never named. Skipped when stop_hook_active is set (no loops), and
-#                                 for an agent_type persona (PG.5c; its Bash calls were swept one by one).
+#                                 for an agent_type persona (PG.5c; each of its Bash calls is swept at its own
+#                                 post event, PG.5d).
 #   --session-end (SessionEnd)    remove this session's marker: a persona is per dispatch, per session, and
 #                                 must not outlive the session that set it (see "stale marker"); also remove
 #                                 sdd/.persona-state/<session_id>/ (PG.8).
+# sdd/.persona-state/ holds per-agent snapshots (<agent_id>, <agent_id>.hash) and must be gitignored (the
+# installer adds the rule); otherwise the snapshot files show up as untracked files in git status.
 # Nested repos (PG.6): git status does not look inside an embedded repo. For a testGlob whose first segment
 # is a directory with its own .git, every sweep (whole-tree and PG.5) also runs git -C <dir> status on the
 # rest of the glob's literal prefix and prefixes the paths with <dir>/.
@@ -44,12 +52,17 @@
 # marker as another session's - dead, or live on a shared checkout - and IGNORES it (allow, note on stderr),
 # never obeys or deletes it. Before this, an engineer marker left by a crashed session blocked edits and
 # ran the sweep on every tool call of every later session.
-# Cost (2026-09-17): builtins only - no $(...), no pipes, no sed/grep/awk. The only processes are git (sweep,
-# snapshot), rm (session end) and one mkdir per session for the PG.5 state dir. On a Windows box where every
-# fork costs ~80 ms and every exec ~200 ms the old script spent ~5 s per PreToolUse and >10 min per sweep of
-# a tree with ~500 untracked files. stdin is read with builtins before the no-persona exit (agent_type lives
-# there), so that exit spawns no process (PG.9). POSIX sh (dash + Git Bash), no bashisms.
-# Exit 0 = allow · exit 2 = deny (message on stderr goes back to the agent).
+# Cost (2026-09-17): builtins only - no sed/grep/awk. Two exceptions fork: $(git rev-parse) for the root,
+# only when CLAUDE_PROJECT_DIR is unset, and the sweep's one pipe (git output into a reading subshell). The
+# only processes are git (sweep, snapshot), rm (session end) and one mkdir per session for the PG.5 state
+# dir. On a Windows box where every fork costs ~80 ms and every exec ~200 ms the old script spent ~5 s per
+# PreToolUse and >10 min per sweep of a tree with ~500 untracked files. stdin is read with builtins before
+# the no-persona exit (agent_type lives there), so that exit spawns no process (PG.9). POSIX sh (dash + Git
+# Bash), no bashisms.
+# Exit 0 = allow · exit 2 = deny (message on stderr goes back to the agent; it names the persona source:
+# agent_type=..., SDD_PERSONA=... or the marker).
+# Known limits (accepted): path compares are case-sensitive even on a case-insensitive filesystem, and ".."
+# segments are not normalized, so Tests/a.test or src/../tests/a.test can slip past the --pre checks.
 # Tripwire, not proof: the Stage-7 gate test_edit_ban is the proof (it diffs the QA-frozen SHA).
 
 mode=pre
@@ -133,7 +146,7 @@ done
 in=""; while IFS= read -r l || [ -n "$l" ]; do in="$in$l"; done
 jstr tool_name; tool=$J
 jstr session_id; sid=$J
-jstr agent_type; apersona=""
+jstr agent_type; at=$J; apersona=""
 case $J in qa|qa-*) apersona=qa ;; engineer|engineer-*) apersona=engineer ;; esac   # PG.1a
 sdir="$root/sdd/.persona-state/${sid:-_}"   # PG.5 snapshots, per session
 
@@ -160,6 +173,9 @@ fi
 
 if [ -n "$apersona" ]; then persona=$apersona; else [ -n "$persona" ] || persona=$first; fi
 case "$persona" in engineer|qa) ;; *) exit 0 ;; esac
+if [ -n "$apersona" ]; then psrc="agent_type=$at"   # the persona source, named in every deny message
+elif [ -n "${SDD_PERSONA:-}" ]; then psrc="SDD_PERSONA=$persona"
+else psrc="marker ${marker#"$root"/}=$persona"; fi
 if [ -z "$apersona" ] && [ -z "${SDD_PERSONA:-}" ] && [ -n "$sid" ]; then
   # marker-sourced persona - session stamp: adopt on first sight; a marker stamped by another session is
   # ignored, not obeyed (stale after a crash, or another live session on a shared checkout - use
@@ -185,7 +201,7 @@ done
 if [ -z "$cfg" ]; then
   if [ "$persona" = engineer ] && [ "$mode" = pre ]; then
     case "$tool" in Edit|Write|MultiEdit|NotebookEdit)
-      echo "GUIDE SDD persona guard: persona=engineer but gates.config.json was not found under $root - refusing edits (fail closed). Run INIT section 5 or clear the persona." >&2
+      echo "GUIDE SDD persona guard: $psrc but gates.config.json was not found under $root - refusing edits (fail closed). Run INIT section 5 or clear the persona." >&2
       exit 2 ;;
     esac
   fi
@@ -254,7 +270,7 @@ if [ "$mode" = pre ] && [ "$tool" = Bash ]; then
         litdir "$q_g"; [ -n "$LD" ] || continue
         case $tok in "$LD"|"$LD"/*)
           first_match "$tok" "$globs" "$cglobs" && continue   # a test file under the code dir is QA's own
-          echo "GUIDE SDD persona guard: SDD_PERSONA=qa is blind to the implementation - this Bash command names '$tok', under paths.code '$q_g'. This is a heuristic tripwire on path tokens, not proof; QA reads spec + tests only (invariant 3)." >&2
+          echo "GUIDE SDD persona guard: $psrc is blind to the implementation - this Bash command names '$tok', under paths.code '$q_g'. This is a heuristic tripwire on path tokens, not proof; QA reads spec + tests only (invariant 3)." >&2
           exit 2 ;;
         esac
       done
@@ -274,15 +290,15 @@ if [ "$mode" = pre ] && [ "$tool" != Bash ]; then
   if [ "$persona" = engineer ]; then
     case "$tool" in Edit|Write|MultiEdit|NotebookEdit) ;; *) exit 0 ;; esac
     case "$rel" in
-      "$gd"/*|"$gd") echo "GUIDE SDD persona guard: SDD_PERSONA=engineer may not edit the gate bank ($rel) - config and scripts are frozen with the tests; test_edit_ban fails on any change." >&2; exit 2 ;;
-      *.persona|*/.persona|*.frozen|*/.frozen) echo "GUIDE SDD persona guard: SDD_PERSONA=engineer may not edit the persona/frozen markers ($rel)." >&2; exit 2 ;;
+      "$gd"/*|"$gd") echo "GUIDE SDD persona guard: $psrc may not edit the gate bank ($rel) - config and scripts are frozen with the tests; test_edit_ban fails on any change." >&2; exit 2 ;;
+      *.persona|*/.persona|*.frozen|*/.frozen) echo "GUIDE SDD persona guard: $psrc may not edit the persona/frozen markers ($rel)." >&2; exit 2 ;;
     esac
     if first_match "$rel" "$sglobs" "$csglobs"; then
-      echo "GUIDE SDD persona guard: SDD_PERSONA=engineer may not edit the approved structure diagram ($rel matches structureGlob '$HIT'). A deviation is [NEEDS-PO:structure] on the item - the PM decides, the PO replaces the shard wholesale and re-freezes." >&2
+      echo "GUIDE SDD persona guard: $psrc may not edit the approved structure diagram ($rel matches structureGlob '$HIT'). A deviation is [NEEDS-PO:structure] on the item - the PM decides, the PO replaces the shard wholesale and re-freezes." >&2
       exit 2
     fi
     first_match "$rel" "$globs" "$cglobs" || exit 0
-    echo "GUIDE SDD persona guard: SDD_PERSONA=engineer may not edit test files ($rel matches testGlob '$HIT'). Tests belong to QA (invariant 3) - surface the need in the changelog item instead." >&2
+    echo "GUIDE SDD persona guard: $psrc may not edit test files ($rel matches testGlob '$HIT'). Tests belong to QA (invariant 3) - surface the need in the changelog item instead." >&2
     exit 2
   fi
   # qa: blind to the implementation - every paths.code glob (PG.3)
@@ -298,7 +314,7 @@ if [ "$mode" = pre ] && [ "$tool" != Bash ]; then
     done
     [ -n "$code" ] || exit 0
   fi
-  echo "GUIDE SDD persona guard: SDD_PERSONA=qa is blind to the implementation ($rel is under paths.code '$code'). Expected values come from the spec, never the code (invariant 4); read the spec shards and the test plan." >&2
+  echo "GUIDE SDD persona guard: $psrc is blind to the implementation ($rel is under paths.code '$code'). Expected values come from the spec, never the code (invariant 4); read the spec shards and the test plan." >&2
   exit 2
 fi
 
@@ -395,7 +411,7 @@ hashes() { # $1 nl-list of paths -> HS: "<blob hash> <path>" per path, same orde
     [ -n "$bad" ] || exit 0
   fi
   {
-    echo "GUIDE SDD persona guard ($mode sweep): SDD_PERSONA=engineer - test or gate paths differ from the frozen base${sha:+ $sha}${amode:+ and changed during this agent's Bash call}:"
+    echo "GUIDE SDD persona guard ($mode sweep): $psrc - test or gate paths differ from the frozen base${sha:+ $sha}${amode:+ and changed during this agent's Bash call}:"
     printf '%s' "$bad"
     echo "Revert them now (git checkout -- <path>, or rm an untracked file) and surface the need in the changelog item. test_edit_ban will fail at Stage 7 otherwise."
   } >&2
