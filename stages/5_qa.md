@@ -6,8 +6,9 @@ it) + your slice's brief and the build plan's **`qa`-audience ledger rows only**
 never an `eng` row) + the `project-details.md#STK-N` test-home map + named seam rows
 (`project-details.md#SEAM-N`).
 **You do NOT see the implementation, the router, or any sibling working notes. That blindness is the
-independence.** With the GUIDE SDD plugin the dispatcher sets `/sdd-persona qa` first: the hook then
-denies any Read/Grep/Glob under `paths.code`. Without it, the `qa_import_ban` gate proves the structural
+independence.** With the GUIDE SDD plugin the dispatcher sets `/sdd-persona qa` first (or dispatches a
+sub-agent of type `qa`): the hook then denies any Read/Grep/Glob — and any Bash command naming a path —
+under `paths.code`, except your own `testGlobs` files. Without it, the `qa_import_ban` gate proves the structural
 half only; the rest is on you.
 
 Persona route only. Implement tests for the matrix's scenarios, deriving every expected value (the

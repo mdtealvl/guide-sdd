@@ -15,13 +15,14 @@ criterion invites a degenerate implementation (synthetic timers, teleports, dele
 passes the test and matches nothing in the spec. The spec is your target; the tests are the floor.
 
 Mechanical guard (Tier A with the GUIDE SDD plugin): the dispatcher runs `/sdd-persona engineer` before this
-stage and `/sdd-persona clear` after it. While the marker is set the plugin hook runs three passes: **pre**
-denies every Edit/Write to a `testGlobs` path (tests, snapshots, test-runner config), to a `structureGlobs`
-path (the approved diagram), to the gate bank, and to the persona/frozen markers; **post** sweeps the
-working tree after any tool — a Bash heredoc, `sed -i`, `mv`, `git checkout` — and names any test,
+stage and `/sdd-persona clear` after it (or dispatches a sub-agent of type `engineer`, which needs no
+marker). While the persona is set the plugin hook runs: **pre** denies every Edit/Write/MultiEdit/
+NotebookEdit to a `testGlobs` path (tests, snapshots, test-runner config), to a `structureGlobs` path (the
+approved diagram), to the gate bank, and to the persona/frozen markers; **post** sweeps the working tree
+after every Bash call and edit tool — a Bash heredoc, `sed -i`, `mv`, `git checkout` — and names any test,
 structure-shard or gate path that differs from the frozen SHA, with the revert command; **stop** repeats
-the sweep at turn end. Tier B: export `SDD_PERSONA=engineer` in the Engineer's
-session instead. The gate `test_edit_ban` still runs at Stage 7 against the item's `frozen:` SHA — the
+the sweep at turn end; **session-end** clears the marker. Tier B: export `SDD_PERSONA=engineer` in the
+Engineer's session instead. The gate `test_edit_ban` still runs at Stage 7 against the item's `frozen:` SHA — the
 hook is the early tripwire, not the proof.
 
 ## Rules

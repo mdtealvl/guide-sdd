@@ -36,7 +36,9 @@ Three routes, one repo (`github.com/mdtealvl/guide-sdd`):
 3. **Claude Code plugin** — `/plugin marketplace add mdtealvl/guide-sdd`, then `/plugin install
    guide-sdd@guide-sdd`. Adds `/sdd-init` (runs the bundled installer, then INIT from §1a), `/sdd-update`,
    `/sdd-doctor`, `/sdd-gates`, `/sdd-persona`, and `/wrap` `/stash` `/unstash` without copying, plus a
-   PreToolUse hook that denies an `engineer` persona any edit to `testGlobs` paths. See `plugin/README.md`.
+   persona guard hook: an `engineer` persona cannot edit tests, the structure diagram or the gate bank
+   (and the working tree is swept for drift after each write), and a `qa` persona cannot read
+   `paths.code`. See `plugin/README.md`.
 
 ## The core idea (in four lines)
 

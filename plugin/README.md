@@ -14,18 +14,18 @@ Install: `/plugin marketplace add mdtealvl/guide-sdd` then `/plugin install guid
 | `/sdd-persona` | Sets `sdd/.persona` (`engineer` / `qa` / `clear`) read by the hook below. |
 | `/wrap` `/stash` `/unstash` | The session-lifecycle commands from `commands/`, as skills. |
 
-**Hook — persona guard** (`hooks/persona-guard.sh`; persona from env `SDD_PERSONA`, else `sdd/.persona`),
-four passes:
+**Hook — persona guard** (`hooks/persona-guard.sh`; persona from the hook input's `agent_type`, else env
+`SDD_PERSONA`, else `sdd/.persona` — see PG.1 below), four passes:
 
 | Pass | Event | Engineer persona | QA persona |
 |---|---|---|---|
-| `--pre` | PreToolUse on Edit/Write/MultiEdit/NotebookEdit/Read/Grep/Glob | deny edits to `testGlobs` paths, `structureGlobs` paths (the PM-approved structure diagram — a deviation is `[NEEDS-PO:structure]`), the gate bank (`gates/**`), `.persona`, `.frozen`; fail closed if the config is unreadable | deny Read/Grep/Glob under `paths.code` (QA is blind to the implementation) |
-| `--post` | PostToolUse on Bash/Edit/Write/MultiEdit/NotebookEdit | sweep the working tree (status + diff vs `gates/.frozen`): any test or gate path that differs is named with the revert command (exit 2) | — |
-| `--stop` | Stop | the same sweep at turn end (catches codegen that wrote files it never named) | — |
-| `--session-end` | SessionEnd | remove this session's marker (a persona never outlives the session that set it) | same |
+| `--pre` | PreToolUse on Bash/Edit/Write/MultiEdit/NotebookEdit/Read/Grep/Glob | deny edits to `testGlobs` paths, `structureGlobs` paths (the PM-approved structure diagram — a deviation is `[NEEDS-PO:structure]`), the gate bank (`gates/**`), `.persona`, `.frozen`; fail closed if the config is unreadable. An `engineer` sub-agent's Bash call first snapshots the dirty test/structure/gate set (PG.5) | deny Read/Grep/Glob under `paths.code` (QA is blind to the implementation), except files matching `testGlobs` (PG.3b; any `..` segment denied); deny a Bash command with a path token under `paths.code` (PG.4, heuristic) |
+| `--post` | PostToolUse and PostToolUseFailure on Bash/Edit/Write/MultiEdit/NotebookEdit | sweep the working tree (status + diff vs `gates/.frozen`): any test, structure or gate path that differs is named with the revert command (exit 2). An `engineer` sub-agent is swept only after Bash, and only for paths changed since its snapshot | — |
+| `--stop` | Stop | the same sweep at turn end (catches codegen that wrote files it never named); skipped for an `engineer` sub-agent, whose Bash calls are swept individually | — |
+| `--session-end` | SessionEnd | remove this session's marker (a persona never outlives the session that set it) and its `sdd/.persona-state/` snapshots | same |
 
 Runs under `sh`; on Windows that is Git Bash, which Claude Code already requires. A tripwire, not the
-proof: the Stage-7 `test_edit_ban` and `structure_check --frozen` gates diff the QA-frozen SHA. Tested by `ci/hook_test.sh` (75 cases). The marker is stamped `session=<id>` by the first pass that sees it; a marker stamped by another session is ignored, never obeyed (a crashed session cannot leave a persona behind). Builtins only - the only processes are `git` in the sweep and `rm` at session end - so a pass costs one shell start (~0.3 s on Windows), a sweep of a 500-path tree ~1 s.
+proof: the Stage-7 `test_edit_ban` and `structure_check --frozen` gates diff the QA-frozen SHA. Tested by `ci/hook_test.sh`. The marker is stamped `session=<id>` by the first pass that sees it; a marker stamped by another session is ignored, never obeyed (a crashed session cannot leave a persona behind). Builtins only - the only processes are `git` in the sweep and snapshot, `rm` at session end and one `mkdir` per session for the snapshot dir - so a pass costs one shell start (~0.3 s on Windows), a sweep of a 500-path tree ~1 s. Every sweep also reads a nested git repo under a `testGlobs` path (PG.6). Known limits: path compares are case-sensitive, and the qa path normalization has gaps (GitHub issue #5).
 
 **Persona from sub-agent type (PG.1).** The hook input's `agent_type` sets the persona directly when
 it's `qa`/`engineer` (or `qa-*`/`engineer-*`) — no marker read or stamped — so QA and Engineer

@@ -71,7 +71,9 @@
 # Exit 0 = allow · exit 2 = deny (message on stderr goes back to the agent; it names the persona source:
 # agent_type=..., SDD_PERSONA=... or the marker).
 # Known limits (accepted): path compares are case-sensitive even on a case-insensitive filesystem, and ".."
-# segments are not normalized, so Tests/a.test or src/../tests/a.test can slip past the --pre checks.
+# segments are not normalized, so Tests/a.test or src/../tests/a.test can slip past the --pre checks (the one
+# exception: a qa path already under paths.code is denied on any ".." segment, PG.3b). Further qa-side
+# normalization gaps are tracked in GitHub issue #5.
 # Tripwire, not proof: the Stage-7 gate test_edit_ban is the proof (it diffs the QA-frozen SHA).
 
 mode=pre

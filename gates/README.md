@@ -230,7 +230,7 @@ in a script.
 | `testTagExcludeGlobs` | files under `testGlobs` whose `@clause:` tags do **not** count as coverage (default `**/*.md`, `**/*.txt`). |
 | `structureGlobs` | the PM-approved structure shards (default `**/*.structure.body.md`): `structure_check --frozen` forbids edits vs the frozen SHA, the plugin hook denies the `engineer` persona, the forward trace resolves their members under `paths.code`. |
 | `buildPlan` | `glob` for the Stage-4b build plan (default `**/*.buildplan.md`) and `tokensPerChar` (default `0.25`), the estimate every `token_ledger` number uses. |
-| `paths.code` | the implementation glob (`src/**`); the plugin hook denies the `qa` persona reads under it. |
+| `paths.code` | the implementation glob (`src/**`), or an array of globs; the plugin hook denies the `qa` persona reads and Bash path tokens under it, except paths matching `testGlobs`. |
 | `baseRef` | fallback base for diffs (`main`). `test_edit_ban` uses the QA-frozen SHA (argument, else `gates/.frozen`) and warns when it falls back to a branch name. |
 | `projectRoot` | optional; the project root relative to the spine directory, for a non-git layout. Default: the git top-level. |
 | `suiteCmd` | the project's full-suite command, from Project Details §3 `#TOOL-3`. |
