@@ -5,7 +5,9 @@
 Mechanical checks that close stages. **Mechanical-first, human Validation last.** Every gate is
 exit-code driven (0 = PASS, nonzero = FAIL), prints `PASS`/`FAIL` + offending paths, reads one config
 (`gates/gates.config.json`), and is pure git/text — no stack, seam, or tracker is hardcoded in a
-script. Drop any of these into CI or a pre-merge hook unchanged.
+script. Drop any of these into CI or a pre-merge hook unchanged. For where each gate sits in the
+whole flow, next to the hook, scripts and human checks, and why each point uses the kind it does, see
+`../enforcement-map.md`.
 
 ## OS selection — run the script that matches the host (read this first)
 

@@ -70,6 +70,7 @@ The full non-negotiables are the **ten invariants** in `constitution.md` (tiny, 
 | Spine: session/context lifecycle (wrap, stash/unstash) | `session-lifecycle.md` | On demand |
 | Session-lifecycle commands (Tier-A impl) | `commands/` (`wrap` · `stash` · `unstash` + README) | Installed to host command dir |
 | Gate bank | `gates/` (generic + project gates as `.ps1`+`.sh` pairs, runner, config template) | Run, not loaded |
+| Enforcement map — every check in flow order, gate vs hook vs script vs human, and why | `enforcement-map.md` | On demand (reference; no stage loads it) |
 | Spec format standard | `spec-format/` (`README.md` + `build.ps1` / `build.sh`) | On demand |
 | Project details (7 indexed sections) | `project-config/project-details.md` | The cited section only |
 | Init / onboarding | `project-config/INIT.md` | Once, at adoption |
