@@ -372,6 +372,54 @@ run 2 "PG.3b-R1c env qa Read of src/Tests/../foo.ts denied (.. segment escapes t
 run 2 "PG.3b-R1c env qa Grep on src/Tests/.. denied (.. resolves the testGlobs dir to the ancestor code dir)" --pre qa "" "$(grep_ "$P/src/Tests/..")"
 run 2 "PG.3b-R1d env qa Read of src/Testsx/a.ts denied (sibling dir shares only a string prefix with Tests)" --pre qa "" "$(read_ Read "$P/src/Testsx/a.ts")"
 run 2 "PG.3b-R1d env qa Read of src/TestsHelper.ts denied (sibling file shares only a string prefix with Tests)" --pre qa "" "$(read_ Read "$P/src/TestsHelper.ts")"
+
+echo "-- issue #5: qa normalization gaps (.. from outside, repeated ./, \\\\?\\ prefix, Grep/Glob patterns and roots)"
+grepq() { printf '{"tool_name":"Grep","tool_input":{"pattern":"x"%s}}' "$1"; }   # $1: extra JSON fields
+globq() { printf '{"tool_name":"Glob","tool_input":{"pattern":"%s"%s}}' "$1" "${2:-}"; }
+run 2 "#5.1 qa Read of tests/../src/foo.ts denied (.. starting outside paths.code)" --pre qa "" "$(read_ Read "$P/tests/../src/foo.ts")"
+run 2 "#5.1 qa Read of spec/../src/foo.ts denied" --pre qa "" "$(read_ Read "$P/spec/../src/foo.ts")"
+run 2 "#5.1 qa Grep glob ../src/** denied (.. in the pattern)" --pre qa "" "$(grepq ",\"path\":\"$P/spec\",\"glob\":\"../src/**\"")"
+run 2 "#5.2 qa Read of ././src/foo.ts denied (repeated ./)" --pre qa "" "$(read_ Read "././src/foo.ts")"
+run 2 "#5.2 qa Read of \$P/./src/./foo.ts denied (inner ./)" --pre qa "" "$(read_ Read "$P/./src/./foo.ts")"
+run 0 "#5.2 qa Read of ./spec/x.body.md allowed" --pre qa "" "$(read_ Read "./spec/x.body.md")"
+run 2 "#5.5 qa Glob with no path, pattern src/*.ts denied" --pre qa "" "$(globq "src/*.ts")"
+run 2 "#5.5 qa Grep with no path and no glob denied (the whole project)" --pre qa "" "$(grepq "")"
+run 2 "#5.5 qa Grep with no path, glob src/** denied" --pre qa "" "$(grepq ",\"glob\":\"src/**\"")"
+run 2 "#5.5 qa Grep with no path, glob *.ts denied (no / = any depth)" --pre qa "" "$(grepq ",\"glob\":\"*.ts\"")"
+run 2 "#5.6 qa Glob on the root (ancestor of src), pattern **/*.ts denied" --pre qa "" "$(globq "**/*.ts" ",\"path\":\"$P\"")"
+run 0 "#5.5 qa Glob with no path, pattern spec/**/*.md allowed" --pre qa "" "$(globq "spec/**/*.md")"
+run 0 "#5.5 qa Grep with no path, glob spec/** allowed" --pre qa "" "$(grepq ",\"glob\":\"spec/**\"")"
+run 2 "#5.5 qa Glob with no path, pattern * denied (Glob recurses: *.ts lists src/)" --pre qa "" "$(globq "*")"
+run 2 "#5.5 qa Glob with no path, pattern *.ts denied" --pre qa "" "$(globq "*.ts")"
+run 0 "#5.5 qa Glob with no path, pattern spec/* allowed" --pre qa "" "$(globq "spec/*")"
+run 2 "R1 qa Grep glob list 'spec/** src/**' denied (rg splits on blanks)" --pre qa "" "$(grepq ",\"glob\":\"spec/** src/**\"")"
+run 2 "R1 qa Grep glob list 'spec/**,src/**' denied (and on commas)" --pre qa "" "$(grepq ",\"glob\":\"spec/**,src/**\"")"
+run 0 "R1 qa Grep glob list 'spec/** tests/**' allowed" --pre qa "" "$(grepq ",\"glob\":\"spec/** tests/**\"")"
+run 2 "R1 qa Grep glob !spec/** denied (a negation keeps everything else)" --pre qa "" "$(grepq ",\"glob\":\"!spec/**\"")"
+run 2 "R1 qa Glob **/{*.ts,x.test.x} denied (braces get no testGlob carve-out)" --pre qa "" "$(globq "**/{*.ts,x.test.x}")"
+run 2 "R1 qa Grep glob *.{ts,x.test.x} denied" --pre qa "" "$(grepq ",\"glob\":\"*.{ts,x.test.x}\"")"
+run 2 "R1 qa Grep glob /src/** denied (leading / anchors to the search root)" --pre qa "" "$(grepq ",\"glob\":\"/src/**\"")"
+run 0 "#5.5 qa Glob with no path, pattern **/*.test.* allowed (confined to testGlobs)" --pre qa "" "$(globq "**/*.test.*")"
+run 0 "#5.6 qa Grep on src/Tests, glob *.test allowed (testGlob dir)" --pre qa "" "$(grepq ",\"path\":\"$P/src/Tests\",\"glob\":\"*.test\"")"
+run 0 "#5.6 qa Grep on a test file inside paths.code allowed" --pre qa "" "$(grepq ",\"path\":\"$P/src/Tests/a.test\"")"
+run 0 "#5.6 qa Grep on spec (no glob) allowed" --pre qa "" "$(grepq ",\"path\":\"$P/spec\"")"
+# #5.3: the Windows long-path prefix is stripped before the root compare. Linux has no drive: a
+# relative root "C:/proj" (a symlink under the cwd) stands in for one.
+if command -v cygpath >/dev/null 2>&1; then lr=$(cygpath -m "$P"); lw=$(cygpath -w "$P")
+else mkdir -p "$T/C:" && ln -s "$P" "$T/C:/proj"; lr="C:/proj"; lw='C:\proj'; fi
+lj=$(printf '%s' "\\\\?\\$lw\\src\\foo.ts" | sed 's/\\/\\\\/g')
+rc=$(cd "$T" && printf '{"tool_name":"Read","tool_input":{"file_path":"%s"}}' "$lj" | SDD_PERSONA=qa CLAUDE_PROJECT_DIR="$lr" sh "$HOOK" --pre 2>"$T/err"; echo $?)
+if [ "$rc" = 2 ]; then echo "ok    #5.3 qa Read via \\\\?\\ long path denied (rc=2)"; else echo "FAIL  #5.3 qa Read via \\\\?\\ long path (rc=$rc want 2)"; sed 's/^/      /' "$T/err"; fails=$((fails+1)); fi
+# R1: a paths.code glob with no literal directory (**/*.cs) is compared by its last segment.
+cp "$P/sdd/gates/gates.config.json" "$T/cfg.cs.json"
+jq '.paths.code = "**/*.cs"' "$T/cfg.cs.json" > "$P/sdd/gates/gates.config.json"
+run 2 "R1 code **/*.cs: qa Grep glob *s denied (suffix overlap)" --pre qa "" "$(grepq ",\"glob\":\"*s\"")"
+run 2 "R1 code **/*.cs: qa Grep glob *.c? denied (other wildcards)" --pre qa "" "$(grepq ",\"glob\":\"*.c?\"")"
+run 2 "R1 code **/*.cs: qa Glob **/*.{cs,md} denied" --pre qa "" "$(globq "**/*.{cs,md}")"
+run 0 "R1 code **/*.cs: qa Grep glob *.md allowed" --pre qa "" "$(grepq ",\"glob\":\"*.md\"")"
+run 0 "R1 code **/*.cs: qa Glob spec/**/*.md allowed" --pre qa "" "$(globq "spec/**/*.md")"
+run 2 "R1 code **/*.cs: qa Read src/Core.cs denied" --pre qa "" "$(read_ Read "$P/src/Core.cs")"
+cp "$T/cfg.cs.json" "$P/sdd/gates/gates.config.json"
 cp "$T/cfg.orig6.json" "$P/sdd/gates/gates.config.json"
 rm -rf "$P/src/Tests" "$P/src/Testsx" "$P/src/TestsHelper.ts"
 ( cd "$P" && git add -A && git commit -q -m "test: restore config after PG.3b-R1c/d" )

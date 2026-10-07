@@ -16,7 +16,16 @@
 #                                 not just files under it) - QA may still read its own tests. A narrower testGlob
 #                                 (src/**/*.test, src/*.test) grants no directory-wide carve-out - only a full
 #                                 file match does; an ancestor dir of the testGlob prefix (src) is not under it,
-#                                 so it stays denied. Any `..` path segment in a qa path under paths.code is denied (before either carve-out), so a literal "Tests/../Core/X.cs" cannot borrow Tests' carve-out.
+#                                 so it stays denied. Any `..` path segment in a qa path is denied (before either carve-out), wherever
+#                                 it starts, so neither "Tests/../Core/X.cs" nor "tests/../src/x" gets through.
+#                                 qa + Grep/Glob (PG.3c): judged by what the search reaches - its root (no path =
+#                                 the project root) joined with the Glob pattern or Grep glob (a pattern with no
+#                                 "/" matches at any depth; a Grep glob is split on blanks and commas, "!" = all). At/under a paths.code directory, or above it with "**" or
+#                                 more segments than that directory, is denied unless confined to tests (the
+#                                 pattern, read as a path, matches a testGlob, or it sits under a "<dir>/**"
+#                                 testGlob; braces get neither). A paths.code glob with no literal directory
+#                                 (**/*.cs) is compared by its last segment. A heuristic on root + pattern; a Grep
+#                                 on a file is a read of it.
 #                                 qa + Bash (PG.4): deny when a command token lies under the literal directory
 #                                 prefix of any paths.code glob (before its first wildcard; compared by whole
 #                                 segment, / and \ alike: src/** trips src/x and src\x, not src2/x), unless
@@ -70,10 +79,10 @@
 # Bash), no bashisms.
 # Exit 0 = allow · exit 2 = deny (message on stderr goes back to the agent; it names the persona source:
 # agent_type=..., SDD_PERSONA=... or the marker).
+# Paths are normalized before every compare: slashes, "./" and "/./" segments, the \?\ and \.\ prefixes.
 # Known limits (accepted): path compares are case-sensitive even on a case-insensitive filesystem, and ".."
-# segments are not normalized, so Tests/a.test or src/../tests/a.test can slip past the --pre checks (the one
-# exception: a qa path already under paths.code is denied on any ".." segment, PG.3b). Further qa-side
-# normalization gaps are tracked in GitHub issue #5.
+# segments are not resolved, so Tests/a.test or src/../tests/a.test can slip past the engineer --pre checks
+# (a qa path is denied on any ".." segment, PG.3b).
 # Tripwire, not proof: the Stage-7 gate test_edit_ban is the proof (it diffs the QA-frozen SHA).
 
 mode=pre
@@ -238,22 +247,32 @@ esac
 
 relpath() { # $1 absolute or relative tool path -> REL: root-relative, forward slashes
   fs "$1"; rp=$R
+  case $rp in /?/[A-Za-z]:*) rp=${rp#/?/} ;; esac   # Windows \\?\C:\x and \\.\C:\x -> C:/x (issue #5)
   case $rp in /[A-Za-z]/*) rp_d=${rp#/}; rp_d=${rp_d%%/*}; rp="$rp_d:${rp#/?}" ;; esac   # MSYS /c/x -> c:/x
   case $rp in
     "$root"/*) REL=${rp#"$root"/} ;;
-    *) REL=${rp#./}
+    "$root"|"$root"/) REL="" ;;
+    *) REL=$rp
        case $root in [A-Za-z]:*)   # same path, drive letter differs only in case
          r2=${root#?}
          case ${rp#?} in "$r2"/*) REL=${rp#?}; REL=${REL#"$r2"/} ;; esac ;;
        esac ;;
   esac
+  # "." segments: every leading ./, every /./, a trailing /. (issue #5: ././src/x)
+  while case $REL in ./*) true ;; *) false ;; esac; do REL=${REL#./}; done
+  while case $REL in */./*) true ;; *) false ;; esac; do REL="${REL%%/./*}/${REL#*/./}"; done
+  case $REL in .) REL="" ;; */.) REL=${REL%/.} ;; esac
 }
 
 litdir() { # $1 glob -> LD: its literal directory prefix (the part before the first wildcard, cut back to a
            # whole segment; no trailing slash). "src/**" -> src, "src/a*.ts" -> src, "**/x" -> ""
-  LD=${1%%[*?[]*}
+  LD=${1%%[*?[{]*}
   if [ "$LD" != "$1" ]; then case $LD in */*) LD=${LD%/*} ;; *) LD="" ;; esac; fi
   LD=${LD%/}
+}
+nseg() { # $1 path -> N: its segment count
+  N=1; ns_s=$1
+  while case $ns_s in */*) true ;; *) false ;; esac; do N=$((N+1)); ns_s=${ns_s#*/}; done
 }
 
 # --- pre, Bash: qa tripwire (PG.4) ----------------------------------------------------------------
@@ -306,8 +325,11 @@ if [ "$mode" = pre ] && [ "$tool" != Bash ]; then
   jstr file_path; fp=$J
   [ -n "$fp" ] || { jstr notebook_path; fp=$J; }
   [ -n "$fp" ] || { jstr path; fp=$J; }
-  [ -n "$fp" ] || exit 0
-  relpath "$fp"; rel=$REL
+  rel=""
+  if [ -n "$fp" ]; then relpath "$fp"; rel=$REL
+  else
+    case "$persona:$tool" in qa:Grep|qa:Glob) ;; *) exit 0 ;; esac   # PG.3c: no path = the project root
+  fi
   if [ "$persona" = engineer ]; then
     case "$tool" in Edit|Write|MultiEdit|NotebookEdit) ;; *) exit 0 ;; esac
     case "$rel" in
@@ -325,6 +347,88 @@ if [ "$mode" = pre ] && [ "$tool" != Bash ]; then
   # qa: blind to the implementation - every paths.code glob (PG.3)
   case "$tool" in Read|Grep|Glob) ;; *) exit 0 ;; esac
   [ -n "$codes" ] || exit 0
+  # PG.3c: a search reaches its root joined with its pattern (Glob pattern, Grep glob). A pattern with no
+  # '/' matches at any depth (both tools recurse); no glob means everything. A Grep glob is rg's: a list
+  # split on blanks (and commas outside braces), a leading ! negates (= everything else), a leading /
+  # anchors to the search root. Each part is judged on its own; a Grep on a file is a read of that file.
+  qsearch() { # $1 what one search part reaches -> deny (exit 2) when it reaches paths.code, else return
+    q_t=$1
+    case "/$q_t/" in */../*)
+      echo "GUIDE SDD persona guard: $psrc is blind to the implementation ($q_t contains a '..' path segment, which the guard does not resolve). Expected values come from the spec, never the code (invariant 4); name spec and test paths directly." >&2
+      exit 2 ;;
+    esac
+    # Overlap: the literal directory at/under a code glob's literal directory, or above it reaching in
+    # with ** or more segments. A code glob with no literal directory (**/*.cs) is compared by its last
+    # segment: *C overlaps a search ending in *L when one suffix ends with the other, a name ending in C,
+    # and anything with other wildcards.
+    litdir "$q_t"; q_d=$LD; code=""; q_l=$codes
+    while [ -n "$q_l" ]; do
+      q_g=${q_l%%"$nl"*}; q_l=${q_l#*"$nl"}
+      litdir "$q_g"
+      if [ -z "$LD" ]; then
+        c_s=${q_g##*/}; s_s=${q_t##*/}
+        case $c_s in \**) c_x=${c_s#?} ;; *) code=$q_g; break ;; esac
+        case $c_x in ''|*[*?[{]*) code=$q_g; break ;; esac
+        case $s_s in
+          \**) s_x=${s_s#?}
+               case $s_x in ''|*[*?[{]*) code=$q_g; break ;; esac
+               case $c_x in *"$s_x") code=$q_g; break ;; esac ;;
+          *[*?[{]*) code=$q_g; break ;;
+          *) s_x=$s_s ;;
+        esac
+        case $s_x in *"$c_x") code=$q_g; break ;; esac
+        continue
+      fi
+      case "$q_d" in "$LD"|"$LD"/*) code=$q_g; break ;; esac
+      if [ -z "$q_d" ] || case "$LD" in "$q_d"/*) true ;; *) false ;; esac; then
+        case "$q_t" in *'**'*) code=$q_g; break ;; esac
+        nseg "$q_t"; q_n=$N; nseg "$LD"
+        [ "$q_n" -gt "$N" ] && { code=$q_g; break; }
+      fi
+    done
+    [ -n "$code" ] || return 0
+    # Confined to tests: a brace-free pattern that, read as a path, matches a testGlob (**/*.test.*), or
+    # a literal directory at/under a "<dir>/**" testGlob directory.
+    case $q_t in *[{[]*) ;; *) first_match "$q_t" "$globs" "$cglobs" && return 0 ;; esac
+    t_l=$globs
+    while [ -n "$t_l" ]; do
+      t_g=${t_l%%"$nl"*}; t_l=${t_l#*"$nl"}
+      litdir "$t_g"; [ -n "$LD" ] || continue
+      case "$t_g" in "$LD/**") ;; *) continue ;; esac
+      case "$q_d" in "$LD"|"$LD"/*) return 0 ;; esac
+    done
+    echo "GUIDE SDD persona guard: $psrc is blind to the implementation - this $tool search ($q_t) reaches paths.code '$code'. Scope it to spec or test paths with path, pattern or glob. A heuristic on the search root and pattern (PG.3c)." >&2
+    exit 2
+  }
+  if [ "$tool" != Read ] && ! { [ "$tool" = Grep ] && [ -n "$rel" ] && [ -f "$root/$rel" ]; }; then
+    if [ "$tool" = Glob ]; then jstr pattern; else jstr glob; fi
+    fs "$J"; q_all=$R
+    if [ "$tool" = Grep ]; then
+      set -f; o_ifs=$IFS
+      case $q_all in *'{'*) IFS=' 	' ;; *) IFS=' 	,' ;; esac
+      set -- $q_all; IFS=$o_ifs; set +f
+      [ $# -gt 0 ] || set -- ''
+    else
+      set -- "$q_all"
+    fi
+    for q_p in "$@"; do
+      q_a=0
+      if [ "$tool" = Grep ]; then
+        case $q_p in '!'*) q_p='' ;; esac
+        case $q_p in /*) q_p=${q_p#/}; q_a=1 ;; esac
+      fi
+      case $q_p in /*|[A-Za-z]:*) relpath "$q_p"; qsearch "$REL"; continue ;; esac   # absolute: no root
+      while case $q_p in ./*) true ;; *) false ;; esac; do q_p=${q_p#./}; done
+      case $q_p in '') q_p='**' ;; */*) ;; *) [ $q_a = 1 ] || q_p="**/$q_p" ;; esac
+      qsearch "${rel:+$rel/}$q_p"
+    done
+    exit 0
+  fi
+  # A single file (Read, or Grep on a file). PG.3b: a '..' segment anywhere is denied, before any carve-out.
+  case "/$rel/" in */../*)
+    echo "GUIDE SDD persona guard: $psrc is blind to the implementation ($rel contains a '..' path segment, which the guard does not resolve). Expected values come from the spec, never the code (invariant 4); name spec and test paths directly." >&2
+    exit 2 ;;
+  esac
   if first_match "$rel" "$codes" "$ccodes"; then code=$HIT
   else
     code=""; q_l=$codes
@@ -335,13 +439,6 @@ if [ "$mode" = pre ] && [ "$tool" != Bash ]; then
     done
     [ -n "$code" ] || exit 0
   fi
-  # PG.3b: a '..' path segment defeats either carve-out below (the literal string can start with a
-  # test dir yet resolve outside it via '..') - deny before considering either one, naming it, same as
-  # 1.14.0 denied it via the plain paths.code check.
-  case "/$rel/" in */../*)
-    echo "GUIDE SDD persona guard: $psrc is blind to the implementation ($rel contains a '..' path segment - not a testGlob carve-out). Expected values come from the spec, never the code (invariant 4); read the spec shards and the test plan." >&2
-    exit 2 ;;
-  esac
   # PG.3b: tests can live inside paths.code (e.g. client/Assets/Scripts/Tests/** under
   # client/Assets/Scripts/**) - a path that matches a testGlob, or sits at/under the literal directory
   # of a testGlob of the exact form "<dir>/**", is QA's own and stays readable. A narrower testGlob

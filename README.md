@@ -1,6 +1,6 @@
 # GUIDE SDD — Gated, Unified, Intent-Driven Engineering
 
-> **v1.15.0 — 2026-10-06.** A reusable, token-efficient, spec-first / persona-split development
+> **v1.15.1 — 2026-10-07.** A reusable, token-efficient, spec-first / persona-split development
 > method that drops into large, multi-developer projects worked by humans **and** AI agents. It
 > merges two mature in-house practices (Mistwright's *How We Work*, Polars' *How To Develop*) with
 > the published SOTA into one copyable **spine** + a small, indexed **per-project surface**.
@@ -411,6 +411,15 @@ fix, with a smoke negative control); ps1 gates resolve relative paths against th
 (closes #1); gate output is ASCII; the framework lints its own conventions with `constitution_lint`
 (`ci/spine.gates.config.json`), and the spine now passes its own `prose_check` (strict in CI). `install.ps1` no longer misreads a single flag. New
 `enforcement-map.md`. Full record in `constitution.changelog.md`.
+
+### v1.15.1 Amendment — qa search guard, configurable plan glob, leaner spine (2026-10-07)
+
+No invariant change; still ten. **Persona guard** (closes #5): a qa path with a `..` segment is denied
+wherever it starts, `./` and `\\?\` prefixes are normalized, and Grep/Glob are judged by root + pattern -
+a search that reaches `paths.code` (including one with no path, from the project root) is denied unless
+confined to tests. **`coverage_check --plan`** (closes #6): the plan glob follows `paths.spec` (HTML
+shards work) and `paths.plan` overrides it. **Spine docs** are 6% shorter. Full record in
+`constitution.changelog.md`.
 
 ## Map to the source practices
 

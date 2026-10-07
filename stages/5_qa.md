@@ -9,7 +9,7 @@ never an `eng` row) + the `project-details.md#STK-N` test-home map + named seam 
 **You do NOT see the implementation, the router, or any sibling working notes. That blindness is the
 independence.** With the GUIDE SDD plugin the dispatcher sets `/sdd-persona qa` first (or dispatches a
 sub-agent of type `qa`): the hook then denies any Read/Grep/Glob — and any Bash command naming a path —
-under `paths.code`, except your own `testGlobs` files. Without it, the `qa_import_ban` gate proves the structural
+under `paths.code`, except your own `testGlobs` files. A Grep/Glob with no path searches the whole project and is denied: scope it to spec and test paths. Without it, the `qa_import_ban` gate proves the structural
 half only; the rest is on you.
 
 - Persona route only.

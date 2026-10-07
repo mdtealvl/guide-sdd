@@ -78,6 +78,23 @@ twin "coverage_check (negative)" "$LAST_OUT" "$LAST_RC" gates/coverage_check.ps1
 git checkout -q -- spec
 expect 0 "coverage_check PASS after revert" sh gates/coverage_check.sh --config $CFG
 
+# --plan: the default plan glob follows paths.spec (issue #6: HTML shards), and paths.plan overrides it.
+printf '@clause:DEMO.1 - scenario: smoke passes\n' > spec/demo.plan.body.md
+expect 0 "coverage_check --plan PASS (md plan)" sh gates/coverage_check.sh --plan --config $CFG
+twin "coverage_check (plan)" "$LAST_OUT" "$LAST_RC" gates/coverage_check.ps1 -Plan -Config $CFG
+mkdir -p spec/html
+printf '<h2 id="DEMO.1">DEMO.1 smoke</h2><p>When init runs, the system shall pass.</p>\n' > spec/html/a.body.html
+printf '<p>@clause:DEMO.1 - scenario: smoke passes</p>\n' > spec/html/a.plan.body.html
+jq '.paths.spec = "spec/**/*.body.html"' $CFG > "$WORK/cfg" && cp "$WORK/cfg" $CFG
+expect 0 "coverage_check --plan PASS (html plan, glob derived from paths.spec)" sh gates/coverage_check.sh --plan --config $CFG
+twin "coverage_check (html plan)" "$LAST_OUT" "$LAST_RC" gates/coverage_check.ps1 -Plan -Config $CFG
+jq '.paths.plan = "spec/**/*nomatch*.body.html"' $CFG > "$WORK/cfg" && cp "$WORK/cfg" $CFG
+expect 1 "coverage_check --plan FAIL (paths.plan overrides the derived glob)" sh gates/coverage_check.sh --plan --config $CFG
+names "coverage_check (paths.plan)" "DEMO.1"
+twin "coverage_check (paths.plan)" "$LAST_OUT" "$LAST_RC" gates/coverage_check.ps1 -Plan -Config $CFG
+rm -rf spec/html spec/demo.plan.body.md
+git checkout -q -- gates
+
 # Negative control: a tag in a notes file under tests/ is not coverage; a skipped test is warned.
 printf '@clause:DEMO.9\n' > tests/NOTES.md
 expect 0 "coverage_check ignores tags in tests/NOTES.md" sh gates/coverage_check.sh --config $CFG

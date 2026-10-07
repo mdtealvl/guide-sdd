@@ -4,8 +4,10 @@
 # Generic gate. Stack-agnostic: pure text scan parameterised by gates.config.json.
 #
 # Default mode  : clauses from spec shards (paths.spec); tags from test files (testGlobs).
-# -Plan mode    : tags from the Stage-4 test plan (a *plan*.body.md shard tagged with
-#                 @clause: lines), so the plan is coverage-checked before any test exists.
+# -Plan mode    : tags from the Stage-4 test plan (a *plan* shard tagged with @clause: lines),
+#                 so the plan is coverage-checked before any test exists. Plan glob:
+#                 -PlanGlob > paths.plan > paths.spec with its last segment *X made
+#                 *plan*X (so *.body.html shards get *plan*.body.html) > spec/**/*plan*.body.md.
 #
 # Clause-set scope:
 #   default       = WHOLE-CORPUS — every clause in paths.spec needs a test. This is the
@@ -23,13 +25,13 @@
 #
 # Usage:
 #   pwsh gates/coverage_check.ps1 [-Config gates/gates.config.json] [-Plan]
-#        [-PlanGlob 'spec/**/*plan*.body.md'] [-Manifest <file>]
+#        [-PlanGlob <glob>] [-Manifest <file>]
 
 [CmdletBinding()]
 param(
     [string]$Config = 'gates/gates.config.json',
     [switch]$Plan,
-    [string]$PlanGlob = 'spec/**/*plan*.body.md',
+    [string]$PlanGlob = '',
     [string]$Manifest
 )
 $ErrorActionPreference = 'Stop'
@@ -43,6 +45,17 @@ $tagPrefix     = Get-CfgValue $cfg 'testClauseTag' '@clause:'
 $specGlob      = 'spec/**/*.body.md'
 if ($cfg.PSObject.Properties.Name -contains 'paths' -and $cfg.paths -and ($cfg.paths.PSObject.Properties.Name -contains 'spec') -and $cfg.paths.spec) {
     $specGlob = $cfg.paths.spec
+}
+if (-not $PlanGlob -and $cfg.PSObject.Properties.Name -contains 'paths' -and $cfg.paths -and ($cfg.paths.PSObject.Properties.Name -contains 'plan') -and $cfg.paths.plan) {
+    $PlanGlob = $cfg.paths.plan
+}
+if (-not $PlanGlob) {
+    $last = $specGlob.Substring($specGlob.LastIndexOf('/') + 1)
+    if ($last.Length -gt 1 -and $last.StartsWith('*') -and -not $last.StartsWith('**')) {
+        $PlanGlob = $specGlob.Substring(0, $specGlob.Length - $last.Length) + '*plan' + $last
+    } else {
+        $PlanGlob = 'spec/**/*plan*.body.md'
+    }
 }
 $testGlobs = $null
 if ($cfg.PSObject.Properties.Name -contains 'testGlobs' -and $cfg.testGlobs) { $testGlobs = @($cfg.testGlobs) }

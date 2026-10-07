@@ -400,3 +400,10 @@ No invariant change; still ten.
 - Fix: `install.ps1` read a lone flag (`update --force`, `check --cached`) as a string and failed with "unknown argument '-'".
 - Spine prose: the 20 spine docs over the SDD-PROP-09 form (paragraph share > 35% or a paragraph > 100 words) restructured into bullets and steps - no rule, heading, code block or table row dropped (fidelity-reviewed); the spine now passes its own prose_check, enforced strict in CI.
 - Docs: `enforcement-map.md` (every check in flow order, its kind, and why).
+
+## v1.15.1 — qa search guard, configurable plan glob, leaner spine (per SDD-amend-v1.15.1, 2026-10-07)
+
+No invariant change; still ten.
+- Persona guard (closes #5): a qa path with a `..` segment is denied wherever it starts; repeated and inner `./` segments and the Windows `\\?\` / `\\.\` prefixes are normalized away; the project root itself maps to the root. Grep/Glob are judged by what they reach (PG.3c): the search root (none = the project root) joined with the Glob pattern or Grep glob (a pattern with no `/` matches at any depth; a Grep glob is split on blanks and commas, a leading `!` counts as everything, a leading `/` anchors to the root). A search at, under or above a `paths.code` directory is denied unless it is confined to tests (its pattern matches a testGlob, or it sits under a `<dir>/**` testGlob; a braced pattern gets neither). A `paths.code` glob with no literal directory (`**/*.cs`) is compared by its last segment. A heuristic; QA scopes its searches to spec and test paths.
+- `coverage_check --plan` (closes #6): the plan glob is `--plan-glob` > `paths.plan` > `paths.spec` with its last segment `*X` made `*plan*X` (HTML shards get `*plan*.body.html`) > `spec/**/*plan*.body.md`. Smoke controls on both twins.
+- Spine docs: a word-cutting pass (−6.4%), fidelity-reviewed; no rule, heading or table row dropped.

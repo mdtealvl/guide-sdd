@@ -65,6 +65,23 @@ try {
     git checkout -q -- spec
     Expect 0 'coverage_check PASS after revert' @('gates/coverage_check.ps1', '-Config', $cfg)
 
+    # -Plan: the default plan glob follows paths.spec (issue #6: HTML shards), and paths.plan overrides it.
+    [IO.File]::WriteAllText("$proj/spec/demo.plan.body.md", "@clause:DEMO.1 - scenario: smoke passes`n", $utf8)
+    Expect 0 'coverage_check -Plan PASS (md plan)' @('gates/coverage_check.ps1', '-Plan', '-Config', $cfg)
+    New-Item -ItemType Directory -Force "$proj/spec/html" | Out-Null
+    [IO.File]::WriteAllText("$proj/spec/html/a.body.html", "<h2 id=`"DEMO.1`">DEMO.1 smoke</h2><p>When init runs, the system shall pass.</p>`n", $utf8)
+    [IO.File]::WriteAllText("$proj/spec/html/a.plan.body.html", "<p>@clause:DEMO.1 - scenario: smoke passes</p>`n", $utf8)
+    $planCfg = Get-Content $cfg -Raw | ConvertFrom-Json
+    $planCfg.paths.spec = 'spec/**/*.body.html'
+    [IO.File]::WriteAllText("$proj/$cfg", ($planCfg | ConvertTo-Json -Depth 10), $utf8)
+    Expect 0 'coverage_check -Plan PASS (html plan, glob derived from paths.spec)' @('gates/coverage_check.ps1', '-Plan', '-Config', $cfg)
+    $planCfg.paths | Add-Member -NotePropertyName plan -NotePropertyValue 'spec/**/*nomatch*.body.html'
+    [IO.File]::WriteAllText("$proj/$cfg", ($planCfg | ConvertTo-Json -Depth 10), $utf8)
+    Expect 1 'coverage_check -Plan FAIL (paths.plan overrides the derived glob)' @('gates/coverage_check.ps1', '-Plan', '-Config', $cfg)
+    Names 'coverage_check (paths.plan)' 'DEMO.1'
+    Remove-Item -Recurse -Force "$proj/spec/html", "$proj/spec/demo.plan.body.md"
+    git checkout -q -- gates
+
     # Negative control: a tag in a notes file under tests/ is not coverage; a skipped test is warned.
     [IO.File]::WriteAllText("$proj/tests/NOTES.md", "@clause:DEMO.9`n", $utf8)
     Expect 0 'coverage_check ignores tags in tests/NOTES.md' @('gates/coverage_check.ps1', '-Config', $cfg)

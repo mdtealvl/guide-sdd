@@ -222,6 +222,7 @@ in a script.
 | `clauseIdRegex` | what a behavioural clause-ID looks like. Default `\b[A-Z]{2,}\.\d+\b` (matches `CB.12`, `POL.5`). Mirrors Project Details §5. |
 | `testClauseTag` | the literal prefix a test uses to claim a clause, e.g. `@clause:` — `@clause:CB.12` covers `CB.12`. |
 | `paths.spec` | glob for content-only spec shards (`spec/**/*.body.md`). |
+| `paths.plan` | optional: the Stage-4 test-plan glob for `coverage_check --plan`. Unset, it is `paths.spec` with its last segment `*X` made `*plan*X` (`*.body.html` gives `*plan*.body.html`); `--plan-glob` / `-PlanGlob` beats both. |
 | `paths.tests` / `testGlobs` | test files **and test infrastructure** — snapshots, `jest.config.*`, `pytest.ini`, `conftest.py` (coverage_check scans tags; test_edit_ban forbids edits; the plugin hook denies them at edit time). One dialect everywhere: `**` spans directories, `*` does not, anchored at the project root. |
 | `testTagExcludeGlobs` | files under `testGlobs` whose `@clause:` tags do **not** count as coverage (default `**/*.md`, `**/*.txt`). |
 | `structureGlobs` | the PM-approved structure shards (default `**/*.structure.body.md`): `structure_check --frozen` forbids edits vs the frozen SHA, the plugin hook denies the `engineer` persona, the forward trace resolves their members under `paths.code`. |

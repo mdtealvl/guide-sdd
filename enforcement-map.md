@@ -135,7 +135,7 @@ so there is almost nothing to check) and the stage gates (`coverage_check`, `tes
 
 ## Known gaps
 
-- **Persona guard normalization gaps** on the qa side — GitHub issue #5.
+- **Persona guard search scoping** on the qa side is a heuristic on the search root and pattern (PG.3c); paths compare case-sensitively.
 - **Merge base for carriers placed before v1.15.0.** The three-way merge uses the *current* spine's
   template as the base. A root carrier older than the spine (possible after updates by a pre-1.15
   installer, which never merged) merges against a newer base: your edits are always kept, but template

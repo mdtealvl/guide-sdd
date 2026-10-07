@@ -4,8 +4,10 @@
 # Generic gate. Stack-agnostic: pure text scan parameterised by gates.config.json.
 #
 # Default mode  : clauses from spec shards (paths.spec); tags from test files (testGlobs).
-# --plan mode   : tags from the Stage-4 test plan (a *plan*.body.md shard tagged with
-#                 @clause: lines), so the plan is coverage-checked before any test exists.
+# --plan mode   : tags from the Stage-4 test plan (a *plan* shard tagged with @clause: lines),
+#                 so the plan is coverage-checked before any test exists. Plan glob:
+#                 --plan-glob > paths.plan > paths.spec with its last segment *X made
+#                 *plan*X (so *.body.html shards get *plan*.body.html) > spec/**/*plan*.body.md.
 #
 # Clause-set scope:
 #   default        = WHOLE-CORPUS — every clause in paths.spec needs a test. This is the
@@ -23,7 +25,7 @@
 #
 # Usage:
 #   sh gates/coverage_check.sh [--config gates/gates.config.json] [--plan]
-#      [--plan-glob 'spec/**/*plan*.body.md'] [--manifest <file>]
+#      [--plan-glob <glob>] [--manifest <file>]
 
 set -u
 
@@ -35,7 +37,7 @@ require_jq "$GATE"
 
 CFG="gates/gates.config.json"
 PLAN=0
-PLAN_GLOB='spec/**/*plan*.body.md'
+PLAN_GLOB=""
 MANIFEST=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -55,6 +57,18 @@ done
 CLAUSE_RE=$(to_ere "$(read_cfg "$CFG" '.clauseIdRegex' '\b[A-Z]{2,}\.\d+\b')")
 TAG_PREFIX=$(read_cfg "$CFG" '.testClauseTag' '@clause:')
 SPEC_GLOB=$(read_cfg "$CFG" '.paths.spec' 'spec/**/*.body.md')
+
+if [ -z "$PLAN_GLOB" ]; then
+  PLAN_GLOB=$(read_cfg "$CFG" '.paths.plan' '')
+fi
+if [ -z "$PLAN_GLOB" ]; then
+  _last="${SPEC_GLOB##*/}"
+  case "$_last" in
+    '**'*) PLAN_GLOB='spec/**/*plan*.body.md' ;;
+    '*'?*) PLAN_GLOB="${SPEC_GLOB%"$_last"}*plan$_last" ;;
+    *) PLAN_GLOB='spec/**/*plan*.body.md' ;;
+  esac
+fi
 
 # testGlobs (array) -> newline list; fall back to paths.tests then default.
 TEST_GLOBS=$(jq -r '(.testGlobs // empty) | if type=="array" then .[] else . end' "$CFG" 2>/dev/null)

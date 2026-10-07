@@ -7,6 +7,7 @@
     "tests": "tests/**",
     "code": "src/**"
   },
+  "_paths_plan_comment": "Optional paths.plan: the Stage-4 test-plan glob for coverage_check --plan. Unset, it follows paths.spec (last segment *X -> *plan*X, so spec/**/*.body.html gives spec/**/*plan*.body.html).",
   "_testGlobs_comment": "One glob dialect everywhere (coverage_check, test_edit_ban, the plugin hook): ** spans directories, * does not, anchored at the project root. List test RUNNER CONFIG and snapshots too — an Engineer who can edit jest.config or a .snap can silence a test without touching it.",
   "testGlobs": ["**/tests/**", "**/__tests__/**", "**/__mocks__/**", "**/*.test.*", "**/*.spec.*", "**/*Tests.cs", "**/*.snap", "**/jest.config.*", "**/vitest.config.*", "**/pytest.ini", "**/conftest.py"],
   "_testTagExcludeGlobs_comment": "Files under testGlobs whose @clause: tags do NOT count as coverage (notes, fixtures described in prose).",
