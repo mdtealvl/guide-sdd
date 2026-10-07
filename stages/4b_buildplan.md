@@ -6,17 +6,20 @@ shard manifest + the approved **structure shard** (`<ITEM-ID>.structure.body.md`
 `#TOOL-6` (quiet gate idioms). **Not** the codebase at large: plan from the structure shard and targeted
 greps; every file this stage opens is a `read` row in the ledger, so the plan's own cost is measured.
 
-Active in **every** route, after the spec + structure diagram are PM-approved and the test plan is
-closed. This stage decides **how** the unit is built — which files, in what order, in which context —
-and it is the one place that **optimizes tokens**: what each later context reads, and what it is told
-not to. Mechanical route: one slice, a file map + ranges, ≤ 10 lines — the ledger still records `P`
-and `S1` so the readout exists.
+- Active in **every** route, after the spec + structure diagram are PM-approved and the test plan is
+  closed.
+- This stage decides **how** the unit is built — which files, in what order, in which context.
+- It is the one place that **optimizes tokens**: what each later context reads, and what it is told
+  not to.
+- Mechanical route: one slice, a file map + ranges, ≤ 10 lines — the ledger still records `P` and `S1`
+  so the readout exists.
 
 ## The artifact — `<ITEM-ID>.buildplan.md`
 
-One file in the transient working-spec home (`project-details.md#SPEC-4`; `buildPlan.glob` in
-`gates.config.json` finds it). Archived at ship, never folded — a build record, not behaviour. Four
-sections in this order; the ledger is **last** so rows append.
+- One file in the transient working-spec home (`project-details.md#SPEC-4`; `buildPlan.glob` in
+  `gates.config.json` finds it).
+- Archived at ship, never folded — a build record, not behaviour.
+- Four sections in this order; the ledger is **last** so rows append.
 
 ### 1. File map
 
@@ -97,10 +100,12 @@ an estimate of what a context admits, never a billed count.
 
 ## Readout — every slice end, and the plan end
 
-At the end of each slice: `token_ledger report --slice Sn` → write the line it prints —
-`tokens: Sn admitted ~A; saved ~V (P%); ledger H/N honoured` — on the item (`changelog-conventions.md`
-§6). At Stage 7 §4 (and in `/wrap`): `token_ledger report` → the `tokens: plan …` line, which also carries
-the planning cost `P`. `metrics.md` reads these as **cost**, beside the outcome metrics, never instead.
+- At the end of each slice: `token_ledger report --slice Sn` → write the line it prints —
+  `tokens: Sn admitted ~A; saved ~V (P%); ledger H/N honoured` — on the item (`changelog-conventions.md`
+  §6).
+- At Stage 7 §4 (and in `/wrap`): `token_ledger report` → the `tokens: plan …` line, which also carries
+  the planning cost `P`.
+- `metrics.md` reads these as **cost**, beside the outcome metrics, never instead.
 
 ## Anti-patterns
 

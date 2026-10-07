@@ -1,33 +1,34 @@
 # Stage 0 — Triage / Right-size
 
-**Role:** Orchestrator. **Loaded with:** constitution + this file. On trigger, load when it says:
-`box-roles.md` (box role), `greenfield-vs-brownfield.md` (spec-coverage stance), `definition-of-done.md`
-(DoR on pickup), `changelog-conventions.md` (filing the item), and `project-details.md` sections
-`#CL-N` / `#SEAM-N` / `#RS-N`.
+- **Role:** Orchestrator. **Loaded with:** constitution + this file.
+- On trigger, load when it says: `box-roles.md` (box role), `greenfield-vs-brownfield.md` (spec-coverage
+  stance), `definition-of-done.md` (DoR on pickup), `changelog-conventions.md` (filing the item), and
+  `project-details.md` sections `#CL-N` / `#SEAM-N` / `#RS-N`.
+- Decide how much ceremony a unit gets and produce the records later stages read.
+- The only stage that runs every time.
 
-Decide how much ceremony a unit gets and produce the records later stages read. The only stage that
-runs every time.
-
-**Know your box role first (`box-roles.md`).** A **PO box** does the full Stage 0: triage, route,
-file/shape the changelog item, mark it ready. A **worker box** does not triage — it *picks up* an item
-the PO marked ready (work-ready state, `project-details.md#CL-6`). On pickup the worker FIRST verifies
-the **Definition of Ready** (`definition-of-done.md`): if DoR fails, surface the gap back
-(`[NEEDS-PO]`/`[BLOCKED]` per `changelog-conventions.md`, transition to PO-attention state
-`project-details.md#CL-7`) and do **not** start; if DoR holds, read the Triage record's route and load
-its next active stage.
+**Know your box role first (`box-roles.md`).**
+- A **PO box** does the full Stage 0: triage, route, file/shape the changelog item, mark it ready.
+- A **worker box** does not triage — it *picks up* an item the PO marked ready (work-ready state,
+  `project-details.md#CL-6`). On pickup the worker FIRST verifies the **Definition of Ready**
+  (`definition-of-done.md`):
+  - DoR fails → surface the gap back (`[NEEDS-PO]`/`[BLOCKED]` per `changelog-conventions.md`,
+    transition to PO-attention state `project-details.md#CL-7`) and do **not** start.
+  - DoR holds → read the Triage record's route and load its next active stage.
 
 ## Is it an item yet?
 
-If the input is a raw request (a sentence, a thread, a bug report, a PRD) rather than a changelog item,
-run **`intake.md`** first — classify the input, split to one goal, run the numbered-question loop and the
-domain screen, write the item, record the readiness verdict. Triage right-sizes an **item**.
+- Input is a raw request (a sentence, a thread, a bug report, a PRD) rather than a changelog item → run
+  **`intake.md`** first — classify the input, split to one goal, run the numbered-question loop and the
+  domain screen, write the item, record the readiness verdict.
+- Triage right-sizes an **item**.
 
 ## Right-size it: three questions
 
 Ask in order. **Q0 confirms one goal; Q1 sets rigor; Q2 sets whether to parallelize.**
 
-**Q0 — one goal?** Does the item hold two or more deliverables reviewable and mergeable independently?
-(Count deliverables, never verbs.) Yes → back to `intake.md` §2: split, or record `kept-whole`.
+- **Q0 — one goal?** Does the item hold two or more deliverables reviewable and mergeable independently?
+  (Count deliverables, never verbs.) Yes → back to `intake.md` §2: split, or record `kept-whole`.
 
 **Q1 — could a wrong guess slip through?** Is a misread both *expensive* and *not obvious to catch*?
 - **No → low-risk:** typo, rename, config tweak, mechanical repoint, values already decided.
@@ -48,9 +49,9 @@ Worked examples:
 - Rewrite the damage formula → high-risk, coupled → **Persona loop.**
 - A feature spanning frontend + backend → high-risk, independent → **contract-first, persona loop per lane.**
 
-Conservative default: **touches >1 seam (`project-details.md#SEAM-N`) → at least the persona bar.**
-Check `project-details.md#RS-N` for project escalations (e.g. "money path → always persona"). When in
-doubt, round up.
+- Conservative default: **touches >1 seam (`project-details.md#SEAM-N`) → at least the persona bar.**
+- Check `project-details.md#RS-N` for project escalations (e.g. "money path → always persona").
+- When in doubt, round up.
 
 ## Greenfield or brownfield? (does the spec already exist here?)
 

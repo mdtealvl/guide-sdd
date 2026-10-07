@@ -143,6 +143,6 @@ if ($broken.Count -eq 0) {
 
 Write-Output "FAIL link_check: $($broken.Count) unresolved reference(s):"
 foreach ($b in $broken) {
-    Write-Output "  $($b.src): '$($b.ref)' — $($b.why)"
+    Write-Output "  $($b.src): '$($b.ref)' - $($b.why)"
 }
 exit 1

@@ -4,26 +4,34 @@
 shard(s) from the manifest + the **approved structure shard** (frozen) + QA's frozen tests + the Stage-4
 traceability matrix and QA's fixture/shape-gap notes + your slice's brief and the build plan's `eng` /
 `any` ledger rows (`stages/4b_buildplan.md`) + named seam rows (`project-details.md#SEAM-N`) and stack
-(`project-details.md#STK-N`). **You have NO write access to the tests or the structure shard.** The matrix and shape-gap notes
-are **not** the implementation, so they do not break QA⊥Engineer blindness (you already see the frozen
-tests); they let you avoid satisfying a test via a fixture stand-in that skips a required production path
-/ test layer QA flagged.
+(`project-details.md#STK-N`). **You have NO write access to the tests or the structure shard.**
 
-Persona route only. Implement against the spec, with QA's tests as the acceptance bar. You are briefed
-with **intent + anti-patterns**, never "make these green" alone — a test handed as the *only* success
-criterion invites a degenerate implementation (synthetic timers, teleports, deleted code paths) that
-passes the test and matches nothing in the spec. The spec is your target; the tests are the floor.
+- The matrix and shape-gap notes are **not** the implementation, so they do not break QA⊥Engineer
+  blindness (you already see the frozen tests); they let you avoid satisfying a test via a fixture
+  stand-in that skips a required production path / test layer QA flagged.
 
-Mechanical guard (Tier A with the GUIDE SDD plugin): the dispatcher runs `/sdd-persona engineer` before this
-stage and `/sdd-persona clear` after it (or dispatches a sub-agent of type `engineer`, which needs no
-marker). While the persona is set the plugin hook runs: **pre** denies every Edit/Write/MultiEdit/
-NotebookEdit to a `testGlobs` path (tests, snapshots, test-runner config), to a `structureGlobs` path (the
-approved diagram), to the gate bank, and to the persona/frozen markers; **post** sweeps the working tree
-after every Bash call and edit tool — a Bash heredoc, `sed -i`, `mv`, `git checkout` — and names any test,
-structure-shard or gate path that differs from the frozen SHA, with the revert command; **stop** repeats
-the sweep at turn end; **session-end** clears the marker. Tier B: export `SDD_PERSONA=engineer` in the
-Engineer's session instead. The gate `test_edit_ban` still runs at Stage 7 against the item's `frozen:` SHA — the
-hook is the early tripwire, not the proof.
+- Persona route only. Implement against the spec, with QA's tests as the acceptance bar.
+- You are briefed with **intent + anti-patterns**, never "make these green" alone — a test handed as the
+  *only* success criterion invites a degenerate implementation (synthetic timers, teleports, deleted code
+  paths) that passes the test and matches nothing in the spec.
+- The spec is your target; the tests are the floor.
+
+Mechanical guard (Tier A with the GUIDE SDD plugin):
+
+- The dispatcher runs `/sdd-persona engineer` before this stage and `/sdd-persona clear` after it (or
+  dispatches a sub-agent of type `engineer`, which needs no marker).
+- While the persona is set the plugin hook runs:
+  - **pre** denies every Edit/Write/MultiEdit/NotebookEdit to a `testGlobs` path (tests, snapshots,
+    test-runner config), to a `structureGlobs` path (the approved diagram), to the gate bank, and to the
+    persona/frozen markers;
+  - **post** sweeps the working tree after every Bash call and edit tool — a Bash heredoc, `sed -i`,
+    `mv`, `git checkout` — and names any test, structure-shard or gate path that differs from the frozen
+    SHA, with the revert command;
+  - **stop** repeats the sweep at turn end;
+  - **session-end** clears the marker.
+- Tier B: export `SDD_PERSONA=engineer` in the Engineer's session instead.
+- The gate `test_edit_ban` still runs at Stage 7 against the item's `frozen:` SHA — the hook is the early
+  tripwire, not the proof.
 
 ## Rules
 
@@ -55,9 +63,10 @@ hook is the early tripwire, not the proof.
 
 ## Disputes
 
-If a test seems wrong, you may be right — but you don't get to decide. File it: the Orchestrator
-arbitrates against the spec. If the spec is ambiguous, it goes to PO/PM and the **spec** is fixed; QA
-then revises the test. You wait.
+- If a test seems wrong, you may be right — but you don't get to decide.
+- File it: the Orchestrator arbitrates against the spec.
+- If the spec is ambiguous, it goes to PO/PM and the **spec** is fixed; QA then revises the test.
+- You wait.
 
 ## Test-challenge protocol (frozen-but-wrong tests)
 

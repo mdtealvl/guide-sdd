@@ -45,7 +45,7 @@ if ($gitAvailable) {
     git rev-parse --verify --quiet "$base^{commit}" 2>&1 | Out-Null
     $baseOk = ($LASTEXITCODE -eq 0)
     if (-not $baseOk) {
-        Write-Output "FAIL fold_check: baseRef '$base' does not resolve — set baseRef to the ship base."
+        Write-Output "FAIL fold_check: baseRef '$base' does not resolve - set baseRef to the ship base."
         exit 2
     }
 }
@@ -75,7 +75,7 @@ function Invoke-GitDiff([string[]]$gitArgs) {
 
 $files = @()
 if (-not $gitAvailable) {
-    Write-Output "NOTE fold_check: git unavailable — checking ALL spec shards."
+    Write-Output "NOTE fold_check: git unavailable - checking ALL spec shards."
     $files = @($allShards | Sort-Object)
 } else {
     $out = Invoke-GitDiff @('diff', '--name-only', "$base...HEAD")
@@ -83,7 +83,7 @@ if (-not $gitAvailable) {
         $out = Invoke-GitDiff @('diff', '--name-only', "$base")
     }
     if ($null -eq $out) {
-        Write-Output "NOTE fold_check: git unavailable — checking ALL spec shards."
+        Write-Output "NOTE fold_check: git unavailable - checking ALL spec shards."
         $files = @($allShards | Sort-Object)
     } else {
         $changed = New-Object 'System.Collections.Generic.HashSet[string]'
@@ -149,10 +149,10 @@ function Resolve-Unit([string]$unit, $cfg, [bool]$strict) {
         #   strict     -> UNRESOLVED (FAIL): a broken/offline resolver cannot pass open.
         #   non-strict -> degrade to the syntactic pin + NOTE (local/offline convenience).
         if ($strict) {
-            [Console]::Out.WriteLine("FAIL fold_check: resolveCmd errored/non-zero for $unit — strict mode treats this as unresolved.")
+            [Console]::Out.WriteLine("FAIL fold_check: resolveCmd errored/non-zero for $unit - strict mode treats this as unresolved.")
             return $false
         }
-        [Console]::Out.WriteLine("NOTE fold_check: resolveCmd failed for $unit — accepting syntactic pin.")
+        [Console]::Out.WriteLine("NOTE fold_check: resolveCmd failed for $unit - accepting syntactic pin.")
         return $true
     }
     $root = 'backlog'
@@ -161,7 +161,7 @@ function Resolve-Unit([string]$unit, $cfg, [bool]$strict) {
         $hits = @(Get-ChildItem -LiteralPath $root -Filter "$unit*" -Force -ErrorAction SilentlyContinue)
         return ($hits.Count -gt 0)
     }
-    [Console]::Out.WriteLine("NOTE fold_check: no resolver and no $root/ — accepting syntactic pin for $unit.")
+    [Console]::Out.WriteLine("NOTE fold_check: no resolver and no $root/ - accepting syntactic pin for $unit.")
     return $true
 }
 
@@ -177,7 +177,7 @@ if ($unpinned.Count -eq 0 -and $unresolved.Count -eq 0) {
 
 Write-Output "FAIL fold_check: $($unpinned.Count) unpinned clause(s), $($unresolved.Count) unresolved unit(s)."
 foreach ($u in $unpinned) {
-    Write-Output "  UNPINNED $($u.cid)  in $($u.file)  (add: (§… per <unit-id>, YYYY-MM-DD))"
+    Write-Output "  UNPINNED $($u.cid)  in $($u.file)  (add: (§... per <unit-id>, YYYY-MM-DD))"
 }
 foreach ($unit in $unresolved) {
     Write-Output "  UNRESOLVED-UNIT $unit  (no backlog file / tracker entry)"

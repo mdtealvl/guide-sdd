@@ -26,18 +26,18 @@ All page chrome (CSS, scripts, nav, the wrapping HTML skeleton) lives in **exact
 
 ## 2. Authoring format: Markdown → compile (default)
 
-**Author shards as `*.body.md`; the build compiles them into one `spec/index.html`.** Markdown keeps
-fragments diff-friendly and agent-cheap; the build still yields the human whole-corpus HTML.
-Raw-HTML authoring (`*.body.html`, Mistwright-style) is **permitted by config** — set the authoring
-format in `project-details.md#SPEC-1` — but Markdown is the shipped default.
+**Author shards as `*.body.md`; the build compiles them into one `spec/index.html`.**
+- Markdown keeps fragments diff-friendly and agent-cheap; the build still yields the human whole-corpus HTML.
+- Raw-HTML authoring (`*.body.html`, Mistwright-style) is **permitted by config** — set the authoring
+  format in `project-details.md#SPEC-1` — but Markdown is the shipped default.
 
 | Choose Markdown (`*.body.md`) when | Choose raw HTML (`*.body.html`) when |
 |---|---|
 | New project, default. Diff-friendly, agent-cheap. | Migrating an existing HTML-fragment corpus (e.g. Mistwright). |
 | Authors live in Markdown anyway. | You need exact control of inline anchor markup per clause. |
 
-Pick one per project, record it in `project-details.md#SPEC-1`, do not mix within a corpus. Shard
-granularity and the content-only rule are **identical** in both.
+- Pick one per project, record it in `project-details.md#SPEC-1`, do not mix within a corpus.
+- Shard granularity and the content-only rule are **identical** in both.
 
 ---
 
@@ -83,17 +83,15 @@ Two anchor levels, both stable for the life of the spec:
    (`5b.5.2`), anchored inline on the clause's element (`id="5b.5.2"` in HTML;
    `{#5b.5.2}` or an explicit `<a id>` in Markdown per your renderer).
 
-**Clause IDs never renumber.** New clauses **append** the next free number; a withdrawn clause is
-retired by lifecycle tag, never reused. Keeps the traceability chain (§7c) intact across years.
-
-**Retire a clause with a one-line lifecycle tag at its anchor, body removed** — never silent-delete,
-never a struck-through stratum; the clause-ID is never reused. See `lifecycle-states.md`. Changed text is
-**replaced wholesale** (`stages/3_spec.md` §"One update method"); the provenance pin is the only in-text
-annotation.
-
-**`clauseIdRegex`** is defined **once** in `project-details.md#SPEC-1` and mirrored into
-`gates/gates.config.json`, so spec, test plan, and gates agree on what a clause-ID *is*. Default:
-`\b[A-Z]{2,}\.\d+\b` (matches `CB.07`-style); override per project to also match `5b.5.2`-style.
+- **Clause IDs never renumber.** New clauses **append** the next free number; a withdrawn clause is
+  retired by lifecycle tag, never reused. Keeps the traceability chain (§7c) intact across years.
+- **Retire a clause with a one-line lifecycle tag at its anchor, body removed** — never silent-delete,
+  never a struck-through stratum. See `lifecycle-states.md`.
+- Changed text is **replaced wholesale** (`stages/3_spec.md` §"One update method"); the provenance pin
+  is the only in-text annotation.
+- **`clauseIdRegex`** is defined **once** in `project-details.md#SPEC-1` and mirrored into
+  `gates/gates.config.json`, so spec, test plan, and gates agree on what a clause-ID *is*. Default:
+  `\b[A-Z]{2,}\.\d+\b` (matches `CB.07`-style); override per project to also match `5b.5.2`-style.
 
 **Lead-comment header (1 line, top of every shard)** declares title/anchor for the build's TOC:
 
@@ -120,11 +118,14 @@ Each clause is **atomic, testable, and stably-ID'd**, in one of the five EARS fo
 
 One clause = one ID = one row in the trace. If a clause needs "and also…", split it.
 
-**Form (per SDD-PROP-09):** the shard carries **decisions only** — no rationale, alternatives, or history.
-Structured, not narrative: list items, table rows, code lines; one fact per line; name the concrete
-construct (class, signature, config key, constant). Write EARS in its shortest form — `When <trigger>:
-<response>.` — `the system shall` is optional where the subject is obvious. A paragraph only where a rule
-cannot be a line. The Stage-7 fold keeps this form verbatim. Exemplars: `project-details.md#SPEC-7`.
+**Form (per SDD-PROP-09):**
+- The shard carries **decisions only** — no rationale, alternatives, or history.
+- Structured, not narrative: list items, table rows, code lines; one fact per line; name the concrete
+  construct (class, signature, config key, constant).
+- Write EARS in its shortest form — `When <trigger>: <response>.` — `the system shall` is optional where
+  the subject is obvious.
+- A paragraph only where a rule cannot be a line.
+- The Stage-7 fold keeps this form verbatim. Exemplars: `project-details.md#SPEC-7`.
 
 ### Minimal shard skeleton (`spec/5_economy/5b.5_timer.body.md`)
 
@@ -167,44 +168,49 @@ pwsh spec-format/build.ps1 spec   # -> spec/index.html ; prints PASS/FAIL
 sh   spec-format/build.sh  spec   # -> spec/index.html ; prints PASS/FAIL
 ```
 
-> The shipped build is **PowerShell (native) on Windows / Bash (POSIX + awk) on Linux/macOS, both
-> with a built-in Markdown shim**. It compiles `*.body.md` via that shim (headings with `{#id}`
-> anchors, fenced code, paragraphs, inline markup; raw-HTML lines pass through) and inlines
-> `*.body.html` shards as-is — recursively, both extensions, no per-project edit. Keep the
-> **content-only** rule either way (no page chrome/scripts/styling inside a shard).
+- The shipped build is **PowerShell (native) on Windows / Bash (POSIX + awk) on Linux/macOS, both
+  with a built-in Markdown shim**.
+- It compiles `*.body.md` via that shim (headings with `{#id}` anchors, fenced code, paragraphs, inline
+  markup; raw-HTML lines pass through) and inlines `*.body.html` shards as-is — recursively, both
+  extensions, no per-project edit.
+- Keep the **content-only** rule either way (no page chrome/scripts/styling inside a shard).
 
 ---
 
 ## 7. One sharding scheme, FOUR masters
 
-The fragment boundary is the **smallest independently-meaningful unit** *and* the **natural unit one
-work-item loads**. Loading-, review-, and trace-granularity therefore coincide — and the
-**content-only rule** (§1) is what makes all four hold at once. Pick any other granularity, or let
-chrome leak into a shard, and you lose at least one master.
+- The fragment boundary is the **smallest independently-meaningful unit** *and* the **natural unit one
+  work-item loads**.
+- Loading-, review-, and trace-granularity therefore coincide — and the **content-only rule** (§1) is
+  what makes all four hold at once.
+- Pick any other granularity, or let chrome leak into a shard, and you lose at least one master.
 
 **(a) Token-efficient staged loading.**
-An agent loads **one** content-only `.body.md` (a few hundred tokens) — never `index.html`, never
-the whole spec. Stage 3 emits a **shard manifest** (clause-ID ranges → shard paths) into the
-transient working spec; Stages 4–7 and every persona dispatch resolve shards from it by path-glob
-over the work-item's clause-IDs. Sub-agents receive only their named shard paths. No chrome in the
-shard = nothing wasted on layout tokens.
+- An agent loads **one** content-only `.body.md` (a few hundred tokens) — never `index.html`, never
+  the whole spec.
+- Stage 3 emits a **shard manifest** (clause-ID ranges → shard paths) into the transient working spec;
+  Stages 4–7 and every persona dispatch resolve shards from it by path-glob over the work-item's
+  clause-IDs.
+- Sub-agents receive only their named shard paths.
+- No chrome in the shard = nothing wasted on layout tokens.
 
 **(b) Human navigation.**
-The build (`build.ps1`/`build.sh`) compiles every fragment into one current, styled `index.html`
-with a TOC. Humans read the **whole**, agents read the **part**, from the **same source**. The
-fold-time recompile keeps the whole honest.
+- The build (`build.ps1`/`build.sh`) compiles every fragment into one current, styled `index.html`
+  with a TOC.
+- Humans read the **whole**, agents read the **part**, from the **same source**.
+- The fold-time recompile keeps the whole honest.
 
 **(c) Traceability anchors.**
-Section anchor + per-clause ID are the stable join keys for the full chain:
-`clause-ID → numbered scenario → test-ID → code → ship-SHA`. The fold-on-ship provenance pin
-`(§X per <unit-id>, YYYY-MM-DD)` attaches at **clause granularity**, so the spec stays
-back-derivable from the changelog.
+- Section anchor + per-clause ID are the stable join keys for the full chain:
+  `clause-ID → numbered scenario → test-ID → code → ship-SHA`.
+- The fold-on-ship provenance pin `(§X per <unit-id>, YYYY-MM-DD)` attaches at **clause granularity**,
+  so the spec stays back-derivable from the changelog.
 
 **(d) Link-checkability.**
-Every cross-ref is an href to a **declared** anchor or clause-ID, so `link_check` is a pure set
-operation: collect declared anchors ∪ clause-IDs across all shards; assert every internal href
-fragment ∈ that set (http/mailto skipped). Content-only shards keep the parse trivial and the
-anchor set unambiguous.
+- Every cross-ref is an href to a **declared** anchor or clause-ID, so `link_check` is a pure set
+  operation: collect declared anchors ∪ clause-IDs across all shards; assert every internal href
+  fragment ∈ that set (http/mailto skipped).
+- Content-only shards keep the parse trivial and the anchor set unambiguous.
 
 ---
 

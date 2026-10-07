@@ -5,8 +5,9 @@
      Template — paths assume the spine at sdd/. Keep in sync with AGENTS.md. -->
 
 **This project uses GUIDE SDD.** On your first action here, **say so**, then operate under it — do NOT continue
-ad-hoc work. Read `AGENTS.md` (repo root) for the full always-loaded core; the essentials:
+ad-hoc work.
 
+- **Full core:** `AGENTS.md` (repo root) — the bullets below are its essentials.
 - **Always:** obey `sdd/constitution.md` (the ten invariants).
 - **To do any work:** start at `sdd/PROCESS.md` §0 (boot protocol / stage router) — load ONLY your
   current stage + the shards it names. Never bulk-load the framework.

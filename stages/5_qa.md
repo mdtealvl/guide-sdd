@@ -5,16 +5,18 @@ shard(s) from the manifest + the **PO-authored Stage-4 traceability matrix** (as
 it) + your slice's brief and the build plan's **`qa`-audience ledger rows only** (`stages/4b_buildplan.md`;
 never an `eng` row) + the `project-details.md#STK-N` test-home map + named seam rows
 (`project-details.md#SEAM-N`).
+
 **You do NOT see the implementation, the router, or any sibling working notes. That blindness is the
 independence.** With the GUIDE SDD plugin the dispatcher sets `/sdd-persona qa` first (or dispatches a
 sub-agent of type `qa`): the hook then denies any Read/Grep/Glob — and any Bash command naming a path —
 under `paths.code`, except your own `testGlobs` files. Without it, the `qa_import_ban` gate proves the structural
 half only; the rest is on you.
 
-Persona route only. Implement tests for the matrix's scenarios, deriving every expected value (the
-oracle) from the **spec** — not from the matrix and never from the code. You do not author the coverage
-map (the PO did, in Stage 4) and you never see the implementation. If you want to peek at the code to
-learn an expected value, stop: that value must come from the spec.
+- Persona route only.
+- Implement tests for the matrix's scenarios, deriving every expected value (the oracle) from the
+  **spec** — not from the matrix and never from the code.
+- You do not author the coverage map (the PO did, in Stage 4) and you never see the implementation.
+- If you want to peek at the code to learn an expected value, stop: that value must come from the spec.
 
 ## Rules
 
@@ -62,10 +64,11 @@ learn an expected value, stop: that value must come from the spec.
 
 ## Ambiguity = spec bug (orchestrator-mediated)
 
-You and the Engineer never resolve a spec ambiguity between yourselves. An ambiguity is a **spec bug**:
-file it up to the Orchestrator. The PO patches it if the answer is obvious from existing convention; the
-PM decides if it isn't; the resolution flows back and the spec is fixed **before code is written.** Your
-blindness is what surfaces these — QA doubling as a spec-quality check.
+- You and the Engineer never resolve a spec ambiguity between yourselves.
+- An ambiguity is a **spec bug**: file it up to the Orchestrator.
+- The PO patches it if the answer is obvious from existing convention; the PM decides if it isn't.
+- The resolution flows back and the spec is fixed **before code is written.**
+- Your blindness is what surfaces these — QA doubling as a spec-quality check.
 
 ## Behaviour-preservation variant (refactors)
 

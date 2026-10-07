@@ -5,8 +5,9 @@ Always-loaded **router + boot protocol** (carried into every context by the agen
 
 ## 0. Stage Router — this whole file is §0
 
-Read this file once, all of it (≈1.5k words: router, boot manifest, precedence, DoD summary, stage index,
-routes, roles). Then you are at exactly ONE stage. Do not pre-read other stages.
+- Read this file once, all of it (≈1.5k words: router, boot manifest, precedence, DoD summary, stage
+  index, routes, roles).
+- Then you are at exactly ONE stage. Do not pre-read other stages.
 
 1. Find your stage in the Stage Index (default: Stage 0; unknown ⇒ Stage 0).
 2. Read the Triage record (Stage 0 output): active stages for this unit + target shard IDs.
@@ -32,38 +33,54 @@ routes, roles). Then you are at exactly ONE stage. Do not pre-read other stages.
 
 ## Boot manifest — load/verify before acting (index/summary, not whole docs)
 
-1. `constitution.md` + this §0. 2. the changelog item. 3. your role + box role (`box-roles.md`).
-4. target spec shard(s). 5. the **Project Details seam index** (§1 + Index table) — to discover *every*
-seam your change touches, not just the named one. 6. the **DoD summary** (below). 7. risk class + route +
-release target. Anything missing/stale/contradictory ⇒ **STOP, surface a process defect.** Record what you
-loaded. **Stage 0 declares touched seam IDs;** later stages may add a discovered seam, never remove one.
+1. `constitution.md` + this §0.
+2. the changelog item.
+3. your role + box role (`box-roles.md`).
+4. target spec shard(s).
+5. the **Project Details seam index** (§1 + Index table) — to discover *every* seam your change touches,
+   not just the named one.
+6. the **DoD summary** (below).
+7. risk class + route + release target.
+
+- Anything missing/stale/contradictory ⇒ **STOP, surface a process defect.** Record what you loaded.
+- **Stage 0 declares touched seam IDs;** later stages may add a discovered seam, never remove one.
 
 ## Precedence & discrepancies
 
-Authority high→low: **constitution > PROCESS §0 > Project Details seams > canonical spec > approved
-changelog item > stage/role files > tests > code > narratives.** A conflict at any level is a **process
-defect** — surface, don't resolve locally. A disagreement among spec / tests / code / observed behaviour is
-a **defect the Orchestrator classifies** (spec / code / test / migration / intentional-legacy): HALT the
-affected behaviour, write `[NEEDS-PO:<reason>]`/`[BLOCKED:<reason>]`, route it to the stage that owns the
-class (`stages/7_ship.md` §3 — a spec defect resets the code to the frozen SHA and re-derives); continue
-only unaffected slices. Never guess; never unilaterally dismiss the spec as stale.
+- Authority high→low: **constitution > PROCESS §0 > Project Details seams > canonical spec > approved
+  changelog item > stage/role files > tests > code > narratives.**
+- A conflict at any level is a **process defect** — surface, don't resolve locally.
+- A disagreement among spec / tests / code / observed behaviour is a **defect the Orchestrator
+  classifies** (spec / code / test / migration / intentional-legacy):
+  1. HALT the affected behaviour; write `[NEEDS-PO:<reason>]`/`[BLOCKED:<reason>]`.
+  2. Route it to the stage that owns the class (`stages/7_ship.md` §3 — a spec defect resets the code to
+     the frozen SHA and re-derives).
+  3. Continue only unaffected slices.
+- Never guess; never unilaterally dismiss the spec as stale.
 
 ## DoD summary (full bar: `definition-of-done.md`)
 
-Done = spec folded + pinned · every clause → ≥1 test across four layers (or "N/A — reason") · suite green
-(Orchestrator re-runs) · `run_all <frozen-sha>` green · fresh Validation accepts — four lenses, verdict as `validated: <base>..<head> accept` on the item (reads diffs + clauses, not summaries) ·
-applicable non-functional categories met or "N/A — reason" (security · privacy · a11y · perf · observability
-· compatibility · migration · rollback · compliance; which apply: Project Details) · docs in lockstep ·
-public surface = the PM-approved structure shard (`structure_check`) · `tokens:` line per slice + plan on
-the item · every dispatched agent lane reconciled LANDED(hash)/DIED (no lane in flight across a boundary) ·
-ship-SHA on the item.
+Done =
+- spec folded + pinned
+- every clause → ≥1 test across four layers (or "N/A — reason")
+- suite green (Orchestrator re-runs) · `run_all <frozen-sha>` green
+- fresh Validation accepts — four lenses, verdict as `validated: <base>..<head> accept` on the item
+  (reads diffs + clauses, not summaries)
+- applicable non-functional categories met or "N/A — reason" (security · privacy · a11y · perf ·
+  observability · compatibility · migration · rollback · compliance; which apply: Project Details)
+- docs in lockstep
+- public surface = the PM-approved structure shard (`structure_check`)
+- `tokens:` line per slice + plan on the item
+- every dispatched agent lane reconciled LANDED(hash)/DIED (no lane in flight across a boundary)
+- ship-SHA on the item.
 
 ## Operating defaults
 
-Docs + spec move in the same change unit, current before merge. One published branch; Orchestrator owns the
-serialized merge; **committing is shipping iff every commit is deployable** — flags/staged rollout live in
-Project Details (not the canonical spec); a revert is a changelog entry folding a spec delta. The spec is
-both human surface and agent context — text is the source, diagrams derive.
+- Docs + spec move in the same change unit, current before merge.
+- One published branch; Orchestrator owns the serialized merge.
+- **Committing is shipping iff every commit is deployable** — flags/staged rollout live in Project Details
+  (not the canonical spec); a revert is a changelog entry folding a spec delta.
+- The spec is both human surface and agent context — text is the source, diagrams derive.
 
 ## Stage Index
 
@@ -81,24 +98,29 @@ both human surface and agent context — text is the source, diagrams derive.
 
 ## Route resolution — two questions (set in Stage 0)
 
-**Q1 — could a wrong guess slip through?** Expensive AND not obvious to catch (money/combat math, service
-contracts, save formats, load-bearing refactors, multi-system flows) ⇒ **high-risk**; typo / rename / config
-/ values-decided repoint ⇒ **low-risk**. **Q2 — splits into independent slices that don't touch the same code?**
+- **Q1 — could a wrong guess slip through?** Expensive AND not obvious to catch (money/combat math,
+  service contracts, save formats, load-bearing refactors, multi-system flows) ⇒ **high-risk**; typo /
+  rename / config / values-decided repoint ⇒ **low-risk**.
+- **Q2 — splits into independent slices that don't touch the same code?**
 
 | | one coupled unit | independent slices |
 |---|---|---|
 | **low-risk** | **Mechanical** — single context `0→3→4→4b→7` | **Parallel dispatch** — worktree workers, mechanical each |
 | **high-risk** | **Persona loop** — full `0–7` (QA⊥Engineer, fresh Validation) | **Parallel + persona loop per lane** — pin the shared contract first |
 
-Default: **touches >1 Project Details seam ⇒ at least the persona bar**; escalations in `project-details.md#RS-N`.
-When in doubt, round up. Re-triage explicitly; never a silent up/downgrade.
+- Default: **touches >1 Project Details seam ⇒ at least the persona bar**; escalations in
+  `project-details.md#RS-N`.
+- When in doubt, round up. Re-triage explicitly; never a silent up/downgrade.
 
 **Host tier gates the persona loop.** The QA⊥Engineer split and fresh Validation need contexts that
-exclude each other. Tier A (real scoped sub-agents) runs them as written; Tier B (fresh sessions, no
-spawning) runs each persona in a fresh session with the changelog item + shards as the only channel —
-the `test_edit_ban` + `qa_import_ban` gates still enforce QA⊥Engineer structurally; Tier C (single
-context) cannot isolate — run the **Mechanical lane only** and re-triage risky work up to an A/B box.
-Your tier: `$SDD_HOST_TIER` (`host-adapter.md`).
+exclude each other.
+- Tier A (real scoped sub-agents) runs them as written.
+- Tier B (fresh sessions, no spawning) runs each persona in a fresh session with the changelog item +
+  shards as the only channel — the `test_edit_ban` + `qa_import_ban` gates still enforce QA⊥Engineer
+  structurally.
+- Tier C (single context) cannot isolate — run the **Mechanical lane only** and re-triage risky work up
+  to an A/B box.
+- Your tier: `$SDD_HOST_TIER` (`host-adapter.md`).
 
 ## Roles
 

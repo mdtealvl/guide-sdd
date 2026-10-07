@@ -69,7 +69,7 @@ if ($Command -ne 'add' -and -not (Test-Path -LiteralPath $Plan)) { Write-Output 
 function Tok([double]$chars) { return [int][math]::Ceiling($chars * $tpc) }
 function Fmt([double]$n) { if ($n -ge 1000) { return ('{0:0.0}k' -f ($n / 1000)) } ; return ('{0}' -f [int]$n) }
 function Blob([string]$p) { $h = (& git hash-object -- $p 2>$null); if ($h) { return $h.Trim().Substring(0, 7) } ; return '' }
-function Get-Bytes([string]$p) { return ([System.IO.FileInfo]$p).Length }
+function Get-Bytes([string]$p) { return ([System.IO.FileInfo](Resolve-FsPath $p)).Length }
 
 # Rows: data rows of the ledger table -> objects
 function Get-Rows([string]$file) {
@@ -147,9 +147,9 @@ if ($Command -eq 'add') {
     if (-not $hasHdr) {
         $pre = ''
         if ((Test-Path -LiteralPath $Plan) -and (Get-Bytes $Plan) -gt 0) { $pre = "`n" }
-        [System.IO.File]::AppendAllText($Plan, $pre + "## Ledger`n`n| kind | by | for | aud | path | range | hash | full | est | note |`n|---|---|---|---|---|---|---|---|---|---|`n", $utf8)
+        [System.IO.File]::AppendAllText((Resolve-FsPath $Plan), $pre + "## Ledger`n`n| kind | by | for | aud | path | range | hash | full | est | note |`n|---|---|---|---|---|---|---|---|---|---|`n", $utf8)
     }
-    [System.IO.File]::AppendAllText($Plan, "| $Kind | $By | $For | $Aud | $p | $range | $h | $full | $est | $note |`n", $utf8)
+    [System.IO.File]::AppendAllText((Resolve-FsPath $Plan), "| $Kind | $By | $For | $Aud | $p | $range | $h | $full | $est | $note |`n", $utf8)
     Write-Output "LEDGER ${GateName}: + $Kind $By->$For [$Aud] $p $range est~$(Fmt $est) (full~$(Fmt $full)) @$h"
     exit 0
 }

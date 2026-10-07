@@ -21,9 +21,10 @@
 |---|---|---|
 | **Tokens per slice / per plan** | `admitted` = Σ bytes × `tokensPerChar` of every read a slice recorded; `saved` = the whole-file cost the ledger's advice rows let it skip; `P` = what planning itself read (`stages/4b_buildplan.md`) | the `tokens:` lines on the item — recomputable by `gates/token_ledger.* report` from `<ITEM-ID>.buildplan.md` |
 
-An estimate of what a context admitted, never a billed count. Read it per route beside the five: a
-route whose saved share rises while first-pass acceptance holds is a cheaper route; a plan whose
-`planning (P)` cost exceeds what its ledger saved is over-planning — trim the build plan, not the ledger.
+- An estimate of what a context admitted, never a billed count. Read it per route beside the five.
+- A route whose saved share rises while first-pass acceptance holds is a cheaper route.
+- A plan whose `planning (P)` cost exceeds what its ledger saved is over-planning — trim the build plan,
+  not the ledger.
 
 ## Reading them
 
@@ -39,16 +40,21 @@ route whose saved share rises while first-pass acceptance holds is a cheaper rou
 
 ## Computing them
 
-Per window (a sprint, a month): collect the item ids shipped in the window (Mode B: the `backlog/`
-files with a `shipped:` line in range; Mode A: a tracker query), then join to
-`git log --grep '<ITEM-ID>'` for commits and ship SHAs and read the item's `validated:`, `[NEEDS-PO`,
-`[BLOCKED`, challenge and `lesson:` lines. Ten minutes by hand for a sprint. A script for this join
-(`ci/evidence.*`: range in, JSON per item out, measures only) is a tracked follow-up —
-`project-config/PROPOSED_CHANGELOG.md` SDD-PROP-11 phase 2.
+Per window (a sprint, a month):
+
+1. Collect the item ids shipped in the window (Mode B: the `backlog/` files with a `shipped:` line in
+   range; Mode A: a tracker query).
+2. Join to `git log --grep '<ITEM-ID>'` for commits and ship SHAs.
+3. Read the item's `validated:`, `[NEEDS-PO`, `[BLOCKED`, challenge and `lesson:` lines.
+
+- Ten minutes by hand for a sprint.
+- A script for this join (`ci/evidence.*`: range in, JSON per item out, measures only) is a tracked
+  follow-up — `project-config/PROPOSED_CHANGELOG.md` SDD-PROP-11 phase 2.
 
 ## What this does not claim
 
-No number here proves the method causes better software; there is no control group. They show
-whether a change to the process moved an outcome on this project, which is what a process owner can
-act on. The external evidence the method rests on is cited in `README.md` §"Map to the source
-practices" and the field survey it links.
+- No number here proves the method causes better software; there is no control group.
+- They show whether a change to the process moved an outcome on this project, which is what a process
+  owner can act on.
+- The external evidence the method rests on is cited in `README.md` §"Map to the source practices" and
+  the field survey it links.

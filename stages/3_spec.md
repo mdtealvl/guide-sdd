@@ -6,20 +6,20 @@ route) + `project-details.md#SPEC-N` (authoring format, shard root, build comman
 `changelog-conventions.md` (the item's seed ACs), `greenfield-vs-brownfield.md` (if unspecified),
 `definition-of-done.md` (the fold pin), `box-roles.md` (surface-back).
 
-Active in **every** route — the gate before any test or code. **Write a behaviour decision into the
-spec in the same exchange it is made** — never leave a decision as a conversational artifact. Code
-does not start until the spec for this slice is frozen and PM-approved.
-
-The changelog item's **EARS acceptance criteria** (`<ITEM-ID>/AC-n`, see `changelog-conventions.md`)
-are the **seed clauses**: authoring refines them into canonical spec clauses; on the Stage-7 fold they
-are pinned to the item `(§X per <ITEM-ID>, date)` (`definition-of-done.md`). **Spec authoring is
-PO-box work** — a worker box that finds the spec inadequate **surfaces back** (`box-roles.md`); it does
-not author or patch the canonical spec.
-
-**Brownfield slice:** if no authoritative spec covers this area (`greenfield-vs-brownfield.md`),
-reconstruct the spec for the **touched slice only** from existing code + PM-clarified intent, *then*
-write code against it — never infer-and-proceed. The PO box reconstructs (arbitrating obvious
-behaviour, escalating real decisions to the PM); a worker box surfaces the gap, it does not reconstruct.
+- Active in **every** route — the gate before any test or code.
+- **Write a behaviour decision into the spec in the same exchange it is made** — never leave a decision
+  as a conversational artifact.
+- Code does not start until the spec for this slice is frozen and PM-approved.
+- **Seed clauses** = the changelog item's **EARS acceptance criteria** (`<ITEM-ID>/AC-n`, see
+  `changelog-conventions.md`). Authoring refines them into canonical spec clauses; on the Stage-7 fold
+  they are pinned to the item `(§X per <ITEM-ID>, date)` (`definition-of-done.md`).
+- **Spec authoring is PO-box work** — a worker box that finds the spec inadequate **surfaces back**
+  (`box-roles.md`); it does not author or patch the canonical spec.
+- **Brownfield slice:** if no authoritative spec covers this area (`greenfield-vs-brownfield.md`),
+  reconstruct the spec for the **touched slice only** from existing code + PM-clarified intent, *then*
+  write code against it — never infer-and-proceed.
+  - The PO box reconstructs (arbitrating obvious behaviour, escalating real decisions to the PM).
+  - A worker box surfaces the gap; it does not reconstruct.
 
 ## One update method (per SDD-PROP-08, 2026-09-02 — anti-spec-collapse)
 
@@ -35,7 +35,7 @@ Every change to canonical spec text — typo, new section, or wrong claim alike:
    the same slice. History (prior wording, rationale, reconciliation) lives in git and the changelog item,
    never in the document.
 
-Things the chat *surfaces* but the PM has not *committed to* are **not** written until explicitly decided.
+- Things the chat *surfaces* but the PM has not *committed to* are **not** written until explicitly decided.
 
 ## Writing the clauses
 
@@ -68,21 +68,24 @@ Things the chat *surfaces* but the PM has not *committed to* are **not** written
 
 ## The structure shard — approved with the spec
 
-The Stage-1 structure diagram (`<ITEM-ID>.structure.body.md`: member level, delta form —
-`stages/1_design.md` step 6) is **part of the spec diff the PM approves here**. Refine it while writing
-clauses: every clause that names a class, signature or constant names a member the diagram carries, and
-every diagram member is reachable from a clause — a mismatch is a spec defect. **Mechanical route** (no
-Stage 1): a unit that adds a class or a public member writes the shard here (usually a few lines);
-otherwise record `structure: N/A — <reason>` on the item. From PM approval on, the diagram is the
-approved plan: it is **frozen with the tests** at Stage 5 (`structure_check --frozen`, the plugin hook),
-the Engineer cannot edit it, and a needed deviation routes `[NEEDS-PO:structure]` to the **PM** — the PO
-then replaces the shard wholesale (own commit, the one update method above) and re-freezes.
+- The Stage-1 structure diagram (`<ITEM-ID>.structure.body.md`: member level, delta form —
+  `stages/1_design.md` step 6) is **part of the spec diff the PM approves here**.
+- Refine it while writing clauses: every clause that names a class, signature or constant names a member
+  the diagram carries, and every diagram member is reachable from a clause — a mismatch is a spec defect.
+- **Mechanical route** (no Stage 1): a unit that adds a class or a public member writes the shard here
+  (usually a few lines); otherwise record `structure: N/A — <reason>` on the item.
+- From PM approval on, the diagram is the approved plan:
+  - it is **frozen with the tests** at Stage 5 (`structure_check --frozen`, the plugin hook);
+  - the Engineer cannot edit it;
+  - a needed deviation routes `[NEEDS-PO:structure]` to the **PM** — the PO then replaces the shard
+    wholesale (own commit, the one update method above) and re-freezes.
 
 ## Shard manifest (the deterministic input for later stages)
 
-Record, in the transient working spec, the **shard manifest** for this unit: clause-ID ranges → shard
-file paths, plus the structure shard's path. Stages 4–7 and every persona dispatch resolve shards from
-this manifest by path-glob over the work-item's clause-IDs — no judgement, no whole-spec load.
+- Record, in the transient working spec, the **shard manifest** for this unit: clause-ID ranges → shard
+  file paths, plus the structure shard's path.
+- Stages 4–7 and every persona dispatch resolve shards from this manifest by path-glob over the
+  work-item's clause-IDs — no judgement, no whole-spec load.
 
 ## Contract-first note
 

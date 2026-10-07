@@ -28,10 +28,17 @@ function Get-CfgValue {
     return $v
 }
 
+function Resolve-FsPath {
+    # .NET file APIs resolve a relative path against the PROCESS directory, which Set-Location does
+    # not change; resolve against the PowerShell location instead (GitHub issue #1).
+    param([string]$Path)
+    return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+}
+
 function Read-FileText {
     param([string]$Path)
     try {
-        return [System.IO.File]::ReadAllText($Path)
+        return [System.IO.File]::ReadAllText((Resolve-FsPath $Path))
     } catch {
         return ''
     }
@@ -42,7 +49,7 @@ function Read-FileLines {
     try {
         # Keep array semantics; splits on \n, strips a trailing \r so regexes that
         # don't expect CR behave like Python's universal-newline readlines().
-        $t = [System.IO.File]::ReadAllText($Path)
+        $t = [System.IO.File]::ReadAllText((Resolve-FsPath $Path))
         return ($t -split "`n") | ForEach-Object { $_ -replace "`r$", '' }
     } catch {
         return @()

@@ -28,26 +28,29 @@ Every gate ships as a **`.ps1` + `.sh` pair** with identical behaviour. Pick by 
 The `_common.*` and `_rules.*` files are shared helpers (config/glob/regex; the rule engine) the
 gates source; keep them next to the gates. Runs on a fresh clone with no project runtime.
 
-> ### Gates ≠ correctness
->
-> **The bank certifies bookkeeping hygiene + traceability, NOT correctness.** It is a
-> **drift-catcher, not an oracle.** Every gate proves a cheap structural fact — a clause has
-> a test *tag*, a pin *resolves*, a seam *pattern* holds — never that the test is right, the
-> code does what the spec means, or the behaviour is correct. **Correctness is the
-> human / fresh-Validation layer's job** (Stage 7). **Green is necessary, not sufficient:** a
-> fully green bank can still ship a wrong system. The bank exists so the human Validation pass
-> spends its attention on diff-vs-spec *intent*, the thing only a fresh reader catches — not on
-> link hygiene a script already settled.
+### Gates ≠ correctness
+
+- **The bank certifies bookkeeping hygiene + traceability, NOT correctness.** It is a
+  **drift-catcher, not an oracle.**
+- Every gate proves a cheap structural fact — a clause has a test *tag*, a pin *resolves*, a seam
+  *pattern* holds — never that the test is right, the code does what the spec means, or the behaviour
+  is correct.
+- **Correctness is the human / fresh-Validation layer's job** (Stage 7).
+- **Green is necessary, not sufficient:** a fully green bank can still ship a wrong system.
+- The bank exists so the human Validation pass spends its attention on diff-vs-spec *intent*, the thing
+  only a fresh reader catches — not on link hygiene a script already settled.
 
 ## One gate bank per git repository
 
-Every gate resolves its root with `git -C <its own location> rev-parse --show-toplevel` — it cannot
-see inside a **nested git repo** (a submodule/gitlink, or a plain subdirectory with its own `.git`;
-GitHub issue #2). `install.sh` / `install.ps1` detect these after install/update (a gitlink, or a
-first-level subdirectory holding `.git`) and print a `WARN nested git repo '<path>': ...` line naming
-the fix: install a **second** gate bank there with `install.sh --gates-only <path>` (or
-`install.ps1 --gates-only <path>`) — it copies only `gates/`, seeds `gates.config.json` from the
-template if absent, and never touches an existing config. One bank per repository boundary, always.
+- Every gate resolves its root with `git -C <its own location> rev-parse --show-toplevel` — it cannot
+  see inside a **nested git repo** (a submodule/gitlink, or a plain subdirectory with its own `.git`;
+  GitHub issue #2).
+- `install.sh` / `install.ps1` detect these after install/update (a gitlink, or a first-level
+  subdirectory holding `.git`) and print a `WARN nested git repo '<path>': ...` line naming the fix.
+- The fix: install a **second** gate bank there with `install.sh --gates-only <path>` (or
+  `install.ps1 --gates-only <path>`) — it copies only `gates/`, seeds `gates.config.json` from the
+  template if absent, and never touches an existing config.
+- One bank per repository boundary, always.
 
 ## The bank at a glance
 
@@ -116,76 +119,91 @@ Each line below gives the **Windows (`pwsh …`) / Linux–macOS (`sh …`)** in
   Every gate accepts a config override: PowerShell `-Config <path>`, POSIX `--config <path>`
   (default `gates/gates.config.json` in both).
 
-  **coverage_check — whole-corpus vs per-unit.** With no flag, coverage_check globs the *entire*
-  `paths.spec` and the *entire* test tree and asserts clauses ⊆ tagged — the **whole-corpus**
-  invariant, correct **at ship** (Stage 5/7). `-Manifest <file>` / `--manifest <file>` restricts the
-  clause set to the clause-IDs named in that file (one clause-ID per line, or any clause-IDs
-  `clauseIdRegex` matches in it) — the **per-unit** shard manifest, for fast in-loop feedback while a
-  single unit is in flight. Note the asymmetry: the shard manifest the stages hand out is a
-  **context-loading** device (which shards a role may read), whereas the gate's *default* clause scope
-  is **global** — the per-unit `--manifest` run is a convenience for the inner loop, never a
-  replacement for the whole-corpus ship check.
+  **coverage_check — whole-corpus vs per-unit.**
+  - With no flag, coverage_check globs the *entire* `paths.spec` and the *entire* test tree and asserts
+    clauses ⊆ tagged — the **whole-corpus** invariant, correct **at ship** (Stage 5/7).
+  - `-Manifest <file>` / `--manifest <file>` restricts the clause set to the clause-IDs named in that file
+    (one clause-ID per line, or any clause-IDs `clauseIdRegex` matches in it) — the **per-unit** shard
+    manifest, for fast in-loop feedback while a single unit is in flight.
+  - Note the asymmetry: the shard manifest the stages hand out is a **context-loading** device (which
+    shards a role may read), whereas the gate's *default* clause scope is **global**.
+  - The per-unit `--manifest` run is a convenience for the inner loop, never a replacement for the
+    whole-corpus ship check.
 
-  **test_edit_ban — what it proves, and the trust boundary.** Given the QA-frozen SHA, it proves that no
-  path matching `testGlobs` and nothing under the gate directory (config, scripts; `.frozen` may be added)
-  differs between that commit and the **working tree** — committed, staged, unstaged and untracked alike,
-  with renames reported as delete + add so a test moved out of a test path still shows. The base must
-  resolve **and** be an ancestor of HEAD (exit 2 otherwise); a branch name is accepted with a WARN because
-  it can be advanced past the frozen point. Be honest about the boundary: anything inside the repo can be
-  rewritten by whoever holds git, so the **authoritative SHA is the `frozen:` line on the changelog item**,
-  passed by the Orchestrator or CI; `gates/.frozen` and the plugin hook are tripwires for the Engineer
-  persona. It does not prove a tagged test ran or passed — that is `suite_green` plus the Stage-7 review
-  (a JUnit-based `coverage_ran` gate is a tracked follow-up, SDD-PROP-11).
+  **test_edit_ban — what it proves, and the trust boundary.**
+  - Given the QA-frozen SHA, it proves that no path matching `testGlobs` and nothing under the gate
+    directory (config, scripts; `.frozen` may be added) differs between that commit and the **working
+    tree** — committed, staged, unstaged and untracked alike.
+  - Renames are reported as delete + add, so a test moved out of a test path still shows.
+  - The base must resolve **and** be an ancestor of HEAD (exit 2 otherwise); a branch name is accepted
+    with a WARN because it can be advanced past the frozen point.
+  - The boundary: anything inside the repo can be rewritten by whoever holds git, so the **authoritative
+    SHA is the `frozen:` line on the changelog item**, passed by the Orchestrator or CI; `gates/.frozen`
+    and the plugin hook are tripwires for the Engineer persona.
+  - It does not prove a tagged test ran or passed — that is `suite_green` plus the Stage-7 review (a
+    JUnit-based `coverage_ran` gate is a tracked follow-up, SDD-PROP-11).
 
-  **structure_check — what it proves, and what it leaves to Validation.** A structure shard
-  (`structureGlobs`, default `**/*.structure.body.md`) holds fenced `mermaid` `classDiagram` blocks at
-  member level; a transient shard is a delta under `## Added` / `## Changed` / `## Removed`, a canonical
-  one is the area's current state. `--plan` proves shape (≥ 1 class with ≥ 1 member; a memberless class is
-  WARNed). `--frozen [sha]` is the **deviation guard**: the same working-tree diff as `test_edit_ban`
-  (committed, staged, unstaged, untracked; renames not collapsed) over the structure globs, fail-closed on
-  a base that does not resolve or is not an ancestor of HEAD — `run_all` runs it on the persona route's
-  `--pre-fold` pass only, because the Stage-7 fold legitimately rewrites the canonical shard. The default
-  **forward trace** proves every class and member named under Added / Changed / an unlabelled block
-  resolves to an identifier under `paths.code` (`git grep -w`, tracked + untracked, the structure shards
-  themselves excluded) and that a class under Removed is absent (a removed *member* still present is a
-  WARN — the name may live on elsewhere). Matching is by **name**, stack-agnostic: it proves the planned
-  member exists somewhere in the tree, not that it hangs off the planned class. The **reverse trace** — no
-  public member in the diff that the diagram lacks — is the Stage-7 Validation lens 2a, read from the
-  diff; a language-aware extractor is a tracked follow-up (SDD-PROP-12).
+  **structure_check — what it proves, and what it leaves to Validation.**
+  - A structure shard (`structureGlobs`, default `**/*.structure.body.md`) holds fenced `mermaid`
+    `classDiagram` blocks at member level; a transient shard is a delta under `## Added` / `## Changed` /
+    `## Removed`, a canonical one is the area's current state.
+  - `--plan` proves shape (≥ 1 class with ≥ 1 member; a memberless class is WARNed).
+  - `--frozen [sha]` is the **deviation guard**: the same working-tree diff as `test_edit_ban` (committed,
+    staged, unstaged, untracked; renames not collapsed) over the structure globs, fail-closed on a base
+    that does not resolve or is not an ancestor of HEAD.
+  - `run_all` runs `--frozen` on the persona route's `--pre-fold` pass only, because the Stage-7 fold
+    legitimately rewrites the canonical shard.
+  - The default **forward trace** proves every class and member named under Added / Changed / an
+    unlabelled block resolves to an identifier under `paths.code` (`git grep -w`, tracked + untracked, the
+    structure shards themselves excluded), and that a class under Removed is absent (a removed *member*
+    still present is a WARN — the name may live on elsewhere).
+  - Matching is by **name**, stack-agnostic: it proves the planned member exists somewhere in the tree,
+    not that it hangs off the planned class.
+  - The **reverse trace** — no public member in the diff that the diagram lacks — is the Stage-7
+    Validation lens 2a, read from the diff; a language-aware extractor is a tracked follow-up (SDD-PROP-12).
 
-  **token_ledger — what it measures.** The Stage-4b build plan (`buildPlan.glob`, default
-  `**/*.buildplan.md`) ends in a `## Ledger` table: `| kind | by | for | aud | path | range | hash | full |
-  est | note |`. `add` computes `hash` (`git hash-object`, 7 chars), `full` (whole-file tokens) and `est`
-  (tokens of the range / grep window / pasted note; `0` for `skip`; the admitted tokens for `read`), with
-  tokens = `ceil(chars × buildPlan.tokensPerChar)` (default `0.25`); it refuses a `qa`-audience row that
-  points into `paths.code`. `verify` compares each row's hash with the file now and prints `STALE` (exit 1)
-  for any drift — a reader reconciles, never assumes. `report` sums, per slice, `admitted` (its `read`
-  rows) and `saved` (for each advice row aimed at it: the whole-file cost if it never opened the file, the
-  difference if it read a range, nothing if it read the whole file — that row is "not honoured"), and prints
-  `tokens: <slice> admitted ~A; saved ~V (P%); ledger H/N honoured` plus a plan line with the planning
-  cost `P`. ASCII on both twins, recomputable from the table, **an estimate from bytes admitted — never a
-  billed count**.
+  **token_ledger — what it measures.**
+  - The Stage-4b build plan (`buildPlan.glob`, default `**/*.buildplan.md`) ends in a `## Ledger` table:
+    `| kind | by | for | aud | path | range | hash | full | est | note |`.
+  - `add` computes `hash` (`git hash-object`, 7 chars), `full` (whole-file tokens) and `est` (tokens of
+    the range / grep window / pasted note; `0` for `skip`; the admitted tokens for `read`), with tokens =
+    `ceil(chars × buildPlan.tokensPerChar)` (default `0.25`).
+  - `add` refuses a `qa`-audience row that points into `paths.code`.
+  - `verify` compares each row's hash with the file now and prints `STALE` (exit 1) for any drift — a
+    reader reconciles, never assumes.
+  - `report` sums, per slice, `admitted` (its `read` rows) and `saved` (for each advice row aimed at it:
+    the whole-file cost if it never opened the file, the difference if it read a range, nothing if it read
+    the whole file — that row is "not honoured").
+  - `report` prints `tokens: <slice> admitted ~A; saved ~V (P%); ledger H/N honoured` plus a plan line
+    with the planning cost `P`.
+  - ASCII on both twins, recomputable from the table, **an estimate from bytes admitted — never a billed
+    count**.
 
-  **prose_check — spec form, measured.** Per shard: **paragraph share** (words inside paragraph text ÷
-  all words; list items, table cells, code, headings and definition lists are *structured*) and the
-  **longest paragraph**. HTML shards count `<p>` outside structured elements plus loose text; Markdown
-  shards classify lines (list / numbered / lettered / roman items, headings, table rows, fenced code and
-  indented continuation lines are structured). Defaults (`proseCheck` in config): share ≤ 35 %, longest
-  paragraph ≤ 100 words, share applies only at ≥ 120 words; `excludeGlobs` for generated shards.
-  **Scope = shards changed vs base** (committed + working tree + untracked), so a touched shard must meet
-  the bar — migrate-on-contact — while untouched legacy shards stay quiet; `-All` / `--all` reports the
-  corpus. `proseCheck.mode`: `warn` (default; prints, exit 0), `strict` (violations FAIL), `off`; `-Strict`
-  / `--strict` (forwarded by `run_all`) upgrades warn to strict. Calibrated 2026-09-02 on the 4x corpus
-  (252 shards, both OS scripts byte-identical): the two terse exemplars measure 15 % / 71w and 23 % / 87w;
-  158 legacy shards flag. It measures *form*, not fact density — "one fact per line" stays a review call.
+  **prose_check — spec form, measured.**
+  - Per shard: **paragraph share** (words inside paragraph text ÷ all words; list items, table cells,
+    code, headings and definition lists are *structured*) and the **longest paragraph**.
+  - HTML shards count `<p>` outside structured elements plus loose text; Markdown shards classify lines
+    (list / numbered / lettered / roman items, headings, table rows, fenced code and indented
+    continuation lines are structured).
+  - Defaults (`proseCheck` in config): share ≤ 35 %, longest paragraph ≤ 100 words, share applies only
+    at ≥ 120 words; `excludeGlobs` for generated shards.
+  - **Scope = shards changed vs base** (committed + working tree + untracked), so a touched shard must
+    meet the bar — migrate-on-contact — while untouched legacy shards stay quiet; `-All` / `--all`
+    reports the corpus.
+  - `proseCheck.mode`: `warn` (default; prints, exit 0), `strict` (violations FAIL), `off`; `-Strict` /
+    `--strict` (forwarded by `run_all`) upgrades warn to strict.
+  - Calibrated 2026-09-02 on the 4x corpus (252 shards, both OS scripts byte-identical): the two terse
+    exemplars measure 15 % / 71w and 23 % / 87w; 158 legacy shards flag.
+  - It measures *form*, not fact density — "one fact per line" stays a review call.
 
-  **fold_check — `--strict` in CI.** When a resolver is configured (`foldCheck.resolveCmd`) but
-  **errors or returns non-zero** (e.g. offline CI), default fold_check degrades to "syntactically
-  valid pin + NOTE" and PASSES — a fail-open on unit-id resolution, kept for local/offline
-  convenience. `-Strict` / `--strict` turns that degrade into a **FAIL** (exit 1). **CI must run
-  fold_check with `--strict`** (or `run_all … --strict` / `-Strict`, which forwards it) so a broken
-  or unreachable resolver cannot pass open. The "no resolver configured at all" syntactic-only path
-  is unchanged either way.
+  **fold_check — `--strict` in CI.**
+  - When a resolver is configured (`foldCheck.resolveCmd`) but **errors or returns non-zero** (e.g.
+    offline CI), default fold_check degrades to "syntactically valid pin + NOTE" and PASSES — a fail-open
+    on unit-id resolution, kept for local/offline convenience.
+  - `-Strict` / `--strict` turns that degrade into a **FAIL** (exit 1).
+  - **CI must run fold_check with `--strict`** (or `run_all … --strict` / `-Strict`, which forwards it)
+    so a broken or unreachable resolver cannot pass open.
+  - The "no resolver configured at all" syntactic-only path is unchanged either way.
 
 - **Ship (Stage 7):** run the whole bank, fail-fast, in order:
   ```
@@ -276,10 +294,14 @@ runner they all source) over a rule array, each reading its own key. Each rule:
 Y." Polars' audit invariant ("every `ICommandHandler` writes via `IAuditSink`") and dispatch registry
 ("every handler carries `[Command(...)]`") are each one such rule.
 
-> **Regex portability:** the `.ps1` engine uses .NET regex; the `.sh` engine uses POSIX ERE via
-> `grep -E`. Keep `pattern`/`expect` in the portable subset (character classes, `+ * ? { } | ( )`,
-> anchors). `\b` works in both (.NET and `grep -E`); avoid PCRE-only constructs like lookaround.
-> `\d`/`\s` are accepted (the `.sh` engine rewrites them to `[0-9]`/`[[:space:]]`).
+- **Regex portability:** the `.ps1` engine uses .NET regex; the `.sh` engine uses POSIX ERE via `grep -E`.
+  - Keep `pattern`/`expect` in the portable subset (character classes, `+ * ? { } | ( )`, anchors).
+  - `\b` works in both (.NET and GNU `grep -E`); avoid PCRE-only constructs like lookaround.
+  - Both engines match **line by line** (since v1.15.0): `^` and `$` anchor each line, and no match spans
+    a newline.
+  - Inside `[...]`, write a tab as the JSON escape `"\t"` (a real tab), never the regex escape `\\t` —
+    `grep -E` reads that as a backslash and a `t`.
+  - `\d`/`\s` are accepted (the `.sh` engine rewrites them to `[0-9]`/`[[:space:]]`).
 
 ## Recipe — making a project-specific gate scriptable
 

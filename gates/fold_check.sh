@@ -56,7 +56,7 @@ command -v git >/dev/null 2>&1 && GIT_OK=1
 # base_state: git missing -> 'absent'; else base must resolve or FAIL CLOSED (exit 2).
 if [ "$GIT_OK" = 1 ]; then
   git rev-parse --verify --quiet "$BASE^{commit}" >/dev/null 2>&1 || {
-    echo "FAIL $GATE: baseRef '$BASE' does not resolve — set baseRef to the ship base."
+    echo "FAIL $GATE: baseRef '$BASE' does not resolve - set baseRef to the ship base."
     exit 2
   }
 fi
@@ -75,14 +75,14 @@ ALL_SHARDS=$(expand_globs "$SPEC_GLOB")
 
 # changed_spec_files: shards changed vs base; fall back to ALL shards if git absent.
 if [ "$GIT_OK" = 0 ]; then
-  echo "NOTE $GATE: git unavailable — checking ALL spec shards."
+  echo "NOTE $GATE: git unavailable - checking ALL spec shards."
   FILES="$ALL_SHARDS"
 else
   OUT=$(git diff --name-only "$BASE...HEAD" 2>/dev/null)
   if [ $? -ne 0 ]; then
     OUT=$(git diff --name-only "$BASE" 2>/dev/null)
     if [ $? -ne 0 ]; then
-      echo "NOTE $GATE: git unavailable — checking ALL spec shards."
+      echo "NOTE $GATE: git unavailable - checking ALL spec shards."
       OUT=""
       FILES="$ALL_SHARDS"
       GITFELL=1
@@ -169,12 +169,12 @@ if [ -n "$SEEN_UNITS" ]; then
         :
       elif [ "$STRICT" = 1 ]; then
         # Strict: a configured resolver that errors / returns non-zero is UNRESOLVED.
-        echo "FAIL $GATE: resolveCmd errored for $unit — strict mode treats this as unresolved."
+        echo "FAIL $GATE: resolveCmd errored for $unit - strict mode treats this as unresolved."
         UNRESOLVED="$UNRESOLVED$unit
 "
       else
         # Non-strict: degrade to the syntactic pin + NOTE (local/offline convenience).
-        echo "NOTE $GATE: resolveCmd failed for $unit — accepting syntactic pin."
+        echo "NOTE $GATE: resolveCmd failed for $unit - accepting syntactic pin."
       fi
     elif [ -d "$BACKLOG_ROOT" ]; then
       # Mode B: a file/dir named <unit>* directly under backlogRoot.
@@ -185,7 +185,7 @@ if [ -n "$SEEN_UNITS" ]; then
 "
       fi
     else
-      echo "NOTE $GATE: no resolver and no $BACKLOG_ROOT/ — accepting syntactic pin for $unit."
+      echo "NOTE $GATE: no resolver and no $BACKLOG_ROOT/ - accepting syntactic pin for $unit."
     fi
   done <<EOF
 $SEEN_UNITS
@@ -204,7 +204,7 @@ fi
 
 echo "FAIL $GATE: $N_UNPIN unpinned clause(s), $N_UNRES unresolved unit(s)."
 printf '%s\n' "$UNPINNED" | sed '/^$/d' | while IFS="$(printf '\t')" read -r _tag file cid; do
-  echo "  UNPINNED $cid  in $file  (add: (§… per <unit-id>, YYYY-MM-DD))"
+  echo "  UNPINNED $cid  in $file  (add: (§... per <unit-id>, YYYY-MM-DD))"
 done
 printf '%s\n' "$UNRESOLVED" | sed '/^$/d' | while IFS= read -r unit; do
   echo "  UNRESOLVED-UNIT $unit  (no backlog file / tracker entry)"

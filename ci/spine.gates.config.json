@@ -1,0 +1,25 @@
+{
+  "_comment": "The framework repo's own gate config (never installed: ci/ is excluded from the release zip and the installer). CI runs prose_check and constitution_lint (both strict) over the spine with it, on both runners; run them locally the same way. See enforcement-map.md, 'The framework repo's own checks'. Rule regexes are matched line by line in both twins (grep -E semantics): no \\b, no backslash escapes inside brackets (write a literal tab as the JSON escape).",
+  "paths": { "spec": "**/*.md" },
+  "proseCheck": {
+    "mode": "strict",
+    "maxParaShare": 0.35,
+    "maxParaWords": 100,
+    "minWords": 120,
+    "excludeGlobs": ["README.md", "constitution.changelog.md", "project-config/PROPOSED_CHANGELOG.md", "website/**", "plugin/**"]
+  },
+  "constitutionRules": [
+    { "id": "posix-sh-no-bashisms", "kind": "must_not_match",
+      "paths": ["gates/*.sh", "plugin/hooks/*.sh", "install.sh", "ci/*.sh", "spec-format/*.sh"],
+      "pattern": "^[^#]*(\\[\\[ |<\\(|(^|[;&|] *)(declare|mapfile|readarray|typeset) |\\$\\{[A-Za-z_]+:[0-9]|\\$\\{[A-Za-z_]+//)",
+      "message": "POSIX sh only (Ubuntu sh is dash): no [[ ]], process substitution, declare/mapfile/readarray/typeset, ${v:n} or ${v//}" },
+    { "id": "gate-output-ascii", "kind": "must_not_match",
+      "paths": ["gates/*.sh", "gates/*.ps1"],
+      "pattern": "^[^#]*(echo|Write-Output|WriteLine)[^#]*[^ -~\t§]",
+      "message": "gate output is ASCII (section sign excepted: pin syntax) so the ps1/sh twins print the same bytes on every console" },
+    { "id": "hook-builtins-only", "kind": "must_not_match",
+      "paths": "plugin/hooks/persona-guard.sh",
+      "pattern": "^[^#]*(\\$\\(|`|\\| *)[ \t]*(sed|grep|awk|cut|tr|head|tail|wc|basename|dirname|cat|jq)( |$|;|\\))",
+      "message": "persona-guard forks nothing but git, rm and mkdir (PG.9): a fork costs ~80 ms on Windows, per tool call" }
+  ]
+}

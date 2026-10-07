@@ -17,11 +17,12 @@ jobs:
         run: sh ci/smoke.sh --compare
       - name: Persona guard hook unit test
         run: sh ci/hook_test.sh
-      - name: Spine prose self-check (warn only — the spine fails its own spec-form gate; tracked in SDD-PROP-11)
-        run: |
-          jq '.paths.spec = "**/*.md" | .proseCheck.mode = "warn" | .proseCheck.excludeGlobs = ["README.md","constitution.changelog.md","project-config/PROPOSED_CHANGELOG.md","website/**","plugin/**"]' \
-            gates/gates.config.template.json > /tmp/spine-prose.json
-          sh gates/prose_check.sh --config /tmp/spine-prose.json --all --report || true
+      - name: Installer test (update check + careful merge, sh and ps1 twins, byte parity)
+        run: sh ci/install_test.sh both
+      - name: Spine self-lint (constitution_lint over the framework's own conventions, strict)
+        run: sh gates/constitution_lint.template.sh --config ci/spine.gates.config.json
+      - name: Spine prose self-check (strict — the spine passes its own spec-form gate since v1.15.0)
+        run: sh gates/prose_check.sh --config ci/spine.gates.config.json --all --report --strict
       - name: Plugin bin copies match the root installers
         run: cmp install.sh plugin/bin/install.sh && cmp install.ps1 plugin/bin/install.ps1
       - name: Plugin + marketplace manifests validate
@@ -37,3 +38,9 @@ jobs:
       - name: Smoke test (ps1 gates)
         shell: pwsh
         run: pwsh ci/smoke.ps1
+      - name: Spine self-lint (ps1 rule engine on real rules)
+        shell: pwsh
+        run: pwsh gates/constitution_lint.template.ps1 -Config ci/spine.gates.config.json
+      - name: Installer test (ps1 twin on Windows)
+        shell: bash
+        run: sh ci/install_test.sh ps1

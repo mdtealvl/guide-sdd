@@ -166,6 +166,25 @@ names "token_ledger (stale)" "STALE"
 twin "token_ledger (stale)" "$LAST_OUT" "$LAST_RC" gates/token_ledger.ps1 verify -Plan $BP -For S2 -Config $CFG
 git checkout -q -- src
 
+# Rule engine (constitution_lint / seam_conformance / qa_import_ban): a regex is matched line by line
+# in both twins - ^ anchors each line, and no match spans a newline. Untracked scratch files, removed
+# before the freeze.
+mkdir -p notes
+printf '{"constitutionRules":[{"id":"anchored","kind":"must_not_match","paths":"notes/*.txt","pattern":"^FORBIDDEN","message":"m"},{"id":"one-line","kind":"must_not_match","paths":"notes/*.txt","pattern":"^start[^#]*END","message":"m"}]}\n' > rules.smoke.json
+printf 'ok FORBIDDEN mid-line\nFORBIDDEN at the start of line 2\n' > notes/a.txt
+expect 1 "constitution_lint FAIL: ^ anchors line 2" sh gates/constitution_lint.template.sh --config rules.smoke.json
+names "constitution_lint (anchored)" "anchored"
+twin "constitution_lint (anchored)" "$LAST_OUT" "$LAST_RC" gates/constitution_lint.template.ps1 -Config rules.smoke.json
+printf 'ok FORBIDDEN mid-line only\nstart of a line\nEND on the next line\n' > notes/a.txt
+expect 0 "constitution_lint PASS: mid-line hit is not ^, no match across lines" sh gates/constitution_lint.template.sh --config rules.smoke.json
+twin "constitution_lint (line by line)" "$LAST_OUT" "$LAST_RC" gates/constitution_lint.template.ps1 -Config rules.smoke.json
+# A final newline ends the last line; it does not start an empty one (grep sees no empty line in "a\n").
+printf '{"constitutionRules":[{"id":"no-empty-line","kind":"must_not_match","paths":"notes/*.txt","pattern":"^$","message":"m"}]}\n' > rules.smoke.json
+printf 'a\n' > notes/a.txt
+expect 0 "constitution_lint PASS: no phantom empty line after the final newline" sh gates/constitution_lint.template.sh --config rules.smoke.json
+twin "constitution_lint (final newline)" "$LAST_OUT" "$LAST_RC" gates/constitution_lint.template.ps1 -Config rules.smoke.json
+rm -rf notes rules.smoke.json
+
 # Freeze: record the QA-frozen SHA; the gate then needs no base argument.
 expect 0 "freeze writes gates/.frozen" sh gates/freeze.sh --unit DEMO-1
 names "freeze" "sha="

@@ -1,11 +1,10 @@
 # Stage 2 — Recon / Viability
 
-**Role:** Orchestrator/PO. **Loaded with:** constitution + this file + the design's
-prerequisite list from Stage 1 + the relevant seam rows (`project-details.md#SEAM-N`) and stack
-(`project-details.md#STK-N`).
-
-Persona route only. Enter when the plan depends on an unverified prerequisite. Verify the ground
-before building on it — cheap; integration failure is not.
+- **Role:** Orchestrator/PO.
+- **Loaded with:** constitution + this file + the design's prerequisite list from Stage 1 + the relevant
+  seam rows (`project-details.md#SEAM-N`) and stack (`project-details.md#STK-N`).
+- Persona route only. Enter when the plan depends on an unverified prerequisite.
+- Verify the ground before building on it — cheap; integration failure is not.
 
 ## Do
 
@@ -20,9 +19,9 @@ Use Grep/Read/Bash against the real code and data. Record each as ✓ (exists) o
 
 ## Routing the ✗'s
 
-A missing prerequisite becomes its **own work item**, filed on the changelog
-(`project-details.md#CL-N`) and sequenced **before** the dependent work. Never paper over it or assume
-it will appear.
+- A missing prerequisite becomes its **own work item**, filed on the changelog
+  (`project-details.md#CL-N`) and sequenced **before** the dependent work.
+- Never paper over it or assume it will appear.
 
 ## Exit criteria
 

@@ -6,6 +6,16 @@
 
 $ErrorActionPreference = 'Stop'
 
+function Test-AnyLine {
+    # Line-by-line match, the semantics of the sh twin (grep -E): ^ and $ anchor each line and no
+    # match spans a newline. Split on LF only, so a CRLF line keeps its CR exactly as grep sees it.
+    # A final newline ends the last line, it does not start an empty one; an empty file has no lines.
+    param([regex]$Re, [string]$Text)
+    if ($Text.EndsWith("`n")) { $Text = $Text.Substring(0, $Text.Length - 1) } elseif ($Text.Length -eq 0) { return $false }
+    foreach ($line in $Text.Split([char]10)) { if ($Re.IsMatch($line)) { return $true } }
+    return $false
+}
+
 function Invoke-Rule {
     # Returns a hashtable @{ ok = [bool]; detail = [string] }.
     param($Rule)
@@ -31,13 +41,13 @@ function Invoke-Rule {
     $fs = Expand-Globs $paths
 
     if ($kind -eq 'must_match') {
-        $offenders = @($fs | Where-Object { -not $pat.IsMatch((Read-FileText $_)) })
+        $offenders = @($fs | Where-Object { -not (Test-AnyLine $pat (Read-FileText $_)) })
         $ok = ($offenders.Count -eq 0)
         $detail = if ($ok) { '' } else { "pattern absent in: [$([string]::Join(', ', ($offenders | ForEach-Object { "'$_'" })))]" }
         return @{ ok = $ok; detail = $detail }
     }
     if ($kind -eq 'must_not_match') {
-        $offenders = @($fs | Where-Object { $pat.IsMatch((Read-FileText $_)) })
+        $offenders = @($fs | Where-Object { Test-AnyLine $pat (Read-FileText $_) })
         $ok = ($offenders.Count -eq 0)
         $detail = if ($ok) { '' } else { "pattern present in: [$([string]::Join(', ', ($offenders | ForEach-Object { "'$_'" })))]" }
         return @{ ok = $ok; detail = $detail }
@@ -52,7 +62,7 @@ function Invoke-Rule {
         }
         $offenders = @($fs | Where-Object {
             $t = Read-FileText $_
-            $pat.IsMatch($t) -and (-not $exp.IsMatch($t))
+            (Test-AnyLine $pat $t) -and (-not (Test-AnyLine $exp $t))
         })
         $ok = ($offenders.Count -eq 0)
         $detail = if ($ok) { '' } else { "missing ``$expectStr`` in: [$([string]::Join(', ', ($offenders | ForEach-Object { "'$_'" })))]" }

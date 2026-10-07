@@ -13,6 +13,11 @@ On your first action here, **say so**, then operate under SDD — do NOT continu
 - **Always:** obey `sdd/constitution.md` (the ten invariants).
 - **To do any work:** start at `sdd/PROCESS.md` §0 — the boot protocol / stage router. Load ONLY your
   current stage + the shards it names. Never bulk-load the framework.
+- **On boot, check for a newer GUIDE** (cached, one lookup a day): the Claude Code plugin does it at session
+  start; elsewhere run `sh sdd/install.sh check --cached` (Windows: `pwsh sdd/install.ps1 check --cached`).
+  On `UPDATE` (exit 3), ask the human — update now or later — before other work; never update unasked. On
+  yes, run the printed update and report each `REFRESHED` / `MERGED` / `CONFIG` / `CONFLICT` / `REVIEW` line;
+  exit 4 means a `<file>.guide-merge` awaits resolution with the human before the bump is committed alone.
 - **Project specifics** (seams, stack, tracker, spec home): `sdd/project-config/project-details.md` —
   one section on demand, never the whole file.
 - **Bugs in GUIDE itself** (a stage, gate, hook, installer, or spine doc misbehaving — not a project

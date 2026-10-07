@@ -143,6 +143,20 @@ try {
     Names 'token_ledger (stale)' 'STALE'
     git checkout -q -- src
 
+    # Rule engine: a regex is matched line by line (the sh twin's grep -E semantics) - ^ anchors each
+    # line, and no match spans a newline. Untracked scratch files, removed before the freeze.
+    New-Item -ItemType Directory -Force "$proj/notes" | Out-Null
+    [IO.File]::WriteAllText("$proj/rules.smoke.json", '{"constitutionRules":[{"id":"anchored","kind":"must_not_match","paths":"notes/*.txt","pattern":"^FORBIDDEN","message":"m"},{"id":"one-line","kind":"must_not_match","paths":"notes/*.txt","pattern":"^start[^#]*END","message":"m"}]}' + "`n", $utf8)
+    [IO.File]::WriteAllText("$proj/notes/a.txt", "ok FORBIDDEN mid-line`nFORBIDDEN at the start of line 2`n", $utf8)
+    Expect 1 'constitution_lint FAIL: ^ anchors line 2' @('gates/constitution_lint.template.ps1', '-Config', 'rules.smoke.json')
+    Names 'constitution_lint (anchored)' 'anchored'
+    [IO.File]::WriteAllText("$proj/notes/a.txt", "ok FORBIDDEN mid-line only`nstart of a line`nEND on the next line`n", $utf8)
+    Expect 0 'constitution_lint PASS: mid-line hit is not ^, no match across lines' @('gates/constitution_lint.template.ps1', '-Config', 'rules.smoke.json')
+    [IO.File]::WriteAllText("$proj/rules.smoke.json", '{"constitutionRules":[{"id":"no-empty-line","kind":"must_not_match","paths":"notes/*.txt","pattern":"^$","message":"m"}]}' + "`n", $utf8)
+    [IO.File]::WriteAllText("$proj/notes/a.txt", "a`n", $utf8)
+    Expect 0 'constitution_lint PASS: no phantom empty line after the final newline' @('gates/constitution_lint.template.ps1', '-Config', 'rules.smoke.json')
+    Remove-Item -Recurse -Force "$proj/notes", "$proj/rules.smoke.json"
+
     # Freeze: record the QA-frozen SHA; the gate then needs no base argument.
     Expect 0 'freeze writes gates/.frozen' @('gates/freeze.ps1', '-Unit', 'DEMO-1')
     Names 'freeze' 'sha='

@@ -27,6 +27,14 @@ Install: `/plugin marketplace add mdtealvl/guide-sdd` then `/plugin install guid
 Runs under `sh`; on Windows that is Git Bash, which Claude Code already requires. A tripwire, not the
 proof: the Stage-7 `test_edit_ban` and `structure_check --frozen` gates diff the QA-frozen SHA. Tested by `ci/hook_test.sh`. The marker is stamped `session=<id>` by the first pass that sees it; a marker stamped by another session is ignored, never obeyed (a crashed session cannot leave a persona behind). Builtins only - the only processes are `git` in the sweep and snapshot, `rm` at session end and one `mkdir` per session for the snapshot dir - so a pass costs one shell start (~0.3 s on Windows), a sweep of a 500-path tree ~1 s. Every sweep also reads a nested git repo under a `testGlobs` path (PG.6). Known limits: path compares are case-sensitive, and the qa path normalization has gaps (GitHub issue #5).
 
+**Hook — update check** (`hooks/update-check.sh`, SessionStart on `startup`). In a repo with
+`sdd/.sdd-manifest.json` it runs the bundled `install.sh check --cached` — at most one release lookup a day,
+cached inside `.git` so the tree stays clean — and prints nothing when the spine is current, offline, or
+outside a GUIDE repo. When a newer release exists its lines become session context: the agent asks the human
+(update now or later) before any other work, never updates unasked, names a stale plugin
+(`/plugin marketplace update guide-sdd`), and gives the update command for this plugin's installer. Always
+exits 0. Tested in `ci/install_test.sh`.
+
 **Persona from sub-agent type (PG.1).** The hook input's `agent_type` sets the persona directly when
 it's `qa`/`engineer` (or `qa-*`/`engineer-*`) — no marker read or stamped — so QA and Engineer
 sub-agents can run **concurrently** without racing on `sdd/.persona`. Any other `agent_type` falls

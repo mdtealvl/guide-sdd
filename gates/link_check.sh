@@ -222,6 +222,6 @@ printf '%s\n' "$BROKEN" | sed '/^$/d' | while IFS= read -r row; do
   src=$(printf '%s' "$row" | awk -F"$US" '{print $2}')
   ref=$(printf '%s' "$row" | awk -F"$US" '{print $3}')
   why=$(printf '%s' "$row" | awk -F"$US" '{print $4}')
-  echo "  $src: '$ref' — $why"
+  echo "  $src: '$ref' - $why"
 done
 exit 1

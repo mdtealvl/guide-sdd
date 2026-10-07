@@ -1,6 +1,6 @@
 # GUIDE SDD — Gated, Unified, Intent-Driven Engineering
 
-> **v1.14.1 — 2026-09-23.** A reusable, token-efficient, spec-first / persona-split development
+> **v1.15.0 — 2026-10-06.** A reusable, token-efficient, spec-first / persona-split development
 > method that drops into large, multi-developer projects worked by humans **and** AI agents. It
 > merges two mature in-house practices (Mistwright's *How We Work*, Polars' *How To Develop*) with
 > the published SOTA into one copyable **spine** + a small, indexed **per-project surface**.
@@ -29,8 +29,13 @@ Three routes, one repo (`github.com/mdtealvl/guide-sdd`):
 
    Vendors the spine to `sdd/`, places the carriers you name, installs the session commands, seeds
    `gates.config.json`, writes `sdd/.sdd-manifest.json`, and stops at INIT §1a — the box tier/role and the
-   three ASKs stay yours. Later: `update` (spine only; refuses on a dirty tree or locally edited spine
-   files; never deletes) and `doctor` (every file whose hash differs from the manifest; exit 1 on any).
+   three ASKs stay yours. Later: `check` (is a newer release out? exit 3 if so; `--cached` looks up at
+   most once a day — agents run it at boot, the plugin at session start), `update` (refuses on a dirty
+   tree or locally edited spine files; never deletes; then **merges** your project files made from a
+   template — root carriers, `project-details.md`, copied project gates, installed commands — three-way
+   against the old template, and `gates.config.json` key by key with your values winning; a conflict
+   leaves your file untouched beside a `.guide-merge`, exit 4) and `doctor` (every file whose hash
+   differs from the manifest; exit 1 on any).
    `--version vX.Y.Z|latest`, `--dest`, `--source <dir|zip>` (offline), `--force`. A pre-manifest copy of
    the spine is adopted with `install --force`.
 3. **Claude Code plugin** — `/plugin marketplace add mdtealvl/guide-sdd`, then `/plugin install
@@ -391,6 +396,21 @@ or first-level subdirectory with its own `.git`) the gate bank cannot see into, 
 `--gates-only <target>` flag installs a second, minimal gate bank there; both also gitignore
 `sdd/.persona` and `sdd/.persona-state/`. Closes GitHub issues #2 and #3. Full record in
 `constitution.changelog.md`.
+
+### v1.15.0 Amendment — boot update check, careful merge on update, gates on the framework itself (2026-10-06)
+
+No invariant change; still ten. **Update check:** `install check [--cached]` (exit 3 when a newer release
+exists; at most one lookup a day, cached inside `.git`); the plugin runs it at SessionStart and the
+`AGENTS.md` boot step elsewhere — the agent asks the human, never updates unasked. **Careful merge:**
+`update` hands off to the new release's own installer, then merges the project's files made from a
+template — root carriers, `project-details.md`, copied project gates, installed commands — three-way
+against the old template (`git merge-file`), and `gates.config.json` key by key (new keys added,
+defaults you never changed updated, your values and deletions kept); an overlap never touches your file
+(`<file>.guide-merge`, exit 4), and a carrier or command whose first line is not the template's (your own file, or an edited title) is `SKIPPED`. **Gates:** the rule engine matches line by line in both twins (parity
+fix, with a smoke negative control); ps1 gates resolve relative paths against the PowerShell location
+(closes #1); gate output is ASCII; the framework lints its own conventions with `constitution_lint`
+(`ci/spine.gates.config.json`), and the spine now passes its own `prose_check` (strict in CI). `install.ps1` no longer misreads a single flag. New
+`enforcement-map.md`. Full record in `constitution.changelog.md`.
 
 ## Map to the source practices
 

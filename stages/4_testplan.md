@@ -6,9 +6,10 @@ enters Stage 5, so the planner is never the implementer.
 **Loaded with:** constitution + this file + the frozen spec shard(s) from the Stage-3 shard manifest +
 `project-details.md#STK-N` (layer → test-home map). **Not** the implementation.
 
-Active in **every** route. The plan lives in the spec (or a linked shard). Every behavioural clause
-maps to ≥1 numbered scenario across the test layers — coverage becomes auditable *before* anyone writes
-a test.
+- Active in **every** route.
+- The plan lives in the spec (or a linked shard).
+- Every behavioural clause maps to ≥1 numbered scenario across the test layers — coverage becomes
+  auditable *before* anyone writes a test.
 
 ## The four test layers (each required, or "N/A — reason")
 
@@ -19,8 +20,8 @@ a test.
 | **Functional / lifecycle** | The full flow in a real loop; every state transition in sequence; assert observable side effects, not internal flags. |
 | **Visual regression** (UI) | PNG baselines at every form factor, with a content canary. |
 
-Exact layer names/tools per project are in `project-details.md#STK-N`; the *shape* (pure → integration
-→ lifecycle → visual) is universal.
+- Exact layer names/tools per project are in `project-details.md#STK-N`.
+- The *shape* (pure → integration → lifecycle → visual) is universal.
 
 ## Build the traceability matrix
 
@@ -31,9 +32,9 @@ clause-ID → scenario# → (planned test-ID) → layer       → oracle source
 CB.07     → S3        → T.CB.07.a         → integration → explicit clause
 ```
 
-Every clause must appear ≥1 time. A clause with no scenario is either dead spec (delete it) or missing
-coverage (add a scenario). This matrix is the input `coverage_check --plan` verifies mechanically to
-close this stage.
+- Every clause must appear ≥1 time.
+- A clause with no scenario is either dead spec (delete it) or missing coverage (add a scenario).
+- This matrix is the input `coverage_check --plan` verifies mechanically to close this stage.
 
 ## Declare an oracle source per planned test
 
@@ -49,15 +50,15 @@ Each planned test names **where its expected value comes from** — one of:
 | **metamorphic property** | a relation between inputs/outputs (f(2x)=2·f(x), reorder-stable) |
 | **approved golden data** | a reviewed, signed-off golden corpus |
 
-For **non-deterministic / async / ranking** behaviour the oracle is **metamorphic / golden /
-invariant**, never an invented exact value — there is no single correct number to assert. Recorded in
-the matrix; QA implements to it (Stage 5).
+- For **non-deterministic / async / ranking** behaviour the oracle is **metamorphic / golden /
+  invariant**, never an invented exact value — there is no single correct number to assert.
+- Recorded in the matrix; QA implements to it (Stage 5).
 
 ## The reachability gate (PO runs it here)
 
-For each planned test: **"can a test literally reach this through the contracted, production API?"** If
-not, the seam is wrong — fix it in the spec/design before any test is written. Catches un-testable spec
-before it costs a QA pass.
+- For each planned test: **"can a test literally reach this through the contracted, production API?"**
+- If not, the seam is wrong — fix it in the spec/design before any test is written.
+- Catches un-testable spec before it costs a QA pass.
 
 ## Exit criteria
 
