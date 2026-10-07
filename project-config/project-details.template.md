@@ -1,10 +1,8 @@
 # Project Details — <PROJECT NAME>
 
-> Instantiated from `project-details.template.md` at init. This is the **only** project-
-> specific prose document. It is **structured and indexed** so it grows addressably:
-> every entry has a stable key (`SEAM-N`, `PTR-N`, …) so stages, gates, and other
-> docs can reference a single section without loading the whole file. Add rows;
-> don't rewrite. Not loaded by default — stages load the specific section they need.
+> Instantiated from `project-details.template.md` at init: the **only** project-specific prose
+> document. Every entry has a stable key (`SEAM-N`, `PTR-N`, …) so stages, gates and docs reference
+> one section without loading the file. Add rows; don't rewrite. Not loaded by default.
 
 ## Index
 
@@ -22,8 +20,8 @@
 
 ## 1. Architecture seams (`SEAM-`)
 
-The boundaries no work may bypass. Each becomes a `seam_conformance` rule (C2).
-Add a row per seam; keep the stable key forever.
+Boundaries no work may bypass; each becomes a `seam_conformance` rule (C2). One row per seam; keys are
+forever.
 
 | Key | Seam | Rule (what must hold) | Gate rule id |
 |-----|------|-----------------------|--------------|
@@ -59,7 +57,7 @@ Add a row per seam; keep the stable key forever.
 
 **Mode chosen at init:** ☐ External tracker ☐ On-disk backlog
 
-Both modes satisfy constitution §8 identically; only storage differs.
+Both modes satisfy constitution §8; only storage differs.
 
 | Key | Item | If EXTERNAL tracker | If ON-DISK backlog |
 |-----|------|---------------------|--------------------|
@@ -68,14 +66,14 @@ Both modes satisfy constitution §8 identically; only storage differs.
 | CL-3 | Start work | _create/find issue; transition In Progress; ref key in commits_ | _append a backlog entry: what/why/acceptance bar/who_ |
 | CL-4 | Record ship | _transition Done; comment ship-SHA_ | _append `shipped: <SHA> <date>` to the entry_ |
 | CL-5 | Provenance pin | `(§X per <id>, YYYY-MM-DD)` on each folded clause | _same pin syntax_ |
-| CL-6 | **Work-ready state** (PO marks an item ready for a worker to pick up). Keep **distinct** from CL-3 start-work when boxes are split — else a worker must claim/assign the item on pickup so two boxes can't grab it. | _e.g. Jira `Selected for Dev` / `Ready`_ | _e.g. a `status: ready` line on the entry_ |
+| CL-6 | **Work-ready state** (PO marks an item ready for a worker). Keep **distinct** from CL-3 when boxes are split — else a worker must claim the item on pickup so two boxes can't grab it. | _e.g. Jira `Selected for Dev` / `Ready`_ | _e.g. a `status: ready` line on the entry_ |
 | CL-7 | **PO-attention state** (worker transitions here when surfacing `[NEEDS-PO]`/`[BLOCKED]`) | _e.g. Jira `Blocked` / a flag_ | _e.g. a `status: blocked` line on the entry_ |
-| CL-8 | Entry-writing standard / DoR-DoD | `sdd/changelog-conventions.md` (well-formed entry); `sdd/definition-of-done.md` (DoR/DoD gates) — mode-independent | _same two docs_ |
+| CL-8 | Entry-writing standard / DoR-DoD | `sdd/changelog-conventions.md` (well-formed entry); `sdd/definition-of-done.md` (DoR/DoD gates) | _same two docs_ |
 | CL-9 | **Claim** (worker stamps before starting; only an unclaimed Ready item) | _a comment `claimed-by:<SDD_BOX_ID>` + timestamp_ | _a `claimed-by: <SDD_BOX_ID>` line on the entry_ |
 | CL-10 | **Ready-for-review state** (worker flags; PO box reviews + merges) | _e.g. Jira `Ready for Review` / a label_ | _a `status: review` line on the entry_ |
-| CL-11 | **Project memory directory** — session-lifecycle home (`session-lifecycle.md`), seeded at INIT: `MEMORY.md` index, `HANDOFF.md` (overwrite-only card), `stashes/` (+ `archive/`), `memory/`. Session state only — the backlog itself lives at CL-1 (`backlog/` item files in Mode B; the tracker in Mode A). | _e.g. `docs/memory/`_ | _e.g. `docs/memory/`_ |
+| CL-11 | **Project memory directory** — session-lifecycle home (`session-lifecycle.md`), seeded at INIT: `MEMORY.md` index, `HANDOFF.md` (overwrite-only card), `stashes/` (+ `archive/`), `memory/`. Session state only — the backlog lives at CL-1. | _e.g. `docs/memory/`_ | _e.g. `docs/memory/`_ |
 
-> **Box loops:** worker poll ~15–30 min, PO poll ~30 min; `SDD_BOX_ID` + cadence are per-box (`box-role.local`). Workers never merge — they flag CL-10 and the PO box owns the serialized merge. See `box-roles.md` §"Box loops & coordination".
+> **Box loops:** worker poll ~15–30 min, PO poll ~30 min; `SDD_BOX_ID` + cadence are per-box (`box-role.local`). Workers never merge — they flag CL-10; the PO box owns the serialized merge. See `box-roles.md` §"Box loops & coordination".
 
 ## 5. Spec format & home (`SPEC-`) — C5
 
@@ -95,7 +93,7 @@ Both modes satisfy constitution §8 identically; only storage differs.
 
 ## 6. Pointer-doc map (`PTR-`) — read on trigger
 
-Growable. Add a row per pointer doc; agents load it only on its trigger.
+One row per pointer doc; agents load it only on its trigger.
 
 | Key | Doc | Read it when |
 |-----|-----|--------------|
@@ -106,7 +104,7 @@ Growable. Add a row per pointer doc; agents load it only on its trigger.
 
 ## 7. Right-sizing overrides (`RS-`)
 
-Project-specific tweaks to the Stage 0 2×2 (defaults live in `stages/0_triage.md`).
+Project tweaks to the Stage 0 2×2 (defaults: `stages/0_triage.md`).
 
 | Key | Override |
 |-----|----------|

@@ -6,11 +6,9 @@ shard manifest + the approved **structure shard** (`<ITEM-ID>.structure.body.md`
 `#TOOL-6` (quiet gate idioms). **Not** the codebase at large: plan from the structure shard and targeted
 greps; every file this stage opens is a `read` row in the ledger, so the plan's own cost is measured.
 
-- Active in **every** route, after the spec + structure diagram are PM-approved and the test plan is
-  closed.
-- This stage decides **how** the unit is built — which files, in what order, in which context.
-- It is the one place that **optimizes tokens**: what each later context reads, and what it is told
-  not to.
+- Active in **every** route, once the spec + structure diagram are PM-approved and the test plan closed.
+- It decides **how** the unit is built — which files, in what order, in which context — and is the one
+  place that **optimizes tokens**: what each later context reads, and what it is told not to.
 - Mechanical route: one slice, a file map + ranges, ≤ 10 lines — the ledger still records `P` and `S1`
   so the readout exists.
 
@@ -26,8 +24,8 @@ greps; every file this stage opens is a `read` row in the ledger, so the plan's 
 | path | action | slice | classes (from the structure shard) | clause-IDs | full ≈tok |
 |---|---|---|---|---|---|
 
-`create` / `edit` / `delete`. Every class in the structure shard lands in exactly one path; every path
-has one owner slice; `full` is the whole-file read cost (`token_ledger add` computes it — never by hand).
+`create` / `edit` / `delete`. Every structure-shard class lands in exactly one path; every path has one
+owner slice; `full` is the whole-file read cost (`token_ledger add` computes it — never by hand).
 
 ### 2. Sequence — slices `S1…Sn`
 
@@ -38,13 +36,13 @@ A **slice** is one dispatchable step: one persona context × one ordered write s
 
 Persona route: the QA slice (Stage 5), one or more Engineer slices (Stage 6), the ship slice (Stage 7,
 Orchestrator). Parallel route: one build plan per lane; cross-lane rows travel via the item (worktrees
-do not share working files); the Orchestrator concatenates lane ledgers at merge for the plan readout.
+share no working files); the Orchestrator concatenates lane ledgers at merge for the plan readout.
 
 ### 3. Briefs — what the dispatcher hands each slice, and nothing else
 
 Its stage file + the shard-manifest **slice** (its clause-IDs' shards only) + the ledger rows **for its
-audience** + the pinned, output-filtered gate commands (`#TOOL-6`) + its budget. Audience: QA receives
-`qa` rows only; the Engineer `eng` + `any`; **Validation receives no ledger rows** — the diff and the
+audience** + the pinned, output-filtered gate commands (`#TOOL-6`) + its budget. Audience: QA gets
+`qa` rows only; the Engineer `eng` + `any`; **Validation gets no ledger rows** — the diff and the
 clauses are its whole world (`stages/7_ship.md` §2, invariant 3).
 
 ### 4. Ledger — append-only, machine-read by `gates/token_ledger.*`
@@ -60,21 +58,21 @@ clauses are its whole world (`stages/7_ship.md` §2, invariant 3).
 - `hash` — the file's blob hash when the row was written. `token_ledger verify` names any row whose
   file has since changed; a stale row is **reconciled, never trusted** (as an unstash pin).
 
-Rows are written with `token_ledger add` (it computes `hash`, `full`, `est`); `report` prints the
-`tokens:` lines; every number is recomputable from the table. Tokens are `chars × tokensPerChar` —
-an estimate of what a context admits, never a billed count.
+`token_ledger add` writes rows (computing `hash`, `full`, `est`); `report` prints the `tokens:` lines;
+every number is recomputable from the table. Tokens are `chars × tokensPerChar` — an estimate of what a
+context admits, never a billed count.
 
 ## Do
 
 1. **Map classes to files.** From the structure shard: each Added/Changed class → its path; delete
-   rows for Removed. Grep to locate an existing class (`grep -n "class Foo"`), do not open the file.
+   rows for Removed. Locate an existing class by grep (`grep -n "class Foo"`), do not open the file.
 2. **Order the slices.** Dependencies first (a shared contract, a base type, a migration); then by
-   **locality** — consecutive slices share files, and a warm context re-reads nothing: **resume a live
+   **locality** — consecutive slices share files, so a warm context re-reads nothing: **resume a live
    agent over re-dispatching**, unless the persona must be blind or fresh (QA, the hunt pass,
    Validation — invariant 3).
 3. **Seed the ledger** with this stage's own reads (`by=P`).
-4. **Write the advice rows** — for every file two slices touch, and for every file a slice would
-   plausibly open but must not. Apply the optimizations below; each is a row kind or a sequence rule.
+4. **Write the advice rows** — for every file two slices touch, and every file a slice would plausibly
+   open but must not, applying the optimizations below.
 5. **Set a budget per slice** (Σ planned reads); the slice readout compares against it.
 6. **Close:** `structure_check --plan`, `token_ledger verify`, `token_ledger report`. Record the plan
    line on the item as the **planned** `tokens:` figure.
@@ -83,24 +81,24 @@ an estimate of what a context admits, never a billed count.
 
 - **Read once, range thereafter.** The first slice to open a large file writes a `range` row for each
   later slice that needs it: *"S6: lines 700–1200; 1–699 are DI wiring, irrelevant to CB.07."*
-- **Pins beat reads.** A later slice that needs one signature or constant gets a `pin` — three lines
+- **Pins beat reads.** A later slice needing one signature or constant gets a `pin` — three lines
   pasted, not three hundred read.
-- **Name the negative space.** `skip` rows for the files a slice would open out of habit: unchanged
+- **Name the negative space.** `skip` rows for files a slice would open out of habit: unchanged
   dependencies, siblings, generated code. Most waste is a file that was never needed.
-- **Anchors over line numbers.** If an earlier slice will edit the file before the reader arrives,
-  write a `grep` row (`'class RewardBag' ±40`) — line numbers drift, anchors do not.
-- **Per-slice shard manifest.** Each brief carries only the shards of its clause-IDs; pre-compute it.
+- **Anchors over line numbers.** If an earlier slice edits the file first, write a `grep` row
+  (`'class RewardBag' ±40`) — line numbers drift, anchors do not.
+- **Per-slice shard manifest.** Each brief carries only its clause-IDs' shards; pre-compute it.
 - **Test-body pins.** The QA slice pins each test's name + assertion lines per clause (`aud=eng`) so
   the Engineer reads the assertion, not the fixture scaffolding.
 - **Spine load list.** Per slice, the exact spine docs it needs (its stage file + named shards).
 - **Stale-pin guard.** Every brief opens with `token_ledger verify --for Sn`; a STALE row is re-read
   and rewritten before anything is built on it.
-- **Budget, then readout.** Planned ≈tok per slice; a slice more than 50 % over budget says why in its
-  readout — a signal for the next plan, not a halt.
+- **Budget, then readout.** A slice more than 50 % over budget says why in its readout — a signal for
+  the next plan, not a halt.
 
 ## Readout — every slice end, and the plan end
 
-- At the end of each slice: `token_ledger report --slice Sn` → write the line it prints —
+- Each slice end: `token_ledger report --slice Sn` → write the line it prints —
   `tokens: Sn admitted ~A; saved ~V (P%); ledger H/N honoured` — on the item (`changelog-conventions.md`
   §6).
 - At Stage 7 §4 (and in `/wrap`): `token_ledger report` → the `tokens: plan …` line, which also carries

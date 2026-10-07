@@ -1,8 +1,8 @@
 # Intake — from a raw request to a Ready item
 
-> Demand-loaded spine. Load at Stage 0 when the input is not yet a changelog item: a sentence, a
-> Slack thread, a bug report, a transcript, a PRD. Output: one item per `changelog-conventions.md`,
-> or a recorded reason no item was filed. PO-box work; a worker box hands raw requests to the PO.
+> Demand-loaded spine. Load at Stage 0 when the input is not yet a changelog item (a sentence, a
+> thread, a bug report, a transcript, a PRD). Output: one item per `changelog-conventions.md`, or a
+> recorded reason none was filed. PO-box work; a worker hands raw requests to the PO.
 > Intake distills; it never invents. A gap is a question, not a guess.
 
 ## 1. Classify the input
@@ -14,15 +14,15 @@
 | **Mixed** — transcript, thread, email chain | Sort claim by claim into the fields, preserving each; then elicit the gaps. |
 | **Too thin** — "make it faster", "an app for hikers" | Return it to the PM with the three questions that would make it specific. No item is filed; the exchange goes to the session backlog. |
 
-A claim is **load-bearing** when a worker, QA, or Validation would decide differently without it.
-Keep the **verbatim request** (the PM's own words, quoted) in the item — it is the intent-alignment
-reference at Stage 7.
+- A claim is **load-bearing** when a worker, QA, or Validation would decide differently without it.
+- Keep the **verbatim request** (the PM's own words, quoted) in the item — the intent-alignment
+  reference at Stage 7.
 
 ## 2. One goal per item
 
-Before writing fields, test scope: does the request hold **two or more deliverables that could be
-reviewed and merged independently**? Count deliverables, never verbs or "and"s — a rename plus the
-feature it enables is one goal; two unrelated endpoints are two.
+Does the request hold **two or more deliverables that could be reviewed and merged independently**?
+Count deliverables, never verbs or "and"s — a rename plus the feature it enables is one goal; two
+unrelated endpoints are two.
 
 - One goal → continue.
 - Several → list the goals, recommend which goes first, ask the PM **split or keep**.
@@ -36,8 +36,8 @@ feature it enables is one goal; two unrelated endpoints are two.
    Success signal · Boundaries · Constraints · Non-functional · Dependencies).
 2. Send the list. On reply, check **every number** was answered; re-ask **only** the missing ones.
 3. Repeat until no question remains that a worker could not settle from existing convention.
-4. Never answer your own question to keep moving. An unanswered question stays under **Open
-   questions**; the item is not Ready while one remains (`definition-of-done.md`).
+4. Never answer your own question. An unanswered question stays under **Open questions**; the item
+   is not Ready while one remains (`definition-of-done.md`).
 
 **Unknown-finding prompts** — run once the PM says "that's all":
 
@@ -51,27 +51,24 @@ feature it enables is one goal; two unrelated endpoints are two.
 
 ## 4. Domain-implication screen
 
-For each non-functional category the project marks applicable (Project Details, the DoD list:
-security · privacy · accessibility · performance · observability · compatibility · migration ·
-rollback · compliance) record exactly one of: **an AC covers it** · **`N/A — <reason>`** · **an open
-question**. Silence is not an option: healthcare input silent on PHI, payments silent on PCI, a
-control loop silent on fail-safe, a data change silent on migration and rollback — each is an open
-question, never an assumption.
+- For each non-functional category the project marks applicable (Project Details; the DoD list)
+  record exactly one of: **an AC covers it** · **`N/A — <reason>`** · **an open question**.
+- Silence is not an option: healthcare silent on PHI, payments silent on PCI, a control loop silent
+  on fail-safe, a data change silent on migration and rollback — each is an open question, never an
+  assumption.
 
 ## 5. Write the item, then judge it
 
-Fill `changelog-conventions.md` §3 in order. Pre-Ready, behaviour may be written as capabilities
-(`CAP-n — intent / success`, the *what*); Stage 1/3 turns them into EARS ACs with stable ids (the
-testable form). Then the PO records the **readiness verdict** (`definition-of-done.md` DoR):
-**PASS** → Ready · **CONCERNS** → each listed; the PM waives or fixes before Ready · **FAIL** → back
-to §3 with the findings, each naming what would fix it.
+- Fill `changelog-conventions.md` §3 in order. Pre-Ready, behaviour may be written as capabilities
+  (`CAP-n — intent / success`); Stage 1/3 turns them into EARS ACs with stable ids.
+- The PO records the **readiness verdict** (`definition-of-done.md` DoR): **PASS** → Ready ·
+  **CONCERNS** → each listed; the PM waives or fixes before Ready · **FAIL** → back to §3 with the
+  findings, each naming what would fix it.
 
 ## Anti-patterns
 
-- Filing a one-line ticket and letting Stage 3 discover the questions — every gap found there costs
-  a QA pass.
-- Resolving a gap "to keep moving" — the worker inherits the guess as fact and the trace records no
-  decision.
+- Filing a one-line ticket and letting Stage 3 discover the questions — each gap costs a QA pass.
+- Resolving a gap "to keep moving" — the worker inherits the guess as fact; the trace records no decision.
 - Splitting by verb count — "add and update" is one goal when one review covers it.
 - Treating a rich PRD as Ready — extraction still ends at §5; a PRD has no readiness verdict.
 

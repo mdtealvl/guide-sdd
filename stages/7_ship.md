@@ -2,22 +2,21 @@
 
 **Role:** Orchestrator runs gates + owns the merge; Validation sub-agent (fresh context) reviews.
 **Loaded with:** constitution + this file + `project-details.md#CL-N` (changelog binding) +
-`project-details.md#SPEC-N` (build command) + the changelog item + the build plan (for the fold of the
-structure shard and the plan readout, §4). Validation is spawned **fresh** with
-the brief in §2 — it did not build the thing.
+`project-details.md#SPEC-N` (build command) + the changelog item + the build plan
+(for the structure-shard fold and the plan readout, §4).
+Validation is spawned **fresh** with the brief in §2 — it did not build the thing.
 
-Closing stage in **every** route. Green is necessary, not sufficient. Mechanical gates run first
-(cheap, deterministic); fresh Validation runs last (judgement against spec + intent).
-
-This stage is the consolidated exit bar: the **Definition of Done** (`definition-of-done.md`) is the
-literal checklist Validation enforces. The changelog item transitions **Done** (step 5 below,
-`project-details.md#CL-4`) **only when the DoD fully holds** — every item unchecked keeps the unit open.
+Closing stage in **every** route. Green is necessary, not sufficient: mechanical gates run first
+(cheap, deterministic), fresh Validation last (judgement against spec + intent). Validation enforces
+the **Definition of Done** (`definition-of-done.md`) as a literal checklist; the item transitions
+**Done** (`project-details.md#CL-4`) **only when the DoD fully holds** — any unchecked item keeps the
+unit open.
 
 ## Order of operations
 
 ### 1. Pre-fold mechanical gates — `run_all --pre-fold` (must be green)
 
-Run the gate runner for your OS from anywhere inside the repo: `pwsh gates/run_all.ps1 <base> -PreFold`
+From anywhere inside the repo: `pwsh gates/run_all.ps1 <base> -PreFold`
 / `sh gates/run_all.sh <base> --pre-fold` (persona route) or add `-Mechanical` / `--mechanical`
 (mechanical route). It runs `link_check` + `prose_check` + `coverage_check` + (`test_edit_ban` +
 `structure_check --frozen`, persona only) + `structure_check` + `suite_green`, but **SKIPS** `fold_check` —
@@ -25,7 +24,7 @@ the provenance pins do not exist yet (step 3).
 
 `<base>` is the **QA-frozen SHA** from the item's `frozen:` line (persona route; written by
 `gates/freeze.*` at Stage 5 exit and mirrored in `gates/.frozen`) or the pre-work base (mechanical).
-Pass the SHA, not a branch name: `test_edit_ban` diffs that commit against the **working tree** and also
+Pass the SHA, not a branch name: `test_edit_ban` diffs that commit against the **working tree** and
 proves the gate config and scripts are the ones QA froze. `suiteCmd` must be set — an unset suite is
 exit 2, never a skip.
 
@@ -40,8 +39,8 @@ exit 2, never a skip.
 | `qa_import_ban` | QA tests import nothing production-internal (fails with no rules) | template + config |
 | `suite_green` | the project suite exits 0, **re-run by the Orchestrator** | runner (project details) |
 
-Trust artifacts, not narratives: the Orchestrator re-runs the suite; an agent's "tests pass" is not
-accepted. (Project-specific gates run only if their concrete script + rules exist.)
+The Orchestrator re-runs the suite; an agent's "tests pass" is not accepted. Project-specific gates
+run only if their concrete script + rules exist.
 
 ### 2. Fresh Validation — four lenses, one verdict
 
@@ -73,15 +72,15 @@ left **blank** (the Orchestrator sets it, §3). Then one verdict line: `accept` 
   diagram lacks is a finding: class `spec` if the design needed it, `code` if it did not).
 - **2b Hunt** (a second fresh context, the diff only): *list at least ten concrete findings; look for
   what is missing, not only what is wrong; no severity, no ranking.* Fewer than ten ⇒ re-check before
-  stopping. Same-model, no persona framing — the floor and the "what is missing" question are what
-  move the hit-rate, the cynical-reviewer voice does not.
+  stopping. Same-model, no persona framing — the floor and the "what is missing" question move the
+  hit-rate; a cynical-reviewer voice does not.
 - **2c Verification gap** — for each changed behaviour: name the smallest regression (invert the branch,
   drop the default, omit the field, return the old error) and the test that would fail; **read that
   test**. Snapshot-only, no-throw, mock-call and "it exists but is skipped or filtered" checks do not
   count. No such test ⇒ finding, class `test`.
 - **2d Intent alignment** — against the **verbatim request** on the item: enumerate the plausible
   readings; which one does the diff implement; where does it diverge from the request in scope or
-  meaning. Diff-vs-spec passes when Stages 1–3 misread the PM; this is the check that catches it. A
+  meaning. Diff-vs-spec passes when Stages 1–3 misread the PM; this catches it. A
   divergence rooted in the spec ⇒ class `spec` with `[NEEDS-PO:intent-gap]`.
 
 Write the verdict on the item: `validated: <frozen-sha>..<head-sha> accept` or `… decline <classes>`.
@@ -91,8 +90,8 @@ Write the verdict on the item: `validated: <frozen-sha>..<head-sha> accept` or `
 1. **Judge each finding independently.** Deduplicate only two findings with the same claim **and** the
    same required action; never drop a finding because a related one was rejected.
 2. **Assign severity by consequence for the user** — `high` (intolerable) · `medium` (tolerable) ·
-   `low` (cosmetic/none). Reviewers' own severities, if any, are disregarded: they judged under designed
-   information asymmetry.
+   `low` (cosmetic/none). Reviewers' own severities are disregarded: they judged under designed information
+   asymmetry.
 3. **Score.** Any `high` ⇒ **decline**. Otherwise `3 × medium + low ≥ 5` ⇒ fix, then **one more fresh
    2a pass** before accept. Below that ⇒ accept with the fixes applied and re-verified (step 1 re-run).
 4. **Route each finding by class** — the fix lands in the layer that caused it, never patched over:
@@ -117,8 +116,7 @@ decline, returns the item as `Rework:<class>` (`box-roles.md`).
 ### 4. Ship-time fold (mode-agnostic, the back-derivability invariant)
 
 The changelog is the append-only log; the spec is the materialized current state. `spec = fold(all
-shipped units)` is enforced **here, at ship time** — not queried later. **Mode-agnostic** (identical in
-changelog Mode A and Mode B):
+shipped units)` is enforced **here, at ship time**, identically in changelog Mode A and Mode B:
 1. Fold the transient working spec's resolved decisions into the canonical spec fragment(s) — **preserving
    the draft's form**: list/table/code clauses stay list/table/code, never re-narrated into paragraphs;
    decisions only, no rationale or history (`stages/3_spec.md` §"Spec form"); replaced text goes wholesale.
@@ -130,7 +128,7 @@ changelog Mode A and Mode B):
    (`lifecycle-states.md`); pin each touched class with a `%% (§X per <unit-id>, YYYY-MM-DD)` comment
    line inside the block. The next unit's Stage 1 reads this shard first.
 2c. **Plan readout.** `token_ledger report` (`gates/token_ledger.*`) → write the `tokens: plan …` line on
-   the item beside the per-slice lines. Cost, read beside `metrics.md`, never instead of it.
+   the item beside the per-slice lines. Cost, beside `metrics.md`, never instead.
 3. **Archive, don't delete** the transient working spec **and the build plan** (`git mv` to
    `spec/archive/`).
 4. Record the ship-SHA back onto the changelog item per `project-details.md#CL-N` (transition Done + SHA
@@ -147,23 +145,22 @@ changelog Mode A and Mode B):
 | **Enabled** | live to users (flag on / rollout complete) |
 | **RolledBack** | disabled after release |
 
-The fold writes the **intended behaviour at trunk HEAD** into the canonical spec. Flags and
+The fold writes the **intended behaviour at trunk HEAD** into the canonical spec; flags and
 staged-rollout state live in **Project Details**, **not** the canonical spec. A **revert** is not an
-erasure — it is a **changelog entry that folds a spec delta** (the new intended behaviour). *"Committing
-is shipping"* holds **only because every commit on the published branch is deployable** — the state
-machine above tracks *where it actually is*, the spec tracks *what trunk says it should do*.
+erasure but a **changelog entry that folds a spec delta** (the new intended behaviour). *"Committing
+is shipping"* holds **only because every commit on the published branch is deployable** — the states
+above track *where it actually is*, the spec *what trunk says it should do*.
 
 ### 5. Authoritative gate bank — `run_all` (full bank, must be green)
 
-Run the gate runner for your OS: `pwsh gates/run_all.ps1 <frozen-sha>` (Windows) / `sh
-gates/run_all.sh <frozen-sha>` (Linux/macOS) — the FULL bank. Re-runs the mechanical gates **plus**
-`fold_check` over the folded + pinned + recompiled corpus — confirming every clause changed this ship
-carries a provenance pin whose `<unit-id>` resolves — plus a suite re-run and `link_check` over the
-recompiled index. This is the **binding** gate; it must be green.
+`pwsh gates/run_all.ps1 <frozen-sha>` (Windows) / `sh gates/run_all.sh <frozen-sha>` (Linux/macOS) —
+the FULL bank: the mechanical gates **plus** `fold_check` over the folded + pinned + recompiled corpus
+(every clause changed this ship carries a provenance pin whose `<unit-id>` resolves), a suite re-run
+and `link_check` over the recompiled index. This is the **binding** gate; it must be green.
 
 In CI, run with **`--strict`** / `-Strict`: `fold_check` then FAILS on a resolver error instead of
-degrading, and `prose_check` FAILS instead of warning. (Offline-degrade-to-file-exists is for local runs
-only.) A CI template for target repos ships as `ci/target-ci.template.yml` in the framework repo.
+degrading, and `prose_check` FAILS instead of warning. Offline-degrade-to-file-exists is for local runs
+only. CI template for target repos: `ci/target-ci.template.yml` in the framework repo.
 
 ### 6. Merge
 

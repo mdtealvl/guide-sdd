@@ -4,18 +4,18 @@
 - **Loaded with:** constitution + this file + the design's prerequisite list from Stage 1 + the relevant
   seam rows (`project-details.md#SEAM-N`) and stack (`project-details.md#STK-N`).
 - Persona route only. Enter when the plan depends on an unverified prerequisite.
-- Verify the ground before building on it — cheap; integration failure is not.
+- Verifying the ground is cheap; an integration failure is not.
 
 ## Do
 
-For each prerequisite the design assumes, run a **viability check** — a concrete yes/no probe
-against the real system, not a guess:
+For each prerequisite the design assumes, run a **viability check** — a concrete yes/no probe against
+the real system (Grep/Read/Bash on the real code and data), not a guess:
 
 - "Does the server actually expose the lifetime counters the achievement reads?"
 - "Do the reward-bag defs exist server-side?"
 - "Does the contract field we're keying off already serialize?"
 
-Use Grep/Read/Bash against the real code and data. Record each as ✓ (exists) or ✗ (missing).
+Record each as ✓ (exists) or ✗ (missing).
 
 ## Routing the ✗'s
 
@@ -25,9 +25,8 @@ Use Grep/Read/Bash against the real code and data. Record each as ✓ (exists) o
 
 ## Exit criteria
 
-- [ ] Every prerequisite probed against the real system (not assumed).
+- [ ] Every prerequisite probed against the real system — none left as an assumption.
 - [ ] All ✓, or each ✗ converted into a tracked, sequenced prerequisite work item.
-- [ ] No prerequisite left as an assumption.
 
 ---
 ### Gate(s) that close this stage

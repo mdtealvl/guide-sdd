@@ -1,26 +1,25 @@
 # Stage 0 — Triage / Right-size
 
 - **Role:** Orchestrator. **Loaded with:** constitution + this file.
-- On trigger, load when it says: `box-roles.md` (box role), `greenfield-vs-brownfield.md` (spec-coverage
-  stance), `definition-of-done.md` (DoR on pickup), `changelog-conventions.md` (filing the item), and
+- Load on trigger: `box-roles.md` (box role), `greenfield-vs-brownfield.md` (spec-coverage stance),
+  `definition-of-done.md` (DoR on pickup), `changelog-conventions.md` (filing the item), and
   `project-details.md` sections `#CL-N` / `#SEAM-N` / `#RS-N`.
-- Decide how much ceremony a unit gets and produce the records later stages read.
-- The only stage that runs every time.
+- Decides how much ceremony a unit gets and produces the records later stages read. The only stage that
+  runs every time.
 
 **Know your box role first (`box-roles.md`).**
 - A **PO box** does the full Stage 0: triage, route, file/shape the changelog item, mark it ready.
 - A **worker box** does not triage — it *picks up* an item the PO marked ready (work-ready state,
-  `project-details.md#CL-6`). On pickup the worker FIRST verifies the **Definition of Ready**
-  (`definition-of-done.md`):
-  - DoR fails → surface the gap back (`[NEEDS-PO]`/`[BLOCKED]` per `changelog-conventions.md`,
-    transition to PO-attention state `project-details.md#CL-7`) and do **not** start.
-  - DoR holds → read the Triage record's route and load its next active stage.
+  `project-details.md#CL-6`) and FIRST verifies the **Definition of Ready** (`definition-of-done.md`):
+  - DoR fails → surface the gap (`[NEEDS-PO]`/`[BLOCKED]` per `changelog-conventions.md`, transition to
+    PO-attention state `project-details.md#CL-7`) and do **not** start.
+  - DoR holds → load the Triage record's next active stage.
 
 ## Is it an item yet?
 
-- Input is a raw request (a sentence, a thread, a bug report, a PRD) rather than a changelog item → run
-  **`intake.md`** first — classify the input, split to one goal, run the numbered-question loop and the
-  domain screen, write the item, record the readiness verdict.
+- A raw request (a sentence, a thread, a bug report, a PRD), not a changelog item → run **`intake.md`**
+  first: classify, split to one goal, run the numbered-question loop and the domain screen, write the
+  item, record the readiness verdict.
 - Triage right-sizes an **item**.
 
 ## Right-size it: three questions
@@ -40,8 +39,8 @@ Ask in order. **Q0 confirms one goal; Q1 sets rigor; Q2 sets whether to parallel
 
 | | one coupled unit | independent slices |
 |---|---|---|
-| **low-risk** | **Mechanical** — just do it, single context `0→3→4→4b→7`; no QA/Engineer split | **Parallel dispatch** — fan out worktree workers (mechanical each); coordinator owns the merge-train |
-| **high-risk** | **Persona loop** — full `0–7`: QA writes tests blind to the code, Engineer can't edit them, fresh Validation reviews | **Parallel + persona loop per lane** — pin the shared contract first, then a persona loop in each lane |
+| **low-risk** | **Mechanical** — single context `0→3→4→4b→7`; no QA/Engineer split | **Parallel dispatch** — worktree workers (mechanical each); coordinator owns the merge-train |
+| **high-risk** | **Persona loop** — full `0–7`: QA writes tests blind to the code, Engineer can't edit them, fresh Validation reviews | **Parallel + persona loop per lane** — pin the shared contract first, then a persona loop per lane |
 
 Worked examples:
 - Rename a config key across the repo → low-risk, coupled → **Mechanical.**
@@ -50,7 +49,7 @@ Worked examples:
 - A feature spanning frontend + backend → high-risk, independent → **contract-first, persona loop per lane.**
 
 - Conservative default: **touches >1 seam (`project-details.md#SEAM-N`) → at least the persona bar.**
-- Check `project-details.md#RS-N` for project escalations (e.g. "money path → always persona").
+- Project escalations: `project-details.md#RS-N` (e.g. "money path → always persona").
 - When in doubt, round up.
 
 ## Greenfield or brownfield? (does the spec already exist here?)
@@ -60,18 +59,18 @@ Worked examples:
 - **No → brownfield** (`greenfield-vs-brownfield.md`) — Stage 3 (PO box) reconstructs the spec for the
   touched **slice**, or the gap is **surfaced** (`[NEEDS-PO]`), never inferred from code. Record the
   area in the unspecified-surface register; a brownfield unit is **not Ready** until its slice is
-  specified. Stance is per-unit — can differ across units in the same repo.
+  specified. Stance is per-unit.
 
 ## Do
 
 1. Classify: state the 2×2 cell AND the greenfield/brownfield stance explicitly.
 2. If decomposable: cut the slices; name the shared contract to pin first in Stage 3; cap parallel
    workers at ~3–4.
-3. Open/find the changelog item per the changelog binding (`project-details.md#CL-N`): Jira issue
-   (Mode A) or on-disk `backlog/CL-####.md` (Mode B). Record the chosen route + ceremony on it.
-4. Write the **Triage record** (the output stages 1–7 read), naming:
+3. Open/find the changelog item per the binding (`project-details.md#CL-N`): Jira issue (Mode A) or
+   on-disk `backlog/CL-####.md` (Mode B). Record the route + ceremony on it.
+4. Write the **Triage record** (what stages 1–7 read), naming:
    - the active stages (mechanical activates `0/3/4/4b/7`; persona activates all),
-   - the target **spec shard IDs / clause-ID ranges** this work touches (seed of the Stage-3 shard manifest).
+   - the target **spec shard IDs / clause-ID ranges** (seed of the Stage-3 shard manifest).
 
 ## Exit criteria
 

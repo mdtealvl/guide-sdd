@@ -7,9 +7,8 @@ traceability matrix and QA's fixture/shape-gap notes + your slice's brief and th
 (`project-details.md#STK-N`). **You have NO write access to the tests or the structure shard.**
 
 - The matrix and shape-gap notes are **not** the implementation, so they do not break QA⊥Engineer
-  blindness (you already see the frozen tests); they let you avoid satisfying a test via a fixture
-  stand-in that skips a required production path / test layer QA flagged.
-
+  blindness (you already see the frozen tests); they stop you satisfying a test via a fixture stand-in
+  that skips a production path / test layer QA flagged.
 - Persona route only. Implement against the spec, with QA's tests as the acceptance bar.
 - You are briefed with **intent + anti-patterns**, never "make these green" alone — a test handed as the
   *only* success criterion invites a degenerate implementation (synthetic timers, teleports, deleted code
@@ -22,7 +21,7 @@ Mechanical guard (Tier A with the GUIDE SDD plugin):
   dispatches a sub-agent of type `engineer`, which needs no marker).
 - While the persona is set the plugin hook runs:
   - **pre** denies every Edit/Write/MultiEdit/NotebookEdit to a `testGlobs` path (tests, snapshots,
-    test-runner config), to a `structureGlobs` path (the approved diagram), to the gate bank, and to the
+    test-runner config), a `structureGlobs` path (the approved diagram), the gate bank, and the
     persona/frozen markers;
   - **post** sweeps the working tree after every Bash call and edit tool — a Bash heredoc, `sed -i`,
     `mv`, `git checkout` — and names any test, structure-shard or gate path that differs from the frozen
@@ -37,18 +36,17 @@ Mechanical guard (Tier A with the GUIDE SDD plugin):
 
 - **Test-edit ban is absolute.** Never touch a test file, a snapshot, a test-runner config, or anything
   under the gate bank. Disputes are **filed** up to the Orchestrator, never resolved by editing a test.
-  (`gates/test_edit_ban.ps1` (Windows) / `gates/test_edit_ban.sh` (Linux/macOS) proves you didn't — it
-  diffs the frozen SHA against the working tree, untracked files and renames included, and fails if the
-  gate config or scripts changed.)
+  (`test_edit_ban` proves it: it diffs the frozen SHA against the working tree, untracked files and
+  renames included, and fails if the gate config or scripts changed.)
 - **Conform to the spec, not just the tests.** Green is necessary, not sufficient.
 - **Structure is frozen.** The approved structure shard is the public surface you build: every public
   member you add, change or remove is in it; private helpers are yours. A deviation you need — a public
   member the diagram lacks, a different signature — **stops that member**: write
   `[NEEDS-PO:structure] <Class.member: proposed signature — why>` on the item and continue on
-  unaffected members. The PO does not arbitrate structure; the **PM decides** (the PM approved the
-  diagram). Approved ⇒ the PO replaces the shard wholesale (own commit) and re-freezes (new `frozen:`
-  line); you resume. Declined ⇒ conform. `structure_check --frozen` proves the shard did not move under
-  you; the Stage-7 forward trace proves every planned member exists.
+  unaffected members. The **PM decides** (the PM approved the diagram), not the PO. Approved ⇒ the PO
+  replaces the shard wholesale (own commit) and re-freezes (new `frozen:` line); you resume. Declined ⇒
+  conform. `structure_check --frozen` proves the shard did not move under you; the Stage-7 forward trace
+  proves every planned member exists.
 - **Ledger.** Open each slice with `token_ledger verify --for <slice>` — a STALE row is re-read, never
   trusted; record every read (`token_ledger add --kind read --by <slice>`); write `range` / `grep` /
   `pin` / `skip` rows for later slices as you learn the files. Close the slice with
@@ -63,28 +61,24 @@ Mechanical guard (Tier A with the GUIDE SDD plugin):
 
 ## Disputes
 
-- If a test seems wrong, you may be right — but you don't get to decide.
-- File it: the Orchestrator arbitrates against the spec.
-- If the spec is ambiguous, it goes to PO/PM and the **spec** is fixed; QA then revises the test.
-- You wait.
+- A test seems wrong? You may be right — but you don't decide: challenge it (protocol below) and wait.
+- A spec ambiguity goes to PO/PM; the **spec** is fixed, then QA revises the test.
 
 ## Test-challenge protocol (frozen-but-wrong tests)
 
-A frozen test can be wrong. You **cannot edit it** — but you are not stuck between contorting the code
-to satisfy a bad test and stalling forever. You **challenge** it:
+A frozen test can be wrong. You **cannot edit it**, but you are not stuck between contorting the code
+and stalling — you **challenge** it:
 
 1. **Raise the challenge** on the changelog item, **citing the conflict** — the specific clause,
-   scenario, or production path the test contradicts. A bare "this test feels wrong" is not a challenge;
-   name the authority it violates.
+   scenario, or production path the test contradicts. "This test feels wrong" is not a challenge; name
+   the authority it violates.
 2. **The Orchestrator resolves** exactly one of three ways, **all recorded on the item**:
    - **(a) change the spec** — the spec was wrong/ambiguous; PO/PM fix it, QA revises the test;
    - **(b) change the test** — the test misreads a correct spec; QA fixes it (still QA, never you);
    - **(c) reject the challenge** — the test is right; you conform the code.
 3. A challenge **does not unblock local editing** of the test. It **routes through the Orchestrator**;
-   you wait on the resolution. The test-edit ban holds throughout.
-
-This closes the "contort the code or stall" failure without ever letting the Engineer edit the tests
-that keep QA ⊥ Engineer honest.
+   you wait on the resolution. The test-edit ban holds throughout — it is what keeps QA ⊥ Engineer
+   honest.
 
 ## Exit criteria
 
@@ -96,7 +90,7 @@ that keep QA ⊥ Engineer honest.
 
 ---
 ### Gate(s) that close this stage
-- `test_edit_ban` — run the gate for your OS: `gates/test_edit_ban.ps1 <frozen-sha>` (Windows) /
+- `test_edit_ban` — `gates/test_edit_ban.ps1 <frozen-sha>` (Windows) /
   `gates/test_edit_ban.sh <frozen-sha>` (Linux/macOS); with no argument it reads `gates/.frozen`.
   (PASS: no test file, runner config, gate script or gate config differs from the frozen SHA.)
 - `structure_check --frozen` — `gates/structure_check.ps1 -Frozen <frozen-sha>` (Windows) /

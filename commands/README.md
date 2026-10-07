@@ -1,13 +1,10 @@
 # SDD session / context-lifecycle commands
 
 > Bundled capability, **not spine**.
-> - SDD's spine governs the **item** lifecycle (Ready → Done); these govern the **session/context**
->   lifecycle — the ritual that gets durable state out of a volatile agent context before it is cleared,
->   so the next boot loses nothing.
-> - Origin: the 4x project's session practice (2026-07-14).
-> - The spine module (`session-lifecycle.md`), the DoD lane-reconciliation item and INIT memory seeding
->   were ratified in v1.7 (`SDD-PROP-01/03/05`); these files are the Tier-A implementation of that
->   module, and the plugin ships them as skills.
+> - These are the Tier-A implementation of the spine module `session-lifecycle.md` (the **session/context**
+>   lifecycle, beside the spine's **item** lifecycle); the plugin ships them as skills.
+> - Origin: the 4x project's session practice (2026-07-14); the module, the DoD lane-reconciliation item
+>   and INIT memory seeding were ratified in v1.7 (`SDD-PROP-01/03/05`).
 
 ## The three commands
 
@@ -19,19 +16,17 @@
 
 ## Capability tier (`host-adapter.md`)
 
-- **Tier A — Claude Code (and any host with native slash-commands).** These are the **native
-  implementation.** Install: copy `commands/*.md` into the target repo's `.claude/commands/`. Then
-  `/wrap`, `/stash <name>`, `/unstash <name>` are live. (For a Copilot/Cursor host, place the same
-  bodies under that host's prompt/command dir — `.github/prompts/` / `.cursor/commands/`.)
-- **Tier B / C — no slash-commands.** The commands are just a **named, ordered ritual.** Run the same
-  steps by hand: at an unambiguous session close, execute the `/wrap` list in order; to switch tasks
-  mid-flight, perform the `/stash` freeze into a pack file; to resume, perform `/unstash`. The
-  discipline is what matters, not the slash sugar — the bodies here are the procedure.
+- **Tier A — Claude Code (and any host with native slash-commands).** Copy `commands/*.md` into the
+  target repo's `.claude/commands/`; `/wrap`, `/stash <name>`, `/unstash <name>` are then live. (Copilot /
+  Cursor: the same bodies under `.github/prompts/` / `.cursor/commands/`.)
+- **Tier B / C — no slash-commands.** Run the same ordered steps by hand: the `/wrap` list at an
+  unambiguous session close, the `/stash` freeze to switch tasks, `/unstash` to resume. The bodies here
+  are the procedure.
 
 ## The project memory directory (convention these assume)
 
 - The commands read/write a per-project **memory directory** (path bound in `project-details.md#CL-`,
-  Mode-A/B aware). Expected layout:
+  Mode-A/B aware; seeded at INIT). Expected layout:
 
 ```
 <memory-dir>/
@@ -42,17 +37,14 @@
   memory/           # banked trap memories (+ memory/archive.md for pruned entries)
 ```
 
-- **Seeding this at bootstrap** is proposed as an INIT step (`SDD-PROP-05`) so each project stops
-  rediscovering the convention.
 - Per-project **contents** stay local by design — the *practice* of banking traps ports; the specific
   traps do not.
 
 ## Why these belong with SDD
 
 - `/wrap` step 1 (**agent-lane reconciliation** — every dispatched lane gets a LANDED(hash)-or-DIED
-  verdict before a boundary) is the session-level form of SDD's "trust artifacts, not narratives":
-  *an agent's existence is not evidence its work landed.*
-- That rule cost the origin project two lost fixes before it was learned, and is proposed as a DoD
-  item (`SDD-PROP-03`).
+  verdict before a boundary) is the session-level form of "trust artifacts, not narratives":
+  *an agent's existence is not evidence its work landed.* It cost the origin project two lost fixes
+  before it was learned; it is now a DoD item.
 - The HANDOFF-overwrite rule and stash/unstash semantics are the session-lifecycle counterpart to the
   spec's canonical-vs-transient split.

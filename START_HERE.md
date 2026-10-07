@@ -6,21 +6,20 @@ You just unzipped **GUIDE SDD** — Gated, Unified, Intent-Driven Engineering, a
 
 Do exactly this, nothing else, until setup is green:
 
-1. Read `project-config/INIT.md` — the setup runbook. Execute it top to bottom. If `sdd/.sdd-manifest.json`
+1. Read `project-config/INIT.md` — the setup runbook — and execute it top to bottom. If `sdd/.sdd-manifest.json`
    exists, the installer already did the copying (INIT §0, §1 carriers, §2c commands, §5 config seed) — start at §1a.
 2. At each **ASK**, ask the human and wait: changelog mode, greenfield vs brownfield, spec format.
 3. Wire the always-loaded core into the agent carrier (`AGENTS.md`; `CLAUDE.md` routes to it, Copilot via a shim — `host-adapter.md`), set this box's role, instantiate project details + gate config.
-4. Run the gate smoke test **for this OS** — PowerShell (`.ps1`) on Windows, Bash (`.sh`) on Linux/macOS. See `gates/README.md`. No Python.
+4. Run the gate smoke test **for this OS** — PowerShell (`.ps1`) on Windows, Bash (`.sh`) on Linux/macOS (`gates/README.md`). No Python.
 5. Stop and report when the smoke test is green. **Do not build features during setup.**
 
-After setup, every unit of work flows through `PROCESS.md` §0 (the stage router): load only your
-current stage, never the whole framework. Before touching code in an existing repo, check
-`greenfield-vs-brownfield.md` — if the area has no spec, flag the gap, do not guess.
+After setup, every unit of work flows through `PROCESS.md` §0 (the stage router). In an existing repo,
+check `greenfield-vs-brownfield.md` first — if the area has no spec, flag the gap, do not guess.
 
 ## If you are a human
 
 - **What it is:** a reusable, token-efficient, spec-first method for projects worked by humans *and* AI agents. The spec is the source of truth; code conforms; a 2×2 right-sizes each task; risky work is split across independent agents so a misread can't ship.
-- **5-minute tour:** open `welcome.html` in a browser, or the hosted copy at <https://mdtealvl.github.io/guide-sdd/>.
+- **5-minute tour:** `welcome.html`, or the hosted copy at <https://mdtealvl.github.io/guide-sdd/>.
 - **Adopt it:** walk `project-config/INIT.md` (≈20 min).
 
 ## Map

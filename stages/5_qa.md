@@ -14,9 +14,9 @@ half only; the rest is on you.
 
 - Persona route only.
 - Implement tests for the matrix's scenarios, deriving every expected value (the oracle) from the
-  **spec** — not from the matrix and never from the code.
-- You do not author the coverage map (the PO did, in Stage 4) and you never see the implementation.
-- If you want to peek at the code to learn an expected value, stop: that value must come from the spec.
+  **spec** — not from the matrix and never from the code. You do not author the coverage map (the PO
+  did, in Stage 4).
+- Tempted to peek at the code for an expected value? Stop: that value must come from the spec.
 
 ## Rules
 
@@ -42,12 +42,12 @@ half only; the rest is on you.
   A **`blocking`** gap is **surfaced, not shipped** (it cannot pass DoD — `definition-of-done.md`).
 - **Wire-canary for seam-reached behaviour.** Where a clause's behaviour is reachable only through a
   production wiring seam (dispatch table, DI registration, a feature/behaviour-arm selection), write a
-  **canary**: a test that exercises the real wired path and **fails if the wiring is bypassed or dead**.
-  Watch the **representative-default dead-wire trap** — a convenience overload that *defaults a
-  behaviour-arm parameter* leaves every arm dead in production while arm-explicit tests stay green. It is
-  grep-able: check the callers of the arm-taking API; if **no** production caller passes the arm
-  explicitly, the arm is dead — surface it as a spec/impl defect (the mechanical form is a gate recipe,
-  `gates/README.md`). A DoD item (`definition-of-done.md`).
+  **canary** that exercises the real wired path and **fails if the wiring is bypassed or dead** (a DoD
+  item, `definition-of-done.md`). Watch the **representative-default dead-wire trap**: a convenience
+  overload that *defaults a behaviour-arm parameter* leaves every arm dead in production while
+  arm-explicit tests stay green. Grep the callers of the arm-taking API; if **no** production caller
+  passes the arm explicitly, the arm is dead — surface it as a spec/impl defect (gate recipe:
+  `gates/README.md`).
 - **No code in test files.** A QA test must not import production internals beyond the contracted
   surface — it tests through the same API a caller has. The `qa_import_ban` gate
   (`gates/qa_import_ban.ps1` (Windows) / `gates/qa_import_ban.sh` (Linux/macOS), `gates/README.md`)
@@ -64,10 +64,10 @@ half only; the rest is on you.
 
 ## Ambiguity = spec bug (orchestrator-mediated)
 
-- You and the Engineer never resolve a spec ambiguity between yourselves.
-- An ambiguity is a **spec bug**: file it up to the Orchestrator.
-- The PO patches it if the answer is obvious from existing convention; the PM decides if it isn't.
-- The resolution flows back and the spec is fixed **before code is written.**
+- You and the Engineer never resolve a spec ambiguity between yourselves: it is a **spec bug**, filed
+  up to the Orchestrator.
+- The PO patches it if the answer is obvious from existing convention; else the PM decides. The spec is
+  fixed **before code is written.**
 - Your blindness is what surfaces these — QA doubling as a spec-quality check.
 
 ## Behaviour-preservation variant (refactors)
@@ -88,7 +88,7 @@ ban holds for the Engineer regardless.
 
 ---
 ### Gate(s) that close this stage
-- `coverage_check` — run the gate for your OS: `gates/coverage_check.ps1` (Windows) /
+- `coverage_check` — `gates/coverage_check.ps1` (Windows) /
   `gates/coverage_check.sh` (Linux/macOS). (PASS: every clause-ID → ≥1 test-ID; tags in notes do not
   count; skip/only markers are named.)
 - Suite is RED-as-expected and tests compile (Orchestrator re-runs to confirm).
