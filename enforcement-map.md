@@ -12,7 +12,7 @@ Commands and flags: `gates/README.md`; stage rules: `stages/`.
 |---|---|---|---|
 | **Gate** | `gates/*.ps1` + `*.sh` | Exit-code check over the project tree. One flat config (`gates.config.json`), ps1/sh twins with identical output; closes a stage; runs in the target repo's CI (`ci/target-ci.template.yml`). | The claim is a **structural fact about the project tree** that must hold at a stage boundary, on every box and OS, re-runnable by CI. |
 | **Gate helper** | `gates/freeze.*`, `gates/token_ledger.*`, `gates/run_all.*` | Same family, but records state or orchestrates gates instead of judging the tree. | A gate needs an input recorded at a known moment (the frozen SHA, a read ledger), or gates must run as one fail-fast bank. |
-| **Hook** | `plugin/hooks/persona-guard.sh`; `update-check.sh` (Claude Code plugin) | persona-guard: a write-time tripwire around each agent tool call. update-check: a SessionStart notifier that never blocks. | Stopping a mistake **as it happens** is worth a lot, but proof can wait for a gate. A hook is never the proof: it exists only on Tier A hosts with the plugin. |
+| **Hook** | `plugin/hooks/persona-guard.sh`; `static-feedback.sh`; `update-check.sh` (Claude Code plugin) | persona-guard: a write-time tripwire around each agent tool call. static-feedback: lint findings on the file just written, handed back at once. update-check: a SessionStart notifier that never blocks. | Stopping a mistake **as it happens** is worth a lot, but proof can wait for a gate. A hook is never the proof: it exists only on Tier A hosts with the plugin. |
 | **Script** | `install.*`, `ci/*`, inline workflow steps | Operates on the **framework or the install**, not a project's work. | The subject is the spine itself (version stamps, twin parity, installer copies, manifest drift), or the check compares two files / runs the gates against fixtures. A gate cannot test the gates. |
 | **Human / Validation** | PM approvals, fresh Validation (Stage 7) | Judgement against spec and intent. | The question is "is this right?", not "is this present?". **Gates certify bookkeeping and traceability, never correctness.** |
 
@@ -91,14 +91,17 @@ Green boxes close on a gate; amber boxes close on a recorded human decision.
 | `engineer` persona edit guard — no edits to tests, the structure diagram, the gate bank or markers; tree swept after each Bash call and edit tool, and at turn end | Hook | Catches the edit as it happens, so the Engineer reverts before building on it. Only a tripwire: Tier B/C hosts have no hook. |
 | `test_edit_ban <frozen-sha>` — no test, runner config, gate script or gate config differs from the frozen SHA (working tree, untracked, renames) | Gate | **The proof** of QA ⊥ Engineer, on every tier: it reads git, not the agent. |
 | `structure_check --frozen` — the approved diagram did not move | Gate | As the edit ban, for the structure shard. A deviation is `[NEEDS-PO:structure]`, never an edit. |
+| Per-edit lint feedback — `staticCheck.fileCmd` on each file the agent writes, findings returned at once | Hook | The fastest loop: the agent fixes a finding while the file is in context. Never the proof; `static_check` is. |
+| `static_check` — `checkCmd` passes, or findings stay at or under the ratchet baseline | Gate | Static analysis catches what no test was written for. Unset `checkCmd` is exit 2; `"none"` is an opt-out on the record. |
 | `suite_green` — `suiteCmd` exits 0 | Gate | The suite is the project's own oracle. An unset `suiteCmd` is exit 2, never a skip. |
 
 ### Stage 7 — Ship and fold
 
 | Check | Kind | Why this kind |
 |---|---|---|
-| `run_all --pre-fold` — link → prose → coverage → test_edit_ban\* → structure → suite → constitution_lint† → seam_conformance† → qa_import_ban† (fold_check skipped) | Gate helper running gates | One fail-fast bank, so nothing is forgotten. \*Persona route only. †Only when the project copied the template and wrote rules. |
-| `constitution_lint` / `seam_conformance` — the project's own principles and seams | Gate (project rules) | Project rules as regex rows over the tree: one engine, no per-project script edits. |
+| `run_all --pre-fold` — link → prose → coverage → test_edit_ban\* → structure → static → suite → constitution_lint† → seam_conformance† → qa_import_ban† → mutation‡ (fold_check skipped) | Gate helper running gates | One fail-fast bank, so nothing is forgotten. \*Persona route only. †Only when the project copied the template and wrote rules. ‡Only when `mutation.cmd` is set. |
+| `constitution_lint` / `seam_conformance` — the project's own principles and seams | Gate (project rules) | Project rules as rows: regex over the tree, or `kind: command` to run a real architecture checker. One engine, no per-project script edits. |
+| `mutation_check` — the suite kills enough planted faults (optional) | Gate | Red-first proves tests fail without code, not that they catch wrong code. Survivors in changed code are Validation findings, class `test`, routed to QA. |
 | Fresh Validation — four lenses, one verdict, against the full diff, spec, structure shard and constitution | Human / Validation | **Green is necessary, not sufficient.** A context that did not build the thing checks intent. |
 | Classify and route Validation's findings (spec / code / test / ...), decline cap 3 | Human (Orchestrator) | Which layer is wrong is judgement; the routing table makes it repeatable. |
 | Fold, then authoritative `run_all` (post-fold) — adds `fold_check`: every changed clause carries a resolving provenance pin; suite re-run | Gate | Pins are text that must resolve, and exist only after the fold — hence two passes. |

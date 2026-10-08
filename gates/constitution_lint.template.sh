@@ -10,6 +10,7 @@
 #   must_not_match  : NO file in `paths` matches `pattern`                       (else FAIL)
 #   file_exists     : at least one file matches the `paths` glob                 (else FAIL)
 #   pair_requires   : every file matching `pattern` ALSO matches `expect`        (else FAIL)
+#   command         : `cmd` exits 0, run from the project root (no paths/pattern) (else FAIL)
 #
 # Rule shape (a row in gates.config.json -> constitutionRules[]):
 #   { "id": "no-hardcoded-ui", "kind": "must_not_match",

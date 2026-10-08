@@ -160,12 +160,13 @@
 <header class="hero">
   <div class="bgblob"></div>
   <div class="wrap">
-    <span class="pill"><span class="dot"></span> v1.15.1 · a dogfooded spec · for humans <b style="color:var(--ink)">&amp;</b> AI agents</span>
+    <span class="pill"><span class="dot"></span> v1.16.0 · a dogfooded spec · for humans <b style="color:var(--ink)">&amp;</b> AI agents</span>
     <h1>GUIDE<br><span class="grad">SDD</span></h1>
     <p class="tag">The spec is the prompt. The code <b>conforms</b>. One copyable method that drops into any project and makes <b>intent drift</b> very hard to ship — token-efficient, persona-split, gated end to end.</p>
     <div class="cta">
       <a class="btn go" href="#start">Get started <span style="opacity:.6">↓</span></a>
       <a class="btn" href="#flow">See the loop</a>
+      <a class="btn" href="flow.html">Animated flow map</a>
       <a class="btn" href="README.md">Read the docs</a>
     </div>
   </div>
@@ -187,7 +188,7 @@
   <div class="wrap">
     <p class="kquote">spec-first, action-second</p>
     <h2>The loop, gated end to end</h2>
-    <p class="lead">Eight small stages. Each one is loaded on its own, does its work, passes a gate, and hands back. You never hold the whole thing in your head at once.</p>
+    <p class="lead">Eight small stages. Each one is loaded on its own, does its work, passes a gate, and hands back. You never hold the whole thing in your head at once. <a href="flow.html" style="color:var(--teal)">Watch it run for every configuration &rarr;</a></p>
     <div class="flow">
       <div class="stage ph-spec" data-st="0"><div class="bar"></div><div class="s">stage 0</div><div class="t">Triage</div><div class="gate">right-size · 2×2</div></div>
       <div class="stage ph-spec" data-st="1"><div class="bar"></div><div class="s">stage 1–2</div><div class="t">Design + recon</div><div class="gate">PM approves</div></div>
@@ -195,7 +196,7 @@
       <div class="stage ph-test" data-st="3"><div class="bar"></div><div class="s">stage 4</div><div class="t">Test plan</div><div class="gate">coverage_check</div></div>
       <div class="stage ph-test" data-st="4"><div class="bar"></div><div class="s">stage 4b</div><div class="t">Build plan</div><div class="gate">read ledger · tokens</div></div>
       <div class="stage ph-test" data-st="5"><div class="bar"></div><div class="s">stage 5</div><div class="t">QA · spec-only</div><div class="gate">red, frozen</div></div>
-      <div class="stage ph-test" data-st="6"><div class="bar"></div><div class="s">stage 6</div><div class="t">Engineer</div><div class="gate">test_edit_ban</div></div>
+      <div class="stage ph-test" data-st="6"><div class="bar"></div><div class="s">stage 6</div><div class="t">Engineer</div><div class="gate">test_edit_ban · static_check</div></div>
       <div class="stage ph-ship" data-st="7"><div class="bar"></div><div class="s">stage 7</div><div class="t">Gates + ship</div><div class="gate">run_all · validate</div></div>
       <div class="stage ph-ship" data-st="8"><div class="bar"></div><div class="s">on done</div><div class="t">Fold + pin</div><div class="gate">spec = fold(ships)</div></div>
     </div>
@@ -315,7 +316,7 @@ Do not continue ad-hoc work. If unsure of your stage, you are in Stage 0.</pre>
           <tr><th>Brownfield</th><td class="sdd"><b>Discover Spec</b> (reconstruct + coverage/mutation)</td><td>Analyst flows</td><td>Greenfield-leaning</td><td>TDD on existing code</td></tr>
           <tr><th>Platform</th><td class="sdd">Cross-agent via <code>AGENTS.md</code> (Claude / Codex / Cursor / Gemini / Copilot); <b>PowerShell + Bash</b> gates; Claude Code plugin</td><td>Any IDE/model, <b>domain-agnostic</b></td><td>CLI + many agent hosts</td><td>Claude Code + harnesses (plugin)</td></tr>
           <tr><th>Install / adopt</th><td class="sdd"><b>Installer pair</b> (<code>install.ps1</code> / <code>install.sh</code>: install · update · doctor, manifest-tracked), <b>Claude Code plugin</b> (<code>/plugin install guide-sdd@guide-sdd</code>), or unzip + runbook → INIT (3 questions) → gate smoke test. <b>No toolchain.</b></td><td><code>npx bmad-method install</code></td><td><code>uvx … specify init</code></td><td><code>/plugin install superpowers</code></td></tr>
-          <tr><th>Maturity</th><td class="sdd">v1.15.1 · GitHub repo, CI on Windows + Ubuntu with negative controls, release-on-tag, dogfooded on 3 projects</td><td>52.6k★, v6.11 skills-based, large community</td><td>Official GitHub, growing</td><td>Dominant skills framework</td></tr>
+          <tr><th>Maturity</th><td class="sdd">v1.16.0 · GitHub repo, CI on Windows + Ubuntu with negative controls, release-on-tag, dogfooded on 3 projects</td><td>52.6k★, v6.11 skills-based, large community</td><td>Official GitHub, growing</td><td>Dominant skills framework</td></tr>
         </tbody>
       </table>
     </div>
@@ -346,7 +347,7 @@ Do not continue ad-hoc work. If unsure of your stage, you are in Stage 0.</pre>
 </section>
 
 <footer>
-  <b>GUIDE SDD v1.15.1</b> — merged from Mistwright &amp; Polars + SOTA · the spec is boss · trust artifacts, not narratives
+  <b>GUIDE SDD v1.16.0</b> — merged from Mistwright &amp; Polars + SOTA · the spec is boss · trust artifacts, not narratives
 </footer>
 
 <script>
@@ -364,8 +365,8 @@ Do not continue ad-hoc work. If unsure of your stage, you are in Stage 0.</pre>
     {l:"stage 4 · test phase",t:"Test plan",c:"#39d3b0",g:"coverage_check",d:`Every behavioural clause maps to at least one numbered scenario across the four test layers — unit, integration, lifecycle, visual — or "N/A, with a reason." Authored by the PO, so the coverage map stays independent of whoever writes the tests. coverage_check verifies it before a single test exists.`},
     {l:"stage 4b · test phase",t:"Build plan",c:"#39d3b0",g:"structure_check --plan · token_ledger",d:`After the spec and its member-level structure diagram are approved: map the diagram's classes to files, cut the work into slices, and write the read ledger — which lines, anchors and pasted signatures each later context needs, and which files it must not open. Hash-guarded, audience-filtered so QA stays blind. token_ledger reports admitted vs saved tokens per slice and per plan, so the token economy is measured on the item, not asserted.`},
     {l:"stage 5 · test phase",t:"QA · spec-only",c:"#39d3b0",g:"red, then frozen",d:`QA writes the tests from the spec alone — never seeing the implementation. Expected values come from the spec (the oracle rule), never captured from the code under test. The tests compile, run red, and are then frozen. That blindness is the independence.`},
-    {l:"stage 6 · test phase",t:"Engineer",c:"#39d3b0",g:"test_edit_ban",d:`Implements against the frozen tests and the spec — and cannot edit the tests. A disagreement is filed to the Orchestrator, never resolved by bending a test. Uses the project's named seams and conforms to the spec, not just "make it green."`},
-    {l:"stage 7 · ship phase",t:"Gates + ship",c:"#f2b34b",g:"run_all · validate",d:`Mechanical gates run first — link, coverage, test-edit-ban, the full suite — then a fresh-context Validation reviews the diff against the spec and the constitution, because green is necessary but not sufficient. The Orchestrator owns the single serialized merge to trunk.`},
+    {l:"stage 6 · test phase",t:"Engineer",c:"#39d3b0",g:"test_edit_ban · static_check",d:`Implements against the frozen tests and the spec — and cannot edit the tests. A disagreement is filed to the Orchestrator, never resolved by bending a test. Uses the project's named seams and conforms to the spec, not just "make it green."`},
+    {l:"stage 7 · ship phase",t:"Gates + ship",c:"#f2b34b",g:"run_all · validate",d:`Mechanical gates run first — link, coverage, test-edit-ban, static analysis (lint, types, format), the full suite, and mutation testing when configured — then a fresh-context Validation reviews the diff against the spec and the constitution, because green is necessary but not sufficient. The Orchestrator owns the single serialized merge to trunk.`},
     {l:"on done · ship phase",t:"Fold + pin",c:"#f2b34b",g:"spec = fold(ships)",d:`On Done, the transient working-spec folds into the canonical spec with a provenance pin — (§X per ticket, date) — the spec is recompiled and the old draft archived, never deleted. This keeps "spec = fold(all shipped work)" true at ship time, not as a query you run later.`}
   ];
   const cards=[...document.querySelectorAll('.stage[data-st]')];

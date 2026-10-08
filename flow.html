@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Animated schematic of how a changelog item flows through GUIDE SDD, for every out-of-the-box configuration.">
+<title>GUIDE SDD Flow Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: a control deck over one wide swimlane schematic (stages = columns, roles = lanes),
+   with the live narration, the gate bank and the permutation matrix underneath. Palette follows
+   GUIDE's landing page: violet = spec phase, teal = test phase, amber = ship phase. Dark-first. */
+:root {
+  --bg: #0c0e13; --panel: #12151c; --card: #181c26; --rule: #272c38; --rule2: #353b4a;
+  --ink: #e9ecf3; --mut: #9aa3b2; --dim: #5d6574;
+  --spec: #8b7bff; --test: #39d3b0; --ship: #f2b34b; --pm: #ff7eb6; --hook: #5aa9ff;
+  --pass: #39d3b0; --skip: #6b7383; --stop: #ff6b6b;
+  --spec-soft: rgba(139,123,255,.14); --test-soft: rgba(57,211,176,.13); --ship-soft: rgba(242,179,75,.14);
+  --hook-soft: rgba(90,169,255,.14); --region: rgba(255,255,255,.025); --region2: rgba(57,211,176,.06);
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #f4f5f8; --panel: #ffffff; --card: #eef0f5; --rule: #dde1e9; --rule2: #c9cfda;
+  --ink: #161a23; --mut: #4d5566; --dim: #8a92a2;
+  --spec: #5b47e0; --test: #0c8f72; --ship: #a86c06; --pm: #c43a7c; --hook: #2464c4;
+  --pass: #0c8f72; --skip: #8a92a2; --stop: #c9302c;
+  --spec-soft: rgba(91,71,224,.10); --test-soft: rgba(12,143,114,.10); --ship-soft: rgba(168,108,6,.11);
+  --hook-soft: rgba(36,100,196,.10); --region: rgba(22,26,35,.025); --region2: rgba(12,143,114,.07);
+  color-scheme: light;
+} }
+:root[data-theme="light"] {
+  --bg: #f4f5f8; --panel: #ffffff; --card: #eef0f5; --rule: #dde1e9; --rule2: #c9cfda;
+  --ink: #161a23; --mut: #4d5566; --dim: #8a92a2;
+  --spec: #5b47e0; --test: #0c8f72; --ship: #a86c06; --pm: #c43a7c; --hook: #2464c4;
+  --pass: #0c8f72; --skip: #8a92a2; --stop: #c9302c;
+  --spec-soft: rgba(91,71,224,.10); --test-soft: rgba(12,143,114,.10); --ship-soft: rgba(168,108,6,.11);
+  --hook-soft: rgba(36,100,196,.10); --region: rgba(22,26,35,.025); --region2: rgba(12,143,114,.07);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--sans); margin: 0; }
+.wrap { max-width: 1320px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 56px; display: grid; gap: 22px; }
+header { display: grid; gap: 6px; }
+.eyebrow { font: 500 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--mut); }
+h1 { font-size: clamp(24px, 3.2vw, 34px); line-height: 1.15; margin: 0; letter-spacing: -.02em; text-wrap: balance; }
+.lede { color: var(--mut); max-width: 72ch; margin: 0; }
+h2 { font-size: 13px; margin: 0 0 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--mut); font-weight: 600; }
+
+/* control deck */
+.deck { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; display: grid; gap: 14px; }
+.axes { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px 18px; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 6px; }
+legend { font: 500 11px/1.2 var(--mono); color: var(--mut); padding: 0; margin-bottom: 6px; letter-spacing: .04em; }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { font-size: 12.5px; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--rule2); color: var(--mut); cursor: pointer; user-select: none; white-space: nowrap; }
+.seg label:hover { color: var(--ink); border-color: var(--mut); }
+.seg input:checked + label { background: var(--ink); border-color: var(--ink); color: var(--bg); font-weight: 600; }
+.seg input:focus-visible + label { outline: 2px solid var(--hook); outline-offset: 2px; }
+.seg input:disabled + label { opacity: .4; cursor: not-allowed; }
+.note { font-size: 11.5px; color: var(--dim); min-height: 1em; }
+.transport { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border-top: 1px solid var(--rule); padding-top: 12px; }
+button.btn { font: 600 12.5px/1 var(--sans); color: var(--ink); background: var(--card); border: 1px solid var(--rule2); border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+button.btn:hover { border-color: var(--mut); }
+button.btn:focus-visible, select:focus-visible { outline: 2px solid var(--hook); outline-offset: 2px; }
+button.btn.primary { background: var(--ship); border-color: var(--ship); color: #14100a; }
+button.btn[aria-pressed="true"] { background: var(--hook-soft); border-color: var(--hook); color: var(--hook); }
+select { font: 500 12.5px var(--sans); color: var(--ink); background: var(--card); border: 1px solid var(--rule2); border-radius: 6px; padding: 6px 8px; }
+.cfgline { margin-left: auto; font: 12px var(--mono); color: var(--mut); font-variant-numeric: tabular-nums; }
+
+/* schematic */
+.board { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 6px 4px; }
+.scroll { overflow-x: auto; }
+svg.map { display: block; width: 100%; min-width: 1060px; height: auto; font-family: var(--sans); }
+.lane-band { fill: var(--region); }
+.lane-label { font: 600 11.5px var(--sans); fill: var(--ink); }
+.lane-sub { font: 10px var(--mono); fill: var(--mut); }
+.col-num { font: 600 11px var(--mono); fill: var(--mut); }
+.col-name { font: 600 11.5px var(--sans); fill: var(--ink); }
+.col-name.off, .col-num.off { fill: var(--dim); }
+.grid { stroke: var(--rule); stroke-width: 1; }
+.node rect { fill: var(--card); stroke: var(--rule2); stroke-width: 1.2; transition: fill .3s, stroke .3s, opacity .3s; }
+.node text { pointer-events: none; }
+.node .t { font: 600 11.5px var(--sans); fill: var(--ink); }
+.node .s { font: 9.5px var(--mono); fill: var(--mut); }
+.node.cond rect { stroke-dasharray: 4 3; }
+.node.off { opacity: .22; }
+.node.done rect { stroke: var(--ph); fill: var(--phs); }
+.node.active rect { stroke: var(--ph); stroke-width: 2.2; fill: var(--phs); }
+.ph-spec { --ph: var(--spec); --phs: var(--spec-soft); }
+.ph-test { --ph: var(--test); --phs: var(--test-soft); }
+.ph-ship { --ph: var(--ship); --phs: var(--ship-soft); }
+.pm-mark polygon { fill: var(--bg); stroke: var(--pm); stroke-width: 1.4; transition: fill .3s; }
+.pm-mark.done polygon { fill: var(--pm); }
+.pm-mark text { font: 9.5px var(--mono); fill: var(--pm); }
+.pm-mark.off { opacity: .2; }
+.pill rect { fill: var(--bg); stroke: var(--rule2); transition: fill .25s, stroke .25s; }
+.pill text { font: 9px var(--mono); fill: var(--mut); transition: fill .25s; }
+.pill.off { opacity: .25; }
+.pill.pass rect { fill: var(--test-soft); stroke: var(--pass); }
+.pill.pass text { fill: var(--pass); }
+.pill.hum rect { fill: transparent; stroke: var(--pm); }
+.pill.hum text { fill: var(--pm); }
+.pill.skipped rect { stroke-dasharray: 3 2; }
+.pill.skipped text { fill: var(--dim); }
+.wall { stroke: var(--stop); stroke-width: 1.2; stroke-dasharray: 2 4; opacity: .7; }
+.wall-label { font: 600 10px var(--mono); fill: var(--stop); }
+.region { fill: var(--region2); stroke: var(--test); stroke-width: 1; stroke-dasharray: 6 4; opacity: .9; }
+.region-label { font: 600 10.5px var(--mono); fill: var(--test); letter-spacing: .04em; }
+.po-label { font: 600 10.5px var(--mono); fill: var(--mut); letter-spacing: .04em; }
+.chip rect { fill: var(--hook-soft); stroke: var(--hook); stroke-width: 1; }
+.chip text { font: 9px var(--mono); fill: var(--hook); }
+.persona-tag { font: 9px var(--mono); fill: var(--mut); }
+.rail { stroke: var(--rule2); stroke-width: 2; }
+.ev circle { fill: var(--bg); stroke: var(--ink); stroke-width: 1.4; }
+.ev text { font: 9.5px var(--mono); fill: var(--ink); }
+.exit rect { fill: transparent; stroke: var(--stop); stroke-dasharray: 4 3; }
+.exit text { font: 600 10px var(--mono); fill: var(--stop); }
+.token circle.core { stroke: var(--bg); stroke-width: 2; }
+.token circle.halo { opacity: .25; }
+.flowline { fill: none; stroke: var(--rule2); stroke-width: 1.4; stroke-dasharray: 3 4; }
+
+/* below the board */
+.below { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; }
+@media (max-width: 860px) { .below { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; min-width: 0; }
+.now-stage { font: 600 11px var(--mono); color: var(--ship); letter-spacing: .08em; text-transform: uppercase; }
+.now-title { font-size: 18px; font-weight: 700; margin: 4px 0 6px; letter-spacing: -.01em; }
+.now-text { color: var(--ink); margin: 0; max-width: 68ch; }
+.log { list-style: none; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--rule); display: grid; gap: 6px; max-height: 210px; overflow: auto; }
+.log li { display: grid; grid-template-columns: 74px minmax(0,1fr); gap: 10px; font-size: 12.5px; color: var(--mut); }
+.log li b { font: 600 11px var(--mono); color: var(--ink); }
+table.bank { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.bank th { text-align: left; font: 600 10.5px var(--mono); color: var(--mut); letter-spacing: .06em; text-transform: uppercase; padding: 0 6px 8px 0; }
+.bank td { padding: 5px 6px 5px 0; border-top: 1px solid var(--rule); vertical-align: top; }
+.bank td:first-child { font: 500 12px var(--mono); white-space: nowrap; }
+.st { display: inline-block; font: 600 10.5px var(--mono); padding: 2px 7px; border-radius: 4px; border: 1px solid var(--rule2); color: var(--dim); white-space: nowrap; }
+.st.pass { color: var(--pass); border-color: var(--pass); background: var(--test-soft); }
+.st.skip { color: var(--mut); border-style: dashed; }
+.st.run { color: var(--ship); border-color: var(--ship); }
+.why { color: var(--dim); font-size: 11.5px; }
+.matrix-wrap { overflow-x: auto; }
+table.matrix { border-collapse: separate; border-spacing: 6px; width: 100%; min-width: 620px; }
+.matrix th { font: 600 11px var(--mono); color: var(--mut); text-align: left; padding: 2px 4px; }
+.matrix td { padding: 0; }
+.matrix button { width: 100%; height: 100%; min-height: 64px; text-align: left; display: grid; gap: 3px; align-content: start; font: 12px/1.35 var(--sans); color: var(--ink); background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 9px 10px; cursor: pointer; }
+.matrix button:hover { border-color: var(--mut); }
+.matrix button:focus-visible { outline: 2px solid var(--hook); outline-offset: 2px; }
+.matrix button.cur { border-color: var(--ship); box-shadow: inset 0 0 0 1px var(--ship); }
+.matrix button .k { font: 600 10px var(--mono); letter-spacing: .05em; }
+.matrix button .k.ok { color: var(--pass); } .matrix button .k.up { color: var(--stop); }
+.foot { color: var(--dim); font-size: 12px; }
+.foot code, .now-text code, .lede code { font: 12px var(--mono); color: var(--ink); }
+.home { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule2); }
+.home:hover { border-color: var(--ink); }
+.home:focus-visible { outline: 2px solid var(--hook); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow"><a class="home" href="welcome.html">GUIDE SDD</a> v1.16.0 &middot; flow schematic</div>
+    <h1>How work flows through GUIDE</h1>
+    <p class="lede">Pick a configuration and watch one changelog item travel from the PM's request to a merged ship-SHA. Columns are stages, rows are who holds the work, and the pills under each stage are the gates that close it.</p>
+  </header>
+
+  <section class="deck" aria-label="Configuration">
+    <div class="axes" id="axes"></div>
+    <div class="transport">
+      <button class="btn primary" id="play" type="button">Pause</button>
+      <button class="btn" id="step" type="button">Step</button>
+      <button class="btn" id="restart" type="button">Restart</button>
+      <label for="speed" class="eyebrow" style="margin-left:6px">Speed</label>
+      <select id="speed"><option value="0.5">0.5&times;</option><option value="1" selected>1&times;</option><option value="2">2&times;</option><option value="3">3&times;</option></select>
+      <button class="btn" id="tour" type="button" aria-pressed="false">Tour all 48 flow shapes</button>
+      <span class="cfgline" id="cfgline"></span>
+    </div>
+  </section>
+
+  <section class="board" aria-label="Flow schematic">
+    <div class="scroll"><svg class="map" id="map" viewBox="0 0 1240 660" role="img" aria-labelledby="mapTitle"><title id="mapTitle">GUIDE stage and gate schematic for the selected configuration</title></svg></div>
+  </section>
+
+  <div class="below">
+    <section class="card" aria-live="polite">
+      <div class="now-stage" id="nowStage">Stage</div>
+      <div class="now-title" id="nowTitle">Title</div>
+      <p class="now-text" id="nowText"></p>
+      <ol class="log" id="log" aria-label="Steps so far"></ol>
+    </section>
+    <section class="card">
+      <h2>Gate bank &middot; run_all</h2>
+      <table class="bank" id="bank"><thead><tr><th>Gate</th><th>Pre-fold</th><th>Post-fold</th></tr></thead><tbody></tbody></table>
+      <p class="foot" style="margin:10px 0 0">Fail-fast, in this order. Exit codes only, so the same bank runs locally and in CI, as <code>.ps1</code> or <code>.sh</code>.</p>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Permutation matrix &middot; route &times; host tier</h2>
+    <div class="matrix-wrap"><table class="matrix" id="matrix"></table></div>
+    <p class="foot" id="countline" style="margin:10px 0 0"></p>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var NS = "http://www.w3.org/2000/svg";
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---------- configuration ----------
+  var AXES = [
+    { k: "route", label: "Route (decided at Stage 0)", opts: [["mech", "Mechanical"], ["persona", "Persona loop"], ["par-mech", "Parallel"], ["par-persona", "Parallel + persona"]] },
+    { k: "tier", label: "Host tier", opts: [["A", "A · sub-agents"], ["B", "B · fresh sessions"], ["C", "C · one context"]] },
+    { k: "boxes", label: "Deployment", opts: [["solo", "Solo PO box"], ["split", "PO box + workers"]] },
+    { k: "area", label: "Spec coverage of the area", opts: [["green", "Greenfield"], ["brown", "Brownfield"]] },
+    { k: "mode", label: "Changelog mode", opts: [["A", "A · tracker (Jira)"], ["B", "B · backlog/ files"]] },
+    { k: "plugin", label: "Claude Code plugin hooks", opts: [["on", "On"], ["off", "Off"]] },
+    { k: "static", label: "checkCmd (static_check)", opts: [["tool", "Linter set"], ["none", "\"none\""]] },
+    { k: "mutation", label: "mutation.cmd", opts: [["on", "Configured"], ["off", "Unset"]] },
+    { k: "rules", label: "Project rule gates", opts: [["on", "Copied + rules"], ["off", "Not copied"]] }
+  ];
+  var cfg = { route: "persona", tier: "A", boxes: "solo", area: "green", mode: "B", plugin: "on", static: "tool", mutation: "on", rules: "on" };
+  var ROUTE_NAME = { "mech": "Mechanical", "persona": "Persona loop", "par-mech": "Parallel dispatch", "par-persona": "Parallel + persona loop" };
+
+  function isPersona(c) { return c.route === "persona" || c.route === "par-persona"; }
+  function isPar(c) { return c.route === "par-mech" || c.route === "par-persona"; }
+  function blocked(c) { return c.tier === "C" && isPersona(c); }
+  function hooks(c) { return c.plugin === "on" && c.tier === "A"; }
+
+  // ---------- geometry ----------
+  var COLS = ["in", "0", "1", "2", "3", "4", "4b", "5", "6", "7", "ship"];
+  var X = {}; COLS.forEach(function (c, i) { X[c] = 206 + i * 99; });
+  var Y = { pm: 84, orch: 166, qa: 248, eng: 330, val: 412 };
+  var GATE_TOP = 452, RAIL = 586;
+  var STAGE = {
+    "in": ["", "Intake"], "0": ["0", "Triage"], "1": ["1", "Design"], "2": ["2", "Recon"], "3": ["3", "Spec"],
+    "4": ["4", "Test plan"], "4b": ["4b", "Build plan"], "5": ["5", "QA"], "6": ["6", "Engineer"], "7": ["7", "Gates + validate"], "ship": ["", "Fold + merge"]
+  };
+  function phase(col) { return (col === "5" || col === "6") ? "ph-test" : (col === "7" || col === "ship") ? "ph-ship" : "ph-spec"; }
+  function phaseColor(col) { var p = phase(col); return p === "ph-test" ? "var(--test)" : p === "ph-ship" ? "var(--ship)" : "var(--spec)"; }
+
+  var NODES = [
+    { id: "n-in", col: "in", lane: "orch", t: "Intake", s: "request → item" },
+    { id: "n-0", col: "0", lane: "orch", t: "Triage", s: "risk × slices" },
+    { id: "n-1", col: "1", lane: "orch", t: "Design pass", s: "if >1 seam", cond: true },
+    { id: "n-2", col: "2", lane: "orch", t: "Recon", s: "if prereq unproven", cond: true },
+    { id: "n-3", col: "3", lane: "orch", t: "Spec (EARS)", s: "+ structure shard" },
+    { id: "n-4", col: "4", lane: "orch", t: "Test plan", s: "traceability" },
+    { id: "n-4b", col: "4b", lane: "orch", t: "Build plan", s: "slices + ledger" },
+    { id: "n-5", col: "5", lane: "qa", t: "Write tests", s: "spec only, blind" },
+    { id: "n-6", col: "6", lane: "eng", t: "Implement", s: "tests frozen" },
+    { id: "n-7", col: "7", lane: "orch", t: "Gate bank", s: "run_all --pre-fold" },
+    { id: "n-7v", col: "7", lane: "val", t: "Validation", s: "fresh, 4 lenses" },
+    { id: "n-ship", col: "ship", lane: "orch", t: "Fold + merge", s: "pins, ship-SHA" }
+  ];
+  var PM_MARKS = [
+    { id: "pm-in", col: "in", t: "request" },
+    { id: "pm-1", col: "1", t: "approves design" },
+    { id: "pm-3", col: "3", t: "approves spec" }
+  ];
+
+  function gatesFor(col, c) {
+    var P = isPersona(c);
+    switch (col) {
+      case "0": return [["2×2 cell", "rec"], ["shard manifest", "rec"]];
+      case "1": return [["PM approval", "hum"]];
+      case "2": return [["viability", "rec"]];
+      case "3": return [["link_check", "g"], ["prose_check", "g"], ["structure --plan", "g"], ["PM approval", "hum"]];
+      case "4": return [["coverage --plan", "g"]];
+      case "4b": return [["structure --plan", "g"], ["token_ledger", "g"]];
+      case "5": return [["coverage_check", "g"], ["red + compiling", "g"], ["freeze SHA", "g"]];
+      case "6": return [["test_edit_ban", "g"], ["structure --frozen", "g"], c.static === "tool" ? ["static_check", "g"] : ["static: none", "skip"], ["suite_green", "g"]];
+      case "7": return [["run_all pre-fold", "g"], c.mutation === "on" ? ["mutation_check", "g"] : ["mutation: unset", "skip"], ["Validation", "hum"]];
+      case "ship": return [["fold_check", "g"], ["run_all post-fold", "g"], ["merge", "hum"]];
+      default: return [];
+    }
+  }
+
+  // ---------- svg helpers ----------
+  var svg = document.getElementById("map");
+  function el(tag, attrs, parent, text) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) { if (attrs[k] !== null && attrs[k] !== undefined) e.setAttribute(k, attrs[k]); }
+    if (text !== undefined) e.textContent = text;
+    (parent || svg).appendChild(e);
+    return e;
+  }
+  function clear(node) { while (node.firstChild && node.lastChild.tagName !== "title") node.removeChild(node.lastChild); }
+
+  var refs = {};   // id -> element
+  var layers = {};
+  var evCount = {};
+
+  function laneLabels(c) {
+    var P = isPersona(c), tierWord = c.tier === "A" ? "sub-agent" : c.tier === "B" ? "fresh session" : "one context";
+    return {
+      pm: ["PM", "human"],
+      orch: [P ? "Orchestrator / PO" : "Orchestrator", P ? "main loop" : "single context"],
+      qa: ["QA", P ? tierWord + ", blind to code" : "not in this route"],
+      eng: ["Engineer", P ? tierWord + ", tests frozen" : "not in this route"],
+      val: ["Validation", c.tier === "C" ? "fresh session" : "fresh " + tierWord]
+    };
+  }
+
+  function draw() {
+    clear(svg); refs = {}; evCount = {};
+    var c = cfg, P = isPersona(c), split = c.boxes === "split";
+    layers.back = el("g", {}); layers.grid = el("g", {}); layers.nodes = el("g", {});
+    layers.gates = el("g", {}); layers.rail = el("g", {}); layers.fx = el("g", {}); layers.tokens = el("g", {});
+
+    // lane bands + labels
+    var labels = laneLabels(c);
+    ["pm", "orch", "qa", "eng", "val"].forEach(function (ln, i) {
+      if (i % 2 === 0) el("rect", { x: 8, y: Y[ln] - 38, width: 1224, height: 76, rx: 6, "class": "lane-band" }, layers.back);
+      el("text", { x: 20, y: Y[ln] - 2, "class": "lane-label" }, layers.back, labels[ln][0]);
+      el("text", { x: 20, y: Y[ln] + 13, "class": "lane-sub" }, layers.back, labels[ln][1]);
+    });
+    el("text", { x: 20, y: GATE_TOP + 26, "class": "lane-label" }, layers.back, "Gates");
+    el("text", { x: 20, y: GATE_TOP + 41, "class": "lane-sub" }, layers.back, "close each stage");
+    el("text", { x: 20, y: RAIL + 4, "class": "lane-label" }, layers.back, "Changelog item");
+    el("text", { x: 20, y: RAIL + 19, "class": "lane-sub" }, layers.back, c.mode === "A" ? "tracker, Mode A" : "backlog/, Mode B");
+
+    // deployment regions
+    if (split) {
+      var wx = X["4b"] - 47, ww = X["7"] + 47 - wx;
+      el("rect", { x: wx, y: Y.orch - 34, width: ww, height: Y.eng - Y.orch + 68, rx: 8, "class": "region" }, layers.back);
+      el("text", { x: wx + 8, y: Y.orch - 40, "class": "region-label" }, layers.back, "WORKER BOX · claimed-by:$SDD_BOX_ID");
+      el("text", { x: X["in"] - 46, y: Y.orch - 40, "class": "po-label" }, layers.back, "PO BOX · authors, decides, merges");
+    }
+
+    // column heads + grid
+    COLS.forEach(function (col) {
+      var off = (!P && (col === "1" || col === "2" || col === "5" || col === "6"));
+      el("line", { x1: X[col], y1: 44, x2: X[col], y2: RAIL - 14, "class": "grid" }, layers.grid);
+      if (STAGE[col][0]) el("text", { x: X[col], y: 20, "text-anchor": "middle", "class": "col-num" + (off ? " off" : "") }, layers.grid, "STAGE " + STAGE[col][0]);
+      el("text", { x: X[col], y: 36, "text-anchor": "middle", "class": "col-name" + (off ? " off" : "") }, layers.grid, STAGE[col][1]);
+    });
+
+    // flow line (the route's path)
+    var path = routeCols(c);
+    var d = "";
+    path.forEach(function (p, i) { d += (i ? " L" : "M") + X[p.col] + " " + Y[p.lane]; });
+    el("path", { d: d, "class": "flowline" }, layers.grid);
+
+    // isolation walls (persona split)
+    if (P && c.tier !== "C") {
+      [[Y.qa, Y.eng], [Y.eng, Y.val]].forEach(function (pair) {
+        var y = (pair[0] + pair[1]) / 2;
+        el("line", { x1: X["5"] - 50, y1: y, x2: X["7"] + 50, y2: y, "class": "wall" }, layers.grid);
+      });
+      el("text", { x: X["7"] + 56, y: (Y.qa + Y.eng) / 2 + 4, "class": "wall-label" }, layers.grid, "⊥");
+      el("text", { x: X["7"] + 56, y: (Y.eng + Y.val) / 2 + 4, "class": "wall-label" }, layers.grid, "⊥");
+    }
+
+    // nodes
+    NODES.forEach(function (n) {
+      var off = (!P && (n.col === "1" || n.col === "2" || n.col === "5" || n.col === "6"));
+      var g = el("g", { "class": "node " + phase(n.col) + (n.cond && P ? " cond" : "") + (off ? " off" : ""), id: n.id }, layers.nodes);
+      el("rect", { x: X[n.col] - 45, y: Y[n.lane] - 23, width: 90, height: 46, rx: 7 }, g);
+      el("text", { x: X[n.col], y: Y[n.lane] - 3, "text-anchor": "middle", "class": "t" }, g, n.t);
+      el("text", { x: X[n.col], y: Y[n.lane] + 12, "text-anchor": "middle", "class": "s" }, g, n.s);
+      refs[n.id] = g;
+    });
+    // mechanical: the single context writes tests + code in stage 7's lane; say so on the orch lane
+    if (!P) {
+      var g2 = el("g", { "class": "node ph-test", id: "n-mech" }, layers.nodes);
+      el("rect", { x: (X["5"] + X["6"]) / 2 - 92, y: Y.orch - 23, width: 184, height: 46, rx: 7 }, g2);
+      el("text", { x: (X["5"] + X["6"]) / 2, y: Y.orch - 3, "text-anchor": "middle", "class": "t" }, g2, "Tests + code, one author");
+      el("text", { x: (X["5"] + X["6"]) / 2, y: Y.orch + 12, "text-anchor": "middle", "class": "s" }, g2, "no QA ⊥ Engineer split");
+      refs["n-mech"] = g2;
+    }
+    // persona context tags
+    if (P && c.tier !== "C") {
+      var tag = c.tier === "A" ? "scoped sub-agent" : "fresh session";
+      [["5", "qa"], ["6", "eng"], ["7", "val"]].forEach(function (p) {
+        el("text", { x: X[p[0]] - 45, y: Y[p[1]] - 28, "class": "persona-tag" }, layers.nodes, tag);
+      });
+    }
+    // PM approvals
+    PM_MARKS.forEach(function (m) {
+      var off = (!P && m.col === "1");
+      var g = el("g", { "class": "pm-mark" + (off ? " off" : ""), id: m.id }, layers.nodes);
+      var x = X[m.col], y = Y.pm;
+      el("polygon", { points: [x, y - 10, x + 10, y, x, y + 10, x - 10, y].join(" ") }, g);
+      el("text", { x: x, y: y + 24, "text-anchor": "middle" }, g, m.t);
+      refs[m.id] = g;
+    });
+    // hook chips
+    if (hooks(c)) {
+      chip(X["in"], Y.orch - 40, "hook: update check");
+      if (P) { chip(X["5"], Y.qa + 38, "hook: read-guard"); chip(X["6"], Y.eng + 38, "hook: edit-guard, lint"); }
+      else { chip((X["5"] + X["6"]) / 2, Y.orch + 38, "hook: lint on write"); }
+    }
+    // gates
+    COLS.forEach(function (col) {
+      var list = gatesFor(col, c);
+      list.forEach(function (gt, i) {
+        var off = (!P && (col === "1" || col === "2" || col === "5" || col === "6"));
+        var g = el("g", { "class": "pill" + (off ? " off" : "") + (gt[1] === "skip" ? " skipped" : ""), id: "g-" + col + "-" + i }, layers.gates);
+        el("rect", { x: X[col] - 46, y: GATE_TOP + i * 19, width: 92, height: 15, rx: 3 }, g);
+        el("text", { x: X[col], y: GATE_TOP + i * 19 + 10.5, "text-anchor": "middle" }, g, gt[0]);
+      });
+    });
+    // changelog rail
+    el("line", { x1: X["in"] - 46, y1: RAIL, x2: X["ship"] + 46, y2: RAIL, "class": "rail" }, layers.rail);
+    // Tier C hand-up exit
+    if (blocked(c)) {
+      var eg = el("g", { "class": "exit", id: "exit" }, layers.nodes);
+      el("rect", { x: X["2"] - 60, y: Y.qa - 22, width: 220, height: 44, rx: 7 }, eg);
+      el("text", { x: X["2"] + 50, y: Y.qa - 2, "text-anchor": "middle" }, eg, "Re-triage: hand up to");
+      el("text", { x: X["2"] + 50, y: Y.qa + 12, "text-anchor": "middle" }, eg, "a Tier A or B box");
+    }
+  }
+  function chip(x, y, text) {
+    var w = text.length * 5.6 + 14;
+    var g = el("g", { "class": "chip" }, layers.nodes);
+    el("rect", { x: x - w / 2, y: y - 8, width: w, height: 16, rx: 8 }, g);
+    el("text", { x: x, y: y + 3.5, "text-anchor": "middle" }, g, text);
+  }
+
+  // the columns the token visits, for the dashed path
+  function routeCols(c) {
+    var P = isPersona(c), out = [{ col: "in", lane: "orch" }, { col: "0", lane: "orch" }];
+    if (blocked(c)) { out.push({ col: "2", lane: "qa" }); return out; }
+    if (P) out.push({ col: "1", lane: "orch" }, { col: "2", lane: "orch" });
+    out.push({ col: "3", lane: "orch" }, { col: "4", lane: "orch" }, { col: "4b", lane: "orch" });
+    if (P) out.push({ col: "5", lane: "qa" }, { col: "6", lane: "eng" });
+    out.push({ col: "7", lane: "orch" }, { col: "7", lane: "val" }, { col: "ship", lane: "orch" });
+    return out;
+  }
+
+  // ---------- the script for a configuration ----------
+  function buildSteps(c) {
+    var P = isPersona(c), par = isPar(c), split = c.boxes === "split", brown = c.area === "brown", H = hooks(c);
+    var item = c.mode === "A" ? "POL-142" : "BL-01";
+    var S = [];
+    S.push({ col: "in", lane: "orch", node: "n-in", pm: "pm-in", tag: "Intake",
+      title: "The request becomes a changelog item",
+      text: "The PM's words are recorded verbatim on a changelog item " + (c.mode === "A" ? "in the tracker (Mode A)" : "as a file under backlog/ (Mode B)") +
+        ", with EARS acceptance criteria, boundaries and open questions answered." + (H ? " At session start the plugin checks for a newer GUIDE release, at most once a day." : ""),
+      ev: [item + " filed"] });
+    var triText = {
+      "mech": "Low risk and one coupled unit, so the Mechanical route: one context runs 0 → 3 → 4 → 4b → 7.",
+      "persona": "A wrong guess could slip through, so the Persona loop: the full 0–7, with QA and Engineer kept apart and a fresh Validation.",
+      "par-mech": "Low risk and independent slices, so Parallel dispatch: worktree workers, each running the mechanical lane.",
+      "par-persona": "High risk and independent slices, so a persona loop per lane, with the shared contract pinned first."
+    }[c.route];
+    S.push({ col: "0", lane: "orch", node: "n-0", tag: "Stage 0", gates: "0",
+      title: "Triage: right-size the unit",
+      text: triText + " Touching more than one seam means at least the persona bar." + (brown ? " This area has no authoritative spec, so the unit is brownfield: the slice will be characterized and its spec reconstructed before anything is built." : ""),
+      ev: ["route: " + c.route.replace("par-", "par+")] });
+    if (blocked(c)) {
+      S.push({ col: "2", lane: "qa", node: "exit", tag: "Re-triage", exit: true,
+        title: "Tier C cannot run the persona loop",
+        text: "A single-context host cannot keep QA and the Engineer apart. GUIDE never claims a persona run here: the risky work is re-triaged up to a Tier A or B box. Tier C keeps only the Mechanical lane.",
+        ev: ["re-triaged"] });
+      return S;
+    }
+    if (P) {
+      S.push({ col: "1", lane: "orch", node: "n-1", pm: "pm-1", tag: "Stage 1", gates: "1",
+        title: "Design pass with the PM",
+        text: "Entered when the unit touches more than one seam or needs a non-obvious call. Design prose plus a draft member-level structure diagram, approved by the PM." });
+      S.push({ col: "2", lane: "orch", node: "n-2", tag: "Stage 2", gates: "2",
+        title: "Recon: prove the prerequisites",
+        text: "Entered when the plan leans on something unverified. Viability is checked and recorded on the item before anyone plans on it." });
+    }
+    S.push({ col: "3", lane: "orch", node: "n-3", pm: "pm-3", tag: "Stage 3", gates: "3",
+      title: "Spec first, in EARS",
+      text: (brown ? "The touched slice's behaviour is reconstructed as spec, or the gap is flagged to the PM. Code is evidence, never intent. " : "The spec is authored fresh. ") +
+        "Clauses get anchored IDs; the structure shard fixes the public surface. The PM approves both before any test or code exists." });
+    S.push({ col: "4", lane: "orch", node: "n-4", tag: "Stage 4", gates: "4",
+      title: "Test plan and traceability",
+      text: "Every clause maps to planned scenarios, checked by coverage_check --plan." + (split ? " The PO checks the Definition of Ready and marks the item Ready for a worker box." : ""),
+      ev: split ? ["Ready (DoR)"] : null });
+    S.push({ col: "4b", lane: "orch", node: "n-4b", tag: "Stage 4b", gates: "4b", split: par,
+      title: "Build plan and read ledger",
+      text: "Files, slice order and a read ledger with token estimates, so each context loads only the ranges it needs." +
+        (split ? " A worker box claims the item. From here it executes and surfaces concerns to the item, but never decides a fork or edits the spec." : "") +
+        (par ? " The slices fan out to three worktrees." : ""),
+      ev: split ? ["claimed-by:w2"] : null });
+    if (P) {
+      S.push({ col: "5", lane: "qa", node: "n-5", tag: "Stage 5", gates: "5",
+        title: "QA writes the tests, blind",
+        text: (c.tier === "A" ? "QA runs as a scoped sub-agent with only its stage file and spec shards. " : "QA runs in a fresh session; the item and spec shards are its only input. ") +
+          "Tests are tagged with clause IDs, red and compiling, then frozen at a SHA." + (H ? " The persona guard hook denies QA any read under paths.code." : "") +
+          (c.mutation === "on" ? " Red only proves the tests fail without code; mutation testing will check they catch wrong code." : ""),
+        ev: ["frozen: 3f9c2a1"] });
+      S.push({ col: "6", lane: "eng", node: "n-6", tag: "Stage 6", gates: "6",
+        title: "The Engineer builds against frozen tests",
+        text: "The Engineer implements against the frozen tests and the spec, and cannot change the tests. " +
+          (c.static === "tool" ? (brown ? "static_check runs the linter in ratchet mode: findings may only stay at or below the baseline. " : "static_check runs lint, type-check and format check. ") : "Static analysis is opted out with \"none\", and the bank prints that every run. ") +
+          (H ? "The plugin lints each file as it is written and blocks edits to tests, the structure diagram and the gate bank." : "The test_edit_ban gate is the proof that no test moved.") });
+    } else {
+      S.push({ col: "5", lane: "orch", node: "n-mech", tag: "Mechanical", between: true,
+        title: "One author writes tests and code",
+        text: "The mechanical route has no QA and Engineer split, so a single context writes both. The bank will skip test_edit_ban for this unit." +
+          (c.static === "tool" ? " static_check still runs." : "") + (H ? " The plugin lints each file as it is written." : "") });
+    }
+    S.push({ col: "7", lane: "orch", node: "n-7", tag: "Stage 7", gates: "7", gateIdx: [0, 1], bank: "pre",
+      title: "The gate bank, fail-fast",
+      text: "The Orchestrator runs run_all --pre-fold. Its own re-run of the suite decides; an agent saying the tests pass does not count." +
+        (split ? " The worker box stops here at Ready-for-review and hands back to the PO box." : ""),
+      ev: split ? ["review-ready"] : null });
+    S.push({ col: "7", lane: "val", node: "n-7v", tag: "Stage 7", gates: "7", gateIdx: [2], back: split,
+      title: "Fresh Validation",
+      text: "A context that did not build the work reads the full diff against spec, structure and constitution: conformance, a ten-finding hunt, verification gaps and intent." +
+        (c.mutation === "on" ? " Each surviving mutant in changed code is a missing test and goes back to QA." : "") +
+        (split ? " The PO box runs this review." : ""),
+      ev: ["validated: accept"] });
+    S.push({ col: "ship", lane: "orch", node: "n-ship", tag: "Ship", gates: "ship", bank: "post", merge: par,
+      title: "Fold, re-run, merge",
+      text: "Changed clauses fold into the canonical spec with provenance pins. The full bank runs again and fold_check resolves every pin " +
+        (c.mode === "A" ? "against the tracker. " : "against backlog/ files. ") +
+        (par ? "The Orchestrator merges the lanes one at a time." : "The Orchestrator owns the single, serialized merge."),
+      ev: ["ship-SHA a41e0d9"] });
+    return S;
+  }
+
+  // ---------- gate bank table ----------
+  function bankRows(c) {
+    var P = isPersona(c), brown = c.area === "brown";
+    function r(name, pre, post) { return { name: name, pre: pre, post: post }; }
+    var pass = function (why) { return ["pass", "PASS", why || ""]; };
+    var skip = function (why) { return ["skip", "SKIP", why]; };
+    return [
+      r("link_check", pass(), pass()),
+      r("prose_check", pass(), pass()),
+      r("coverage_check", pass(), pass()),
+      r("test_edit_ban", P ? pass("vs the frozen SHA") : skip("mechanical route"), P ? pass() : skip("mechanical route")),
+      r("structure_check", pass(P ? "--frozen + trace" : "trace"), pass("trace")),
+      r("static_check", c.static === "tool" ? pass(brown ? "ratchet: 12 = baseline" : "lint, types, format") : skip("opted out, on the record"), c.static === "tool" ? pass() : skip("opted out")),
+      r("suite_green", pass("Orchestrator's run"), pass("re-run")),
+      r("constitution_lint", c.rules === "on" ? pass() : skip("no concrete script"), c.rules === "on" ? pass() : skip("not copied")),
+      r("seam_conformance", c.rules === "on" ? pass("incl. a command rule") : skip("no concrete script"), c.rules === "on" ? pass() : skip("not copied")),
+      r("qa_import_ban", c.rules === "on" ? pass() : skip("no concrete script"), c.rules === "on" ? pass() : skip("not copied")),
+      r("mutation_check", c.mutation === "on" ? pass("score 82 ≥ 75") : skip("not configured"), c.mutation === "on" ? pass() : skip("not configured")),
+      r("fold_check", skip("pins land at the fold"), pass(c.mode === "A" ? "resolves via tracker" : "resolves via backlog/"))
+    ];
+  }
+  var bankBody = document.querySelector("#bank tbody");
+  function renderBank(c) {
+    bankBody.innerHTML = "";
+    bankRows(c).forEach(function (row, i) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + row.name + "</td><td><span class=\"st\" id=\"bp-" + i + "\">—</span> <span class=\"why\" id=\"bpw-" + i + "\"></span></td><td><span class=\"st\" id=\"bq-" + i + "\">—</span></td>";
+      bankBody.appendChild(tr);
+    });
+  }
+  function setBank(which, i, state) {
+    var e = document.getElementById((which === "pre" ? "bp-" : "bq-") + i);
+    if (!e) return;
+    e.className = "st " + state[0]; e.textContent = state[1];
+    if (which === "pre") { var w = document.getElementById("bpw-" + i); if (w) w.textContent = state[2]; }
+  }
+
+  // ---------- engine ----------
+  var gen = 0, paused = false, speed = 1, pauseAfterStep = false, touring = false, tourIdx = 0;
+  var tokens = [];
+  function frames(ms, g, onFrame) {
+    return new Promise(function (res) {
+      if (reduce || ms <= 0) { if (onFrame) onFrame(1); return res(); }
+      var acc = 0, last = performance.now();
+      function tick(now) {
+        if (g !== gen) return res();
+        if (!paused) acc += (now - last) * speed;
+        last = now;
+        var p = Math.min(1, acc / ms);
+        if (onFrame) onFrame(p);
+        if (p >= 1) return res();
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+  function wait(ms, g) { return frames(reduce ? 0 : ms, g); }
+  function holdWhilePaused(g) {
+    return new Promise(function (res) {
+      function chk() { if (g !== gen || !paused) return res(); requestAnimationFrame(chk); }
+      chk();
+    });
+  }
+  function ease(t) { return t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+
+  function makeToken(x, y, color) {
+    var g = el("g", { "class": "token" }, layers.tokens);
+    var halo = el("circle", { r: 13, cx: 0, cy: 0, "class": "halo", fill: color }, g);
+    var core = el("circle", { r: 7, cx: 0, cy: 0, "class": "core", fill: color }, g);
+    var t = { g: g, halo: halo, core: core, x: x, y: y };
+    place(t, x, y); return t;
+  }
+  function place(t, x, y) { t.x = x; t.y = y; t.g.setAttribute("transform", "translate(" + x.toFixed(1) + " " + y.toFixed(1) + ")"); }
+  function color(t, c) { t.halo.setAttribute("fill", c); t.core.setAttribute("fill", c); }
+  function moveTokens(targets, ms, g, stagger) {
+    var starts = tokens.map(function (t) { return [t.x, t.y]; });
+    var total = ms + (stagger || 0) * (tokens.length - 1);
+    return frames(total, g, function (p) {
+      var now = p * total;
+      tokens.forEach(function (t, i) {
+        var local = Math.max(0, Math.min(1, (now - i * (stagger || 0)) / ms));
+        var e = ease(local), tg = targets[i];
+        place(t, starts[i][0] + (tg[0] - starts[i][0]) * e, starts[i][1] + (tg[1] - starts[i][1]) * e);
+      });
+    });
+  }
+  function offsets(n) { return n === 1 ? [0] : [-13, 0, 13]; }
+
+  function addEvent(col, text) {
+    var k = evCount[col] = (evCount[col] || 0) + 1;
+    var g = el("g", { "class": "ev" }, layers.rail);
+    var x = X[col];
+    el("circle", { cx: x, cy: RAIL, r: 4.5 }, g);
+    el("text", { x: x, y: RAIL + 6 + k * 14, "text-anchor": "middle" }, g, text);
+    if (!reduce) { g.style.opacity = 0; g.style.transition = "opacity .4s"; requestAnimationFrame(function () { g.style.opacity = 1; }); }
+  }
+  function setActive(id) {
+    Object.keys(refs).forEach(function (k) { refs[k].classList && refs[k].classList.remove("active"); });
+    if (id && refs[id]) { refs[id].classList.add("active"); refs[id].classList.add("done"); }
+  }
+
+  var nowStage = document.getElementById("nowStage"), nowTitle = document.getElementById("nowTitle"), nowText = document.getElementById("nowText"), logEl = document.getElementById("log");
+  function narrate(s) {
+    nowStage.textContent = s.tag; nowTitle.textContent = s.title; nowText.textContent = s.text;
+    var li = document.createElement("li");
+    li.innerHTML = "<b></b><span></span>";
+    li.firstChild.textContent = s.tag; li.lastChild.textContent = s.title;
+    logEl.appendChild(li); logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  async function doStep(s, g, c) {
+    narrate(s);
+    var target = [X[s.col], Y[s.lane]];
+    if (s.between) target = [(X["5"] + X["6"]) / 2, Y.orch];
+    if (s.exit) target = [X["2"] + 50, Y.qa];
+    var offs = offsets(tokens.length);
+    var stg = s.merge ? 420 : (tokens.length > 1 ? 110 : 0);
+    tokens.forEach(function (t) { color(t, phaseColor(s.col)); });
+    await moveTokens(tokens.map(function (t, i) { return [target[0] + (s.merge ? 0 : (s.lane === "orch" || s.between ? 0 : 0)), target[1] + (s.merge ? 0 : offs[i])]; }), 700, g, stg);
+    if (g !== gen) return;
+    setActive(s.node); if (s.pm && refs[s.pm]) refs[s.pm].classList.add("done");
+    if (s.exit) { tokens.forEach(function (t) { t.g.style.transition = "opacity .6s"; t.g.style.opacity = .25; }); }
+    if (s.split && tokens.length === 1) {
+      var base = tokens[0];
+      tokens = [makeToken(base.x, base.y, phaseColor(s.col)), base, makeToken(base.x, base.y, phaseColor(s.col))];
+      await moveTokens(tokens.map(function (t, i) { return [target[0], target[1] + offsets(3)[i]]; }), 450, g, 0);
+    }
+    if (s.gates) {
+      var list = gatesFor(s.gates, c);
+      for (var i = 0; i < list.length; i++) {
+        if (s.gateIdx && s.gateIdx.indexOf(i) < 0) continue;
+        if (g !== gen) return;
+        var pill = document.getElementById("g-" + s.gates + "-" + i);
+        if (pill && list[i][1] !== "skip") pill.classList.add(list[i][1] === "hum" ? "hum" : "pass");
+        await wait(170, g);
+      }
+    }
+    if (s.bank) {
+      var rows = bankRows(c);
+      for (var j = 0; j < rows.length; j++) {
+        if (g !== gen) return;
+        setBank(s.bank, j, ["run", "RUN", ""]);
+        await wait(110, g);
+        setBank(s.bank, j, rows[j][s.bank]);
+      }
+    }
+    if (s.merge && tokens.length > 1) {
+      for (var m = 0; m < tokens.length; m++) { if (m < tokens.length - 1) { tokens[m].g.style.transition = "opacity .4s"; tokens[m].g.style.opacity = 0; } }
+      tokens.forEach(function (t, i) { if (i < tokens.length - 1) t.g.remove(); });
+      tokens = [tokens[tokens.length - 1]];
+    }
+    (s.ev || []).forEach(function (e) { addEvent(s.col, e); });
+    await wait(1250, g);
+  }
+
+  async function run() {
+    var g = ++gen;
+    var c = Object.assign({}, cfg);
+    draw(); renderBank(c); logEl.innerHTML = ""; tokens = [];
+    tokens.push(makeToken(X["in"] - 70, Y.orch, phaseColor("in")));
+    updateCfgLine(); renderMatrix();
+    var steps = buildSteps(c);
+    nowStage.textContent = steps[0].tag; nowTitle.textContent = steps[0].title; nowText.textContent = steps[0].text;
+    for (var i = 0; i < steps.length; i++) {
+      await holdWhilePaused(g);
+      if (g !== gen) return;
+      await doStep(steps[i], g, c);
+      if (g !== gen) return;
+      if (pauseAfterStep) { pauseAfterStep = false; setPaused(true); }
+    }
+    setActive(null);
+    await wait(2200, g);
+    await holdWhilePaused(g);
+    if (g !== gen) return;
+    if (touring) { tourIdx = (tourIdx + 1) % TOUR.length; applyTour(); }
+    run();
+  }
+
+  // ---------- controls ----------
+  var axesEl = document.getElementById("axes");
+  AXES.forEach(function (ax) {
+    var fs = document.createElement("fieldset");
+    var lg = document.createElement("legend"); lg.textContent = ax.label; fs.appendChild(lg);
+    var seg = document.createElement("div"); seg.className = "seg";
+    ax.opts.forEach(function (o) {
+      var id = ax.k + "-" + o[0];
+      var inp = document.createElement("input"); inp.type = "radio"; inp.name = ax.k; inp.value = o[0]; inp.id = id;
+      var lb = document.createElement("label"); lb.htmlFor = id; lb.textContent = o[1];
+      inp.addEventListener("change", function () { cfg[ax.k] = o[0]; normalize(); stopTour(); syncInputs(); run(); });
+      seg.appendChild(inp); seg.appendChild(lb);
+    });
+    fs.appendChild(seg);
+    if (ax.k === "plugin" || ax.k === "tier") { var n = document.createElement("div"); n.className = "note"; n.id = "note-" + ax.k; fs.appendChild(n); }
+    axesEl.appendChild(fs);
+  });
+  function normalize() { if (cfg.tier !== "A") cfg.plugin = "off"; }
+  function syncInputs() {
+    AXES.forEach(function (ax) { ax.opts.forEach(function (o) { var i = document.getElementById(ax.k + "-" + o[0]); i.checked = cfg[ax.k] === o[0]; }); });
+    var pOn = document.getElementById("plugin-on");
+    pOn.disabled = cfg.tier !== "A";
+    document.getElementById("note-plugin").textContent = cfg.tier === "A" ? "Persona guard, lint-on-write, update check." : "Hooks need Claude Code, a Tier A host.";
+    document.getElementById("note-tier").textContent = cfg.tier === "C" ? "Mechanical lane only; risky work is handed up." : cfg.tier === "B" ? "Each persona in a new session; gates still prove the split." : "QA, Engineer and Validation as isolated sub-agents.";
+  }
+  var playBtn = document.getElementById("play");
+  function setPaused(p) { paused = p; playBtn.textContent = p ? "Play" : "Pause"; }
+  playBtn.addEventListener("click", function () { setPaused(!paused); });
+  document.getElementById("step").addEventListener("click", function () { pauseAfterStep = true; setPaused(false); });
+  document.getElementById("restart").addEventListener("click", function () { run(); });
+  document.getElementById("speed").addEventListener("change", function (e) { speed = parseFloat(e.target.value) || 1; });
+
+  // tour: the 48 flow-shaping combinations (route x tier x deployment x coverage)
+  var TOUR = [];
+  ["mech", "persona", "par-mech", "par-persona"].forEach(function (r) { ["A", "B", "C"].forEach(function (t) { ["solo", "split"].forEach(function (b) { ["green", "brown"].forEach(function (a) { TOUR.push({ route: r, tier: t, boxes: b, area: a }); }); }); }); });
+  var tourBtn = document.getElementById("tour");
+  function applyTour() { var t = TOUR[tourIdx]; cfg.route = t.route; cfg.tier = t.tier; cfg.boxes = t.boxes; cfg.area = t.area; if (t.tier === "A") cfg.plugin = "on"; normalize(); syncInputs(); }
+  function stopTour() { touring = false; tourBtn.setAttribute("aria-pressed", "false"); tourBtn.textContent = "Tour all 48 flow shapes"; }
+  tourBtn.addEventListener("click", function () {
+    if (touring) { stopTour(); updateCfgLine(); return; }
+    touring = true; tourBtn.setAttribute("aria-pressed", "true"); tourBtn.textContent = "Stop tour";
+    tourIdx = 0; applyTour(); setPaused(false); run();
+  });
+
+  function updateCfgLine() {
+    var line = ROUTE_NAME[cfg.route] + " · Tier " + cfg.tier + " · " + (cfg.boxes === "split" ? "PO + workers" : "solo") + " · " + (cfg.area === "brown" ? "brownfield" : "greenfield");
+    document.getElementById("cfgline").textContent = (touring ? "Tour " + (tourIdx + 1) + "/48 · " : "") + line;
+  }
+
+  // ---------- permutation matrix ----------
+  var matrixEl = document.getElementById("matrix");
+  function cellInfo(r, t) {
+    var P = r === "persona" || r === "par-persona";
+    if (t === "C" && P) return ["up", "HANDED UP", "Re-triaged to a Tier A or B box; never claimed here."];
+    if (r === "mech") return ["ok", "RUNS", t === "C" ? "Tier C's only lane: one context, 0→3→4→4b→7." : "One context, 0→3→4→4b→7, fresh Validation."];
+    if (r === "par-mech") return ["ok", "RUNS", t === "C" ? "Slices run mechanical, one after another." : "Worktree workers, mechanical each; serialized merge."];
+    if (r === "persona") return ["ok", "RUNS", t === "A" ? "QA, Engineer, Validation as isolated sub-agents." : "Each persona in a fresh session; the item is the only channel."];
+    return ["ok", "RUNS", t === "A" ? "A persona loop per worktree lane, contract pinned first." : "Fresh sessions per lane; contract pinned first."];
+  }
+  function renderMatrix() {
+    var routes = [["mech", "Mechanical"], ["persona", "Persona loop"], ["par-mech", "Parallel"], ["par-persona", "Parallel + persona"]];
+    var tiers = [["A", "Tier A · sub-agents"], ["B", "Tier B · fresh sessions"], ["C", "Tier C · one context"]];
+    var html = "<thead><tr><th></th>" + tiers.map(function (t) { return "<th scope=\"col\">" + t[1] + "</th>"; }).join("") + "</tr></thead><tbody>";
+    routes.forEach(function (r) {
+      html += "<tr><th scope=\"row\">" + r[1] + "</th>";
+      tiers.forEach(function (t) {
+        var info = cellInfo(r[0], t[0]);
+        var cur = cfg.route === r[0] && cfg.tier === t[0];
+        html += "<td><button type=\"button\" data-r=\"" + r[0] + "\" data-t=\"" + t[0] + "\" class=\"" + (cur ? "cur" : "") + "\" aria-pressed=\"" + cur + "\"><span class=\"k " + info[0] + "\">" + info[1] + "</span><span>" + info[2] + "</span></button></td>";
+      });
+      html += "</tr>";
+    });
+    matrixEl.innerHTML = html + "</tbody>";
+  }
+  matrixEl.addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    cfg.route = b.getAttribute("data-r"); cfg.tier = b.getAttribute("data-t");
+    if (cfg.tier === "A" && cfg.plugin === "off") cfg.plugin = "on";
+    normalize(); stopTour(); syncInputs(); setPaused(false); run();
+  });
+  document.getElementById("countline").textContent =
+    "Out of the box GUIDE has 1,024 configurations: 4 routes, 3 host tiers (the plugin only on Tier A), 2 deployments, greenfield or brownfield, 2 changelog modes, and three gate switches (checkCmd, mutation.cmd, project rule gates). 48 of them change the shape of the flow; the tour plays those, and the rest change gates and labels, which you can set above.";
+
+  normalize(); syncInputs();
+  if (reduce) setPaused(true);
+  run();
+})();
+</script>
+</body>
+</html>

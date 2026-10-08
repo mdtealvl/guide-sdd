@@ -8,8 +8,8 @@
 # (Project Details §1) and the gate stay in lockstep.
 #
 # Copy this file to gates/seam_conformance.ps1 (no edits) and author "seamRules" in
-# gates/gates.config.json. Same four kinds as constitution_lint:
-#   must_match | must_not_match | file_exists | pair_requires
+# gates/gates.config.json. Same five kinds as constitution_lint:
+#   must_match | must_not_match | file_exists | pair_requires | command (a real checker, e.g. import-linter)
 #
 # Seam-flavoured examples (author as seamRules[] rows):
 #   * audit invariant   id=SEAM-2-audit  kind=pair_requires

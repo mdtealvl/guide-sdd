@@ -34,9 +34,43 @@ read_cfg() {
 # to_ere <regex> — make a Python/.NET-style regex safe for grep -E (POSIX ERE).
 # The framework's default patterns use \d (PCRE-only) which BSD/GNU grep do not
 # accept in ERE; translate the portable subset. \b and \w ARE supported as grep
-# extensions on both GNU and BSD, so they pass through untouched.
+# extensions on both GNU and BSD, so they pass through untouched. Inside a bracket
+# expression the class becomes its range ([\d.] -> [0-9.]), as .NET reads it.
 to_ere() {
-  printf '%s' "$1" | sed -e 's/\\d/[0-9]/g' -e 's/\\D/[^0-9]/g' -e 's/\\s/[[:space:]]/g' -e 's/\\S/[^[:space:]]/g'
+  printf '%s' "$1" | sed -e ':a' -e 's/\(\[[^]]*\)\\d/\10-9/' -e 's/\(\[[^]]*\)\\w/\1A-Za-z0-9_/' \
+    -e 's/\(\[[^]]*\)\\s/\1[:space:]/' -e 'ta' \
+    -e 's/\\d/[0-9]/g' -e 's/\\D/[^0-9]/g' -e 's/\\s/[[:space:]]/g' -e 's/\\S/[^[:space:]]/g'
+}
+
+# check_regex <gate> <key> <regex> — a configured regex both twins read alike, or a FAIL line and
+# return 2: no inline flags (?...) or lazy quantifiers (.NET honours them, grep -E does not), and
+# grep -E must accept it.
+check_regex() {
+  case "$3" in
+    *'(?'*|*'*?'*|*'+?'*|*'}?'*|*'??'*)
+      echo "FAIL $1: $2 uses (?...) or a lazy quantifier - outside the portable regex subset (gates/README.md)"
+      return 2 ;;
+  esac
+  printf 'x\n' | grep -E "$(to_ere "$3")" >/dev/null 2>&1
+  if [ $? -eq 2 ]; then echo "FAIL $1: $2 is not a valid regex"; return 2; fi
+  return 0
+}
+
+# one_line <gate> <key> <cmd> — a configured command must be one line: the ps1 twin's cmd /c runs
+# only the first line, sh -c runs them all.
+one_line() {
+  case "$3" in
+    *'
+'*|*"$(printf '\r')"*) echo "FAIL $1: $2 must be one line (cmd /c on Windows runs only the first)"; return 2 ;;
+  esac
+  return 0
+}
+
+# read_raw <config> <jq-path> <default> — a config value as text, `false` and `0` kept (read_cfg's
+# `// empty` drops them); null or absent gives <default>.
+read_raw() {
+  _v=$(jq -r "($2) | if . == null then empty else tostring end" "$1" 2>/dev/null | tr -d '\r')
+  if [ -n "$_v" ]; then printf '%s' "$_v"; else printf '%s' "$3"; fi
 }
 
 # to_awk_ere <regex> — like to_ere, but for awk, which does NOT support \b / \B word

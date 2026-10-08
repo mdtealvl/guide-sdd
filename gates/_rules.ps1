@@ -17,10 +17,21 @@ function Test-AnyLine {
 }
 
 function Invoke-Rule {
-    # Returns a hashtable @{ ok = [bool]; detail = [string] }.
+    # Returns a hashtable @{ ok = [bool]; detail = [string]; more = [string[]] } (more: kind command only).
     param($Rule)
     $kind  = Get-CfgValue $Rule 'kind' $null
     $paths = Get-CfgValue $Rule 'paths' @()
+
+    # command: a real checker (import-linter, dependency-cruiser, ArchUnit tests...) run from the
+    # project root; exit 0 passes. The regex kinds below are the no-dependency fallback.
+    if ($kind -eq 'command') {
+        $cmd = Get-CfgValue $Rule 'cmd' $null
+        if ([string]::IsNullOrEmpty($cmd)) { return @{ ok = $false; detail = "bad cmd: 'cmd'" } }
+        if ($cmd -match "[`r`n]") { return @{ ok = $false; detail = 'cmd must be one line (cmd /c on Windows runs only the first)' } }
+        $r = Invoke-ShellCapture $cmd
+        if ($r.rc -eq 0) { return @{ ok = $true; detail = '' } }
+        return @{ ok = $false; detail = "``$cmd`` exited $($r.rc)"; more = @(Get-TailLines $r.out 10) }
+    }
 
     if ($kind -eq 'file_exists') {
         $fs = Expand-Globs $paths
@@ -86,6 +97,7 @@ function Invoke-Rules {
         if (-not $res.ok) {
             $failed += 1
             [Console]::Out.WriteLine("         -> $($res.detail)")
+            foreach ($m in @($res.more)) { if ($null -ne $m) { [Console]::Out.WriteLine("         | $m") } }
         }
     }
     $v = if ($failed -eq 0) { 'PASS' } else { 'FAIL' }

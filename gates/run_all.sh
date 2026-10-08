@@ -3,8 +3,9 @@
 # failing gate, so it drops into CI and pre-merge hooks unchanged.
 #
 # Order (Stage 7 ship):
-#   link_check -> prose_check -> coverage_check -> test_edit_ban -> structure_check -> suite_green
-#     -> constitution_lint* -> seam_conformance* -> qa_import_ban* -> fold_check
+#   link_check -> prose_check -> coverage_check -> test_edit_ban -> structure_check -> static_check
+#     -> suite_green -> constitution_lint* -> seam_conformance* -> qa_import_ban* -> mutation_check
+#     -> fold_check
 #     -> suite_green (re-run)
 # (*) project gates run only if their concrete (non-template) .sh script exists - a fresh
 #     repo is green before you author them.
@@ -18,6 +19,8 @@
 #
 # suite_green is REQUIRED: an unset suiteCmd is exit 2, never a silent skip - a bank that
 # prints ALL GATES PASSED without running the suite proves nothing.
+# static_check is REQUIRED the same way (checkCmd; "none" opts out on the record). mutation_check is
+# optional: it runs when mutation.cmd is set and says "not configured" otherwise.
 #
 # This .sh runner invokes the .sh siblings (the Linux/macOS path; needs git + jq).
 #
@@ -113,6 +116,9 @@ fi
 echo "== structure_check =="
 bash "$HERE/structure_check.sh" --config "$CFG" || fail structure_check
 
+echo "== static_check =="
+bash "$HERE/static_check.sh" --config "$CFG" || fail static_check
+
 run_suite
 
 # --- project-specific gates: only if copied from template ---
@@ -135,6 +141,13 @@ if [ -f "$HERE/qa_import_ban.sh" ]; then
   bash "$HERE/qa_import_ban.sh" --config "$CFG" || fail qa_import_ban
 else
   echo "== qa_import_ban == (skipped: cp qa_import_ban.template.sh qa_import_ban.sh)"
+fi
+
+echo "== mutation_check =="
+if [ -n "$BASE" ]; then
+  bash "$HERE/mutation_check.sh" --base "$BASE" --config "$CFG" || fail mutation_check
+else
+  bash "$HERE/mutation_check.sh" --config "$CFG" || fail mutation_check
 fi
 
 if [ "$PREFOLD" = 1 ]; then

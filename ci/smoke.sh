@@ -20,8 +20,8 @@ PROJ="$WORK/proj"; mkdir -p "$PROJ"
 (cd "$REPO" && tar --exclude=.git --exclude=ci --exclude=dist --exclude=.github/workflows -cf - .) | (cd "$PROJ" && tar -xf -)
 cd "$PROJ"
 git init -q -b main . && git config user.email ci@guide-sdd && git config user.name ci
-# INIT §5: the suite command is mandatory (an unset suiteCmd is exit 2, never a silent skip).
-jq '.suiteCmd = "exit 0"' gates/gates.config.template.json > gates/gates.config.json
+# INIT §5: the suite and static-check commands are mandatory (unset is exit 2, never a silent skip).
+jq '.suiteCmd = "exit 0" | .checkCmd = "exit 0"' gates/gates.config.template.json > gates/gates.config.json
 mkdir -p spec tests
 printf '## DEMO.1 smoke {#DEMO.1}\nWhen init runs, the system shall pass the smoke test.\n' > spec/demo.body.md
 printf '// @clause:DEMO.1\nok();\n' > tests/demo.smoke.test
@@ -202,6 +202,122 @@ expect 0 "constitution_lint PASS: no phantom empty line after the final newline"
 twin "constitution_lint (final newline)" "$LAST_OUT" "$LAST_RC" gates/constitution_lint.template.ps1 -Config rules.smoke.json
 rm -rf notes rules.smoke.json
 
+# static_check (#7): checkCmd is required (unset = exit 2), "none" opts out on the record, the exit code
+# decides, and findingRegex + baseline ratchet. Commands are written to run under both sh -c and cmd /c.
+st() { jq "$1" $CFG > st.smoke.json; }
+st 'del(.checkCmd)'
+expect 1 "static_check refuses unset checkCmd" sh gates/static_check.sh --config st.smoke.json
+names "static_check (unset)" "checkCmd is not set"
+[ "$LAST_RC" = 2 ] || { echo "FAIL  unset checkCmd should exit 2 (rc=$LAST_RC)"; fails=$((fails+1)); }
+twin "static_check (unset)" "$LAST_OUT" "$LAST_RC" gates/static_check.ps1 -Config st.smoke.json
+st '.checkCmd = "none"'
+expect 0 "static_check PASS: opted out on the record" sh gates/static_check.sh --config st.smoke.json
+names "static_check (none)" "opted out"
+twin "static_check (none)" "$LAST_OUT" "$LAST_RC" gates/static_check.ps1 -Config st.smoke.json
+st '.checkCmd = "echo lint clean"'
+expect 0 "static_check PASS: exit 0" sh gates/static_check.sh --config st.smoke.json
+twin "static_check (exit 0)" "$LAST_OUT" "$LAST_RC" gates/static_check.ps1 -Config st.smoke.json
+st '.checkCmd = "echo a.py:1: E1 bad&& exit 3"'
+expect 1 "static_check FAIL: non-zero exit" sh gates/static_check.sh --config st.smoke.json
+names "static_check (exit 3)" "exited 3"
+twin "static_check (exit 3)" "$LAST_OUT" "$LAST_RC" gates/static_check.ps1 -Config st.smoke.json
+LINT='echo a.py:1: E1 bad&& echo a.py:2: E2 bad&& echo 2 errors&& exit 1'
+st ".checkCmd = \"$LINT\" | .staticCheck.findingRegex = \"^a[.]py:[0-9]+:\" | .staticCheck.baseline = 2"
+expect 0 "static_check ratchet PASS: findings = baseline" sh gates/static_check.sh --config st.smoke.json
+names "static_check (ratchet =)" "2 finding(s) = baseline 2"
+twin "static_check (ratchet =)" "$LAST_OUT" "$LAST_RC" gates/static_check.ps1 -Config st.smoke.json
+st ".checkCmd = \"$LINT\" | .staticCheck.findingRegex = \"^a[.]py:[0-9]+:\" | .staticCheck.baseline = 3"
+expect 0 "static_check ratchet PASS: below baseline, asks to lower it" sh gates/static_check.sh --config st.smoke.json
+names "static_check (ratchet <)" "lower staticCheck.baseline to 2"
+twin "static_check (ratchet <)" "$LAST_OUT" "$LAST_RC" gates/static_check.ps1 -Config st.smoke.json
+st ".checkCmd = \"$LINT\" | .staticCheck.findingRegex = \"^a[.]py:[0-9]+:\" | .staticCheck.baseline = 1"
+expect 1 "static_check ratchet FAIL: new findings" sh gates/static_check.sh --config st.smoke.json
+names "static_check (ratchet >)" "2 finding(s) > baseline 1"
+twin "static_check (ratchet >)" "$LAST_OUT" "$LAST_RC" gates/static_check.ps1 -Config st.smoke.json
+st '.checkCmd = "echo crashed&& exit 1" | .staticCheck.findingRegex = "^a[.]py:[0-9]+:" | .staticCheck.baseline = 5'
+expect 1 "static_check ratchet FAIL: non-zero exit, no finding matched" sh gates/static_check.sh --config st.smoke.json
+names "static_check (no match)" "no line matched"
+twin "static_check (no match)" "$LAST_OUT" "$LAST_RC" gates/static_check.ps1 -Config st.smoke.json
+# Review findings (v1.16.0): each was a PASS that should FAIL, or a twin divergence.
+rc2() { [ "$LAST_RC" = 2 ] || { echo "FAIL  $1 should exit 2 (rc=$LAST_RC)"; fails=$((fails+1)); }; }
+st '.checkCmd = "echo a.py:1: E1 bad&& echo Traceback&& exit 4" | .staticCheck.findingRegex = "^a[.]py:[0-9]+:" | .staticCheck.baseline = 5'
+expect 1 "static_check ratchet FAIL: a crash after some findings is not a count" sh gates/static_check.sh --config st.smoke.json
+names "static_check (crash)" "not a findings exit code"
+twin "static_check (crash)" "$LAST_OUT" "$LAST_RC" gates/static_check.ps1 -Config st.smoke.json
+st ".checkCmd = \"$LINT\" | .staticCheck.findingRegex = \"^a[.]py:[\\\\d]:\" | .staticCheck.baseline = 1"
+expect 1 "static_check: [\\d] inside brackets counts in both twins" sh gates/static_check.sh --config st.smoke.json
+names "static_check (bracket class)" "2 finding(s) > baseline 1"
+twin "static_check (bracket class)" "$LAST_OUT" "$LAST_RC" gates/static_check.ps1 -Config st.smoke.json
+st '.checkCmd = "exit 1" | .staticCheck.findingRegex = "E1["'
+expect 1 "static_check: a regex grep rejects is a config error" sh gates/static_check.sh --config st.smoke.json
+rc2 "static_check (bad regex)"
+twin "static_check (bad regex)" "$LAST_OUT" "$LAST_RC" gates/static_check.ps1 -Config st.smoke.json
+st '.checkCmd = "exit 1" | .staticCheck.findingRegex = "(?i)e1"'
+expect 1 "static_check: an inline flag is outside the portable subset" sh gates/static_check.sh --config st.smoke.json
+rc2 "static_check (inline flag)"
+twin "static_check (inline flag)" "$LAST_OUT" "$LAST_RC" gates/static_check.ps1 -Config st.smoke.json
+st '.checkCmd = "exit 0" | .staticCheck.findingRegex = "x" | .staticCheck.baseline = false'
+expect 1 "static_check: baseline false is a config error" sh gates/static_check.sh --config st.smoke.json
+rc2 "static_check (baseline false)"
+twin "static_check (baseline false)" "$LAST_OUT" "$LAST_RC" gates/static_check.ps1 -Config st.smoke.json
+st '.checkCmd = "echo hi\nexit 4"'
+expect 1 "static_check: a multi-line checkCmd is a config error" sh gates/static_check.sh --config st.smoke.json
+rc2 "static_check (multi-line)"
+twin "static_check (multi-line)" "$LAST_OUT" "$LAST_RC" gates/static_check.ps1 -Config st.smoke.json
+
+# Rule kind command (#8): a real checker behind a rule row; exit 0 passes, a failure shows its output.
+printf '{"seamRules":[{"id":"SEAM-1-ok","kind":"command","cmd":"echo fine","message":"m"},{"id":"SEAM-2-layers","kind":"command","cmd":"echo src.ui imports src.db&& exit 3","message":"m"}]}\n' > rules.smoke.json
+expect 1 "seam_conformance FAIL: command rule exits non-zero" sh gates/seam_conformance.template.sh --config rules.smoke.json
+names "seam_conformance (command)" "src.ui imports src.db"
+names "seam_conformance (command id)" "[FAIL] SEAM-2-layers"
+twin "seam_conformance (command)" "$LAST_OUT" "$LAST_RC" gates/seam_conformance.template.ps1 -Config rules.smoke.json
+printf '{"seamRules":[{"id":"SEAM-1-ok","kind":"command","cmd":"echo fine","message":"m"}]}\n' > rules.smoke.json
+expect 0 "seam_conformance PASS: command rule exits 0" sh gates/seam_conformance.template.sh --config rules.smoke.json
+twin "seam_conformance (command pass)" "$LAST_OUT" "$LAST_RC" gates/seam_conformance.template.ps1 -Config rules.smoke.json
+# A command that reads stdin must not eat the rule list (sort reads stdin under sh and cmd alike).
+printf '{"seamRules":[{"id":"SEAM-1-reads","kind":"command","cmd":"sort","message":"m"},{"id":"SEAM-2-late","kind":"command","cmd":"exit 3","message":"m"}]}\n' > rules.smoke.json
+expect 1 "seam_conformance FAIL: a stdin reader does not swallow later rules" sh gates/seam_conformance.template.sh --config rules.smoke.json
+names "seam_conformance (stdin)" "SEAM-2-late: m"
+twin "seam_conformance (stdin)" "$LAST_OUT" "$LAST_RC" gates/seam_conformance.template.ps1 -Config rules.smoke.json
+printf '{"seamRules":[{"id":"SEAM-1-two","kind":"command","cmd":"echo hi\\nexit 4","message":"m"}]}\n' > rules.smoke.json
+expect 1 "seam_conformance FAIL: a multi-line cmd is refused" sh gates/seam_conformance.template.sh --config rules.smoke.json
+names "seam_conformance (multi-line)" "must be one line"
+twin "seam_conformance (multi-line)" "$LAST_OUT" "$LAST_RC" gates/seam_conformance.template.ps1 -Config rules.smoke.json
+
+# mutation_check (#9): optional; the exit code decides, or scoreRegex + minScore; {base} is substituted.
+expect 0 "mutation_check PASS: not configured" sh gates/mutation_check.sh --config $CFG
+names "mutation_check (unset)" "not configured"
+twin "mutation_check (unset)" "$LAST_OUT" "$LAST_RC" gates/mutation_check.ps1 -Config $CFG
+MUT='echo Mutation score: 85.5&& exit 1'
+st ".mutation.cmd = \"$MUT\" | .mutation.scoreRegex = \"Mutation score: [0-9.]+\" | .mutation.minScore = 80"
+expect 0 "mutation_check PASS: score >= minScore (exit code ignored)" sh gates/mutation_check.sh --config st.smoke.json
+names "mutation_check (score)" "85.5 >= minScore 80"
+twin "mutation_check (score)" "$LAST_OUT" "$LAST_RC" gates/mutation_check.ps1 -Config st.smoke.json
+st ".mutation.cmd = \"$MUT\" | .mutation.scoreRegex = \"Mutation score: [0-9.]+\" | .mutation.minScore = 90"
+expect 1 "mutation_check FAIL: score < minScore" sh gates/mutation_check.sh --config st.smoke.json
+names "mutation_check (low score)" "route to QA"
+twin "mutation_check (low score)" "$LAST_OUT" "$LAST_RC" gates/mutation_check.ps1 -Config st.smoke.json
+st '.mutation.cmd = "echo survived: 3&& exit 2"'
+expect 1 "mutation_check FAIL: exit code decides without scoreRegex" sh gates/mutation_check.sh --config st.smoke.json
+twin "mutation_check (exit)" "$LAST_OUT" "$LAST_RC" gates/mutation_check.ps1 -Config st.smoke.json
+st '.mutation.cmd = "echo since {base} and {base}"'
+expect 0 "mutation_check substitutes {base}" sh gates/mutation_check.sh --base abc123 --config st.smoke.json
+names "mutation_check ({base})" "since abc123 and abc123"
+twin "mutation_check ({base})" "$LAST_OUT" "$LAST_RC" gates/mutation_check.ps1 -Base abc123 -Config st.smoke.json
+st ".mutation.cmd = \"$MUT\" | .mutation.scoreRegex = \"score: [\\\\d.]+\" | .mutation.minScore = 80"
+expect 0 "mutation_check: [\\d.] inside brackets reads the score in both twins" sh gates/mutation_check.sh --config st.smoke.json
+names "mutation_check (bracket class)" "85.5 >= minScore 80"
+twin "mutation_check (bracket class)" "$LAST_OUT" "$LAST_RC" gates/mutation_check.ps1 -Config st.smoke.json
+st ".mutation.cmd = \"$MUT\" | .mutation.scoreRegex = \"score: [0-9]+\" | .mutation.minScore = \".\""
+expect 1 "mutation_check: minScore \".\" is a config error" sh gates/mutation_check.sh --config st.smoke.json
+rc2 "mutation_check (minScore .)"
+twin "mutation_check (minScore .)" "$LAST_OUT" "$LAST_RC" gates/mutation_check.ps1 -Config st.smoke.json
+st ".mutation.cmd = \"$MUT\" | .mutation.scoreRegex = \"score: [0-9]+?\""
+expect 1 "mutation_check: a lazy quantifier is outside the portable subset" sh gates/mutation_check.sh --config st.smoke.json
+rc2 "mutation_check (lazy)"
+twin "mutation_check (lazy)" "$LAST_OUT" "$LAST_RC" gates/mutation_check.ps1 -Config st.smoke.json
+rm -f st.smoke.json rules.smoke.json
+
 # Freeze: record the QA-frozen SHA; the gate then needs no base argument.
 expect 0 "freeze writes gates/.frozen" sh gates/freeze.sh --unit DEMO-1
 names "freeze" "sha="
@@ -229,9 +345,16 @@ expect 1 "run_all refuses unset suiteCmd" sh gates/run_all.sh --mechanical
 names "run_all (no suite)" "suiteCmd is not set"
 [ "$LAST_RC" = 2 ] || { echo "FAIL  unset suiteCmd should exit 2 (rc=$LAST_RC)"; fails=$((fails+1)); }
 git reset -q --hard HEAD~1
+# checkCmd is mandatory too: unset, the bank stops at static_check.
+jq 'del(.checkCmd)' $CFG > "$WORK/cfg2" && cp "$WORK/cfg2" $CFG && git commit -q -am "unset check"
+expect 1 "run_all refuses unset checkCmd" sh gates/run_all.sh --mechanical
+names "run_all (no check)" "checkCmd is not set"
+git reset -q --hard HEAD~1
 
 # Whole bank over the clean demo tree (base from .frozen).
 expect 0 "run_all clean (base from .frozen)" sh gates/run_all.sh
+names "run_all (static_check)" "PASS static_check: checkCmd exited 0"
+names "run_all (mutation_check)" "mutation_check: not configured"
 twin "run_all" "$LAST_OUT" "$LAST_RC" gates/run_all.ps1
 expect 0 "run_all HEAD clean" sh gates/run_all.sh HEAD
 expect 0 "run_all --pre-fold clean (frozen-diagram half runs)" sh gates/run_all.sh --pre-fold

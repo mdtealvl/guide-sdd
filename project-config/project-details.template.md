@@ -29,6 +29,9 @@ forever.
 | SEAM-2 | _e.g. audit invariant_ | _every state-changing handler writes ≥1 AuditEntry before returning_ | _seam_conformance:AUDIT-1_ |
 | SEAM-3 | | | |
 
+> Where the stack has an architecture checker (import-linter, dependency-cruiser, ArchUnit, NetArchTest,
+> go-arch-lint), the gate rule is a `kind: command` row that runs it (`gates/README.md`, rule schema).
+
 > "Touches >1 of {…}" list for the Stage 0 right-size bar: _list the project's
 > high-blast-radius surfaces here, e.g. {domain model, workflow config, public API,
 > UI flow}._
@@ -52,6 +55,8 @@ forever.
 | TOOL-4 | Gate runner | `gates/run_all.ps1` (Windows) / `gates/run_all.sh` (Linux/macOS) — local + CI |
 | TOOL-5 | Published branch / merge | _e.g. `main`; local `dev`; `--no-ff`_ |
 | TOOL-6 | Quiet gate idioms for dispatched briefs (§0 "Dispatch frugally") | _build/test commands filtered at source to a summary line + failure names, never raw logs; repo-level build-noise suppression; cite this row in every sub-agent brief_ |
+| TOOL-7 | Static check (lint + type-check + format) | _cmd — mirror into gates.config.json `checkCmd` (mandatory; `none` opts out on the record); per-file form into `staticCheck.fileCmd`_ |
+| TOOL-8 | Mutation testing (optional) | _cmd — mirror into `mutation.cmd`, `{base}` = the frozen SHA; score regex + floor into `mutation.scoreRegex` / `minScore`_ |
 
 ## 4. Changelog binding (`CL-`) — C4
 

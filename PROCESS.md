@@ -90,7 +90,7 @@ Done =
 | 4 | Test plan + traceability | `stages/4_testplan.md` | Always | Always | `coverage_check --plan` |
 | 4b | Build plan (files, sequence, read ledger) | `stages/4b_buildplan.md` | After the test plan closes | Always | `structure_check --plan` + `token_ledger verify` / `report` (no human gate) |
 | 5 | QA (spec-only, blind) | `stages/5_qa.md` | Persona route only | Persona route | `coverage_check`; suite RED-as-expected; tests compile |
-| 6 | Engineer (frozen tests) | `stages/6_engineer.md` | Persona route only | Persona route | `test_edit_ban`; `structure_check --frozen`; `suite_green` |
+| 6 | Engineer (frozen tests) | `stages/6_engineer.md` | Persona route only | Persona route | `test_edit_ban`; `structure_check --frozen`; `static_check`; `suite_green` |
 | 7 | Gates + ship & fold | `stages/7_ship.md` | Always (closing stage) | Always | `run_all` + human Validation + fold-pin |
 
 ## Route resolution — two questions (set in Stage 0)

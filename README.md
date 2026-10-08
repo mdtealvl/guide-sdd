@@ -1,6 +1,6 @@
 # GUIDE SDD — Gated, Unified, Intent-Driven Engineering
 
-> **v1.15.1 — 2026-10-07.** A reusable, token-efficient, spec-first / persona-split development
+> **v1.16.0 — 2026-10-07.** A reusable, token-efficient, spec-first / persona-split development
 > method that drops into large, multi-developer projects worked by humans **and** AI agents. It
 > merges two mature in-house practices (Mistwright's *How We Work*, Polars' *How To Develop*) with
 > the published SOTA into one copyable **spine** + a small, indexed **per-project surface**.
@@ -43,7 +43,8 @@ Three routes, one repo (`github.com/mdtealvl/guide-sdd`):
    `/sdd-doctor`, `/sdd-gates`, `/sdd-persona`, and `/wrap` `/stash` `/unstash` without copying, plus a
    persona guard hook: an `engineer` persona cannot edit tests, the structure diagram or the gate bank
    (and the working tree is swept for drift after each write), and a `qa` persona cannot read
-   `paths.code`. See `plugin/README.md`.
+   `paths.code`; and a static-feedback hook that lints each file as the agent writes it
+   (`staticCheck.fileCmd`). See `plugin/README.md`.
 
 ## The core idea (in four lines)
 
@@ -420,6 +421,20 @@ a search that reaches `paths.code` (including one with no path, from the project
 confined to tests. **`coverage_check --plan`** (closes #6): the plan glob follows `paths.spec` (HTML
 shards work) and `paths.plan` overrides it. **Spine docs** are 6% shorter. Full record in
 `constitution.changelog.md`.
+
+### v1.16.0 Amendment — static analysis, mutation testing, real seam checkers (2026-10-07)
+
+No invariant change; still ten. The bank now checks the code beyond the suite.
+- **`static_check`** (closes #7): runs `checkCmd` (lint + type-check + format check). It is mandatory
+  like `suiteCmd`, and `"none"` opts out on the record. A finding-count ratchet serves brownfield code.
+  The Claude Code plugin also lints each edited file and hands the findings straight back.
+- **Rule kind `command`** (closes #8): seam and principle rules can run real architecture checkers.
+- **`mutation_check`** (closes #9): optional; Validation routes surviving mutants to QA as missing tests.
+- **On update:** set `checkCmd`, or the bank stops at `static_check`.
+- **Flow map:** `flow.html` (also on the GitHub Pages site) animates how an item moves through every
+  out-of-the-box configuration.
+
+Full record in `constitution.changelog.md`.
 
 ## Map to the source practices
 

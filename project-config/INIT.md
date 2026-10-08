@@ -161,6 +161,17 @@ mkdir -p backlog                            # SKIP in Mode A (the tracker is the
      mirrored in `gates/.frozen` by `gates/freeze.*`); a branch name is warned as weak.
    - `suiteCmd` — the suite-green command (mirror from project-details `#TOOL-3`). **Mandatory:**
      `run_all` exits 2 while it is unset — a bank that skips the suite proves nothing.
+   - `checkCmd` — lint + type-check + format check (`#TOOL-7`). **Mandatory** the same way; `"none"`
+     opts out on the record. Detect the stack (`pyproject.toml`, `package.json`, `*.csproj`, `build.gradle`,
+     `go.mod`, `Cargo.toml`), propose the standard command from the table in `gates/README.md`
+     ("Static analysis and mutation testing"), and confirm it with the human.
+     - Brownfield with existing findings: set `staticCheck.findingRegex` and `staticCheck.baseline` to
+       today's count, so only new findings fail.
+     - Claude Code: set `staticCheck.fileCmd` too, for per-edit feedback.
+     - Ban inline suppressions with a `constitutionRules` row; list the linter's config file under
+       `testGlobs` if the default list misses it.
+   - `mutation.cmd` — optional (`#TOOL-8`): the mutation tool, scoped to the diff with `{base}`. Unset,
+     the bank says "not configured" and test strength stays unmeasured.
    - `unitIdRegex` — the changelog unit-id regex (from project-details `#CL-2`).
    - `foldCheck.backlogRoot` / `foldCheck.resolveCmd` — how `fold_check` resolves a pin's
      `<unit-id>`. The fold step is otherwise changelog-mode-blind, so switching modes later touches
@@ -174,7 +185,8 @@ mkdir -p backlog                            # SKIP in Mode A (the tracker is the
    - Add the rules as inline `constitutionRules[]` and `seamRules[]` entries in
      `gates.config.json` — one per principle/seam, using the recipe in `gates/README.md`.
      Each seam registered in Project Details §1 maps to one `seamRules[]` entry, its `id` keyed to a
-     `#SEAM-N`.
+     `#SEAM-N`. Where the stack has an architecture checker (import-linter, dependency-cruiser,
+     ArchUnit, NetArchTest, go-arch-lint), make the row `kind: command` and let the checker do it.
 
 ## 6. Smoke test the gates (must pass before you trust the framework)
 
@@ -224,7 +236,8 @@ printf '\n## DEMO.2 unfollowed {#DEMO.2}\nThe system shall have no test, on purp
 3. Second negative control — the edit ban: append a line to `tests/demo.smoke.test` without
    committing and run `test_edit_ban` with `HEAD`; it must FAIL naming the file (the working tree is
    diffed, not just commits). Revert.
-4. Set `suiteCmd` for the demo (`"exit 0"` is enough here; the real command follows in §5) and run
+4. Set `suiteCmd` and `checkCmd` for the demo (`"exit 0"` is enough here; the real commands follow in
+   §5) and run
    the whole bank — **Windows:**
 
 ```powershell
@@ -254,8 +267,10 @@ sh gates/run_all.sh HEAD   # generic gates in order; pass a RESOLVING base (real
 - [ ] Spec format chosen (default `.body.md` content-only shards) + build command in Project Details §5.
 - [ ] `project-details.md` instantiated; seams registered in §1.
 - [ ] `gates.config.json` filled with the flat keys (`clauseIdRegex`, `testClauseTag`,
-  `paths.spec`, `testGlobs`, `baseRef`, `suiteCmd`, `unitIdRegex`, `foldCheck.*`) and inline
+  `paths.spec`, `testGlobs`, `baseRef`, `suiteCmd`, `checkCmd`, `unitIdRegex`, `foldCheck.*`; `mutation.*`
+  optional) and inline
   `constitutionRules[]` / `seamRules[]`; concrete project gate scripts copied.
 - [ ] Gate smoke test green for this OS (PowerShell or Bash gates; `.body.md` demo, `--config`
-  flag, `HEAD` base, DEMO.2 negative control, uncommitted-test-edit negative control, `suiteCmd` set);
+  flag, `HEAD` base, DEMO.2 negative control, uncommitted-test-edit negative control, `suiteCmd` and
+  `checkCmd` set);
   demo files removed.

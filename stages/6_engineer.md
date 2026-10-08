@@ -54,8 +54,11 @@ Mechanical guard (Tier A with the GUIDE SDD plugin):
   (`stages/4b_buildplan.md`).
 - **Use the seams.** No bypassing the project's architecture boundaries (`project-details.md#SEAM-N`),
   even if a bypass would be greener faster. `seam_conformance` checks this at ship.
-- Iterate locally until the suite is green (the Orchestrator re-runs to verify — your "tests pass" is
-  not taken on narrative).
+- Iterate locally until `static_check` and the suite are both green (the Orchestrator re-runs both;
+  your "tests pass" is not taken on narrative). Under the Claude Code plugin, lint findings on a file
+  come back the moment you write it: fix them then, not at the end.
+- **No suppressions.** An inline `eslint-disable` / `noqa` / `#pragma warning disable` is a loosened gate:
+  fix the finding, or raise it as a concern on the item.
 - Clean your own test droppings before handing back. Stage only the files this task changed, **by
   path** — never a blanket add.
 
@@ -96,6 +99,8 @@ and stalling — you **challenge** it:
 - `structure_check --frozen` — `gates/structure_check.ps1 -Frozen <frozen-sha>` (Windows) /
   `gates/structure_check.sh --frozen <frozen-sha>` (Linux/macOS); no argument reads `gates/.frozen`.
   (PASS: no structure shard differs from the frozen SHA — the approved diagram did not move.)
+- `static_check` — `gates/static_check.ps1` (Windows) / `gates/static_check.sh` (Linux/macOS).
+  (PASS: `checkCmd` exits 0, or its findings stay at or under the ratchet baseline.)
 - `suite_green` — Orchestrator re-runs the project suite (`suiteCmd`); exit 0 required.
 ### Next
 Return to PROCESS.md §0 and load Stage 7 (gates + ship). Read that stage file fully and follow it; this

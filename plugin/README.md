@@ -27,6 +27,12 @@ Install: `/plugin marketplace add mdtealvl/guide-sdd` then `/plugin install guid
 Runs under `sh`; on Windows that is Git Bash, which Claude Code already requires. A tripwire, not the
 proof: the Stage-7 `test_edit_ban` and `structure_check --frozen` gates diff the QA-frozen SHA. Tested by `ci/hook_test.sh`. The marker is stamped `session=<id>` by the first pass that sees it; a marker stamped by another session is ignored, never obeyed (a crashed session cannot leave a persona behind). Builtins only - the only processes are `git` in the sweep and snapshot, `rm` at session end and one `mkdir` per session for the snapshot dir - so a pass costs one shell start (~0.3 s on Windows), a sweep of a 500-path tree ~1 s. Every sweep also reads a nested git repo under a `testGlobs` path (PG.6). Known limits: path compares are case-sensitive, and the qa search check (PG.3c) is a heuristic on the search root and pattern.
 
+**Hook — static feedback** (`hooks/static-feedback.sh`, PostToolUse on Edit/Write/MultiEdit). When
+`staticCheck.fileCmd` is set, it runs that command on each file the agent writes under
+`staticCheck.fileGlobs` (default `paths.code`), with `{file}` as the root-relative path. Findings go back to
+the agent at once (exit 2); the edit stands. Silent when unset, when jq is missing, or when the file is
+clean. The fast loop only: `static_check` in the bank is the proof. Tested by `ci/hook_test.sh`.
+
 **Hook — update check** (`hooks/update-check.sh`, SessionStart on `startup`). In a repo with
 `sdd/.sdd-manifest.json` it runs the bundled `install.sh check --cached` — at most one release lookup a day,
 cached inside `.git` so the tree stays clean — and prints nothing when the spine is current, offline, or

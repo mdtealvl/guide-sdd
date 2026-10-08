@@ -32,6 +32,16 @@
             "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/persona-guard.sh\" --post"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/static-feedback.sh\"",
+            "timeout": 60
+          }
+        ]
       }
     ],
     "PostToolUseFailure": [

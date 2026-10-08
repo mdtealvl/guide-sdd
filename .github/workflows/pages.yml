@@ -1,5 +1,6 @@
 name: pages
-# GUIDE SDD landing page: publishes welcome.html as the GitHub Pages site index
+# GUIDE SDD landing page: publishes welcome.html as the GitHub Pages site index, and flow.html (the animated
+# flow map) beside it
 # (https://<owner>.github.io/<repo>/). The page is self-contained; its relative *.md links are
 # rewritten at build time to the rendered files on GitHub, so nothing else needs hosting.
 # One-time setup (repo admin, once): Settings -> Pages -> Source "GitHub Actions", or
@@ -8,7 +9,7 @@ name: pages
 on:
   push:
     branches: [main]
-    paths: [welcome.html, .github/workflows/pages.yml]
+    paths: [welcome.html, flow.html, .github/workflows/pages.yml]
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,9 +23,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Assemble the site (welcome.html -> index.html; .md links -> GitHub)
+      - name: Assemble the site (welcome.html -> index.html, flow.html beside it; .md links -> GitHub)
         run: |
           mkdir -p _site
+          sed 's#href="welcome.html"#href="./"#g' flow.html > _site/flow.html
+          grep -q 'href="./"' _site/flow.html
           sed -E "s#href=\"([A-Za-z0-9_./-]+\.md)\"#href=\"https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/\1\"#g" welcome.html > _site/index.html
           echo "rewritten links: $(grep -c "github.com/${GITHUB_REPOSITORY}/blob/" _site/index.html)"
           ! grep -qE 'href="[A-Za-z0-9_./-]+\.md"' _site/index.html

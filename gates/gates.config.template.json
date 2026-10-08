@@ -8,8 +8,8 @@
     "code": "src/**"
   },
   "_paths_plan_comment": "Optional paths.plan: the Stage-4 test-plan glob for coverage_check --plan. Unset, it follows paths.spec (last segment *X -> *plan*X, so spec/**/*.body.html gives spec/**/*plan*.body.html).",
-  "_testGlobs_comment": "One glob dialect everywhere (coverage_check, test_edit_ban, the plugin hook): ** spans directories, * does not, anchored at the project root. List test RUNNER CONFIG and snapshots too — an Engineer who can edit jest.config or a .snap can silence a test without touching it.",
-  "testGlobs": ["**/tests/**", "**/__tests__/**", "**/__mocks__/**", "**/*.test.*", "**/*.spec.*", "**/*Tests.cs", "**/*.snap", "**/jest.config.*", "**/vitest.config.*", "**/pytest.ini", "**/conftest.py"],
+  "_testGlobs_comment": "One glob dialect everywhere (coverage_check, test_edit_ban, the plugin hook): ** spans directories, * does not, anchored at the project root. List test RUNNER CONFIG and snapshots too — an Engineer who can edit jest.config or a .snap can silence a test without touching it. The same holds for linter, mutation and architecture-checker config: listed here, it freezes with the tests. Add tsconfig.json, .editorconfig, Directory.Build.props or setup.cfg when they carry analyzer settings (they also carry build settings, so they are not listed by default). Config inside pyproject.toml or package.json cannot be split out - ban suppressions with a constitutionRules row instead.",
+  "testGlobs": ["**/tests/**", "**/__tests__/**", "**/__mocks__/**", "**/*.test.*", "**/*.spec.*", "**/*Tests.cs", "**/*.snap", "**/jest.config.*", "**/vitest.config.*", "**/pytest.ini", "**/conftest.py", "**/eslint.config.*", "**/.eslintrc*", "**/ruff.toml", "**/.ruff.toml", "**/mypy.ini", "**/.golangci.*", "**/clippy.toml", "**/stryker.conf*", "**/stryker-config.json", "**/.importlinter", "**/.dependency-cruiser.*", "**/.flake8", "**/.pylintrc", "**/pyrightconfig.json", "**/biome.json", "**/.prettierrc*", "**/.eslintignore", "**/.globalconfig", "**/.cargo/mutants.toml"],
   "_testTagExcludeGlobs_comment": "Files under testGlobs whose @clause: tags do NOT count as coverage (notes, fixtures described in prose).",
   "testTagExcludeGlobs": ["**/*.md", "**/*.txt"],
   "_structureGlobs_comment": "Structure shards: the PM-approved member-level class diagrams (mermaid classDiagram in a content-only shard). Frozen with the tests (structure_check --frozen; the plugin hook denies the engineer persona edits); forward-traced into paths.code at ship (structure_check). A deviation is [NEEDS-PO:structure] -> PM -> replace wholesale -> re-freeze.",
@@ -19,6 +19,20 @@
   "_baseRef_comment": "Fallback only. test_edit_ban diffs the QA-frozen SHA (passed by the Orchestrator / CI, mirrored in gates/.frozen by gates/freeze.*); a branch name here is warned as weak.",
   "baseRef": "main",
   "suiteCmd": "<from project-details #TOOL-3 — e.g. dotnet test or npm test>",
+  "checkCmd": "<from project-details #TOOL-7 — lint + type-check + format check, e.g. ruff check . && mypy src; or none>",
+  "staticCheck": {
+    "_comment": "static_check (REQUIRED via checkCmd: unset = exit 2, \"none\" opts out on the record). findingRegex + baseline = the brownfield ratchet: count output lines matching findingRegex, FAIL above baseline, note to lower it below; an exit code outside findingExitCodes (default [0, 1]) is a tool error. Commands are one line, run under sh -c and cmd /c alike. fileCmd = the Claude Code plugin's per-edit feedback: run on each edited file under fileGlobs (default paths.code), {file} = its root-relative path, already quoted (write it bare); findings go back to the agent at once, the edit stands. See gates/README.md.",
+    "findingRegex": null,
+    "baseline": 0,
+    "fileCmd": null,
+    "fileGlobs": []
+  },
+  "mutation": {
+    "_comment": "mutation_check (optional; unset cmd = \"not configured\"). cmd from project-details #TOOL-8; {base} = the QA-frozen SHA, to mutate only the diff. scoreRegex: the first matching line carries the score (its first number), compared with minScore; unset, the exit code decides. Surviving mutants route to QA (Stage 5). See gates/README.md.",
+    "cmd": null,
+    "scoreRegex": null,
+    "minScore": 0
+  },
   "unitIdRegex": "\\b[A-Z]{2,}-\\d+\\b",
   "foldCheck": {
     "_comment": "Mode B: backlogRoot is searched for <unit-id>* files. Mode A: set resolveCmd with {unit} placeholder, e.g. 'scripts/jira.sh get {unit}'. Omit both to degrade to syntactic pin validation.",
@@ -35,7 +49,7 @@
   },
   "_constitutionRules_comment": "Example: {id:'no-hardcoded-ui', kind:'must_not_match', paths:'src/**/*.tsx', pattern:'>[A-Z][a-z]+ ', message:'...'}. Author one rule per project principle. See gates/README.md.",
   "constitutionRules": [],
-  "_seamRules_comment": "Example: {id:'SEAM-1-audit', kind:'pair_requires', paths:'src/**/Handlers/**/*.cs', pattern:'ICommandHandler', expect:'IAuditSink', message:'...'}. Author one rule per Project Details SEAM-N. See gates/README.md.",
+  "_seamRules_comment": "Example: {id:'SEAM-1-audit', kind:'pair_requires', paths:'src/**/Handlers/**/*.cs', pattern:'ICommandHandler', expect:'IAuditSink', message:'...'}. Prefer a real checker where the stack has one: {id:'SEAM-3-layers', kind:'command', cmd:'lint-imports', message:'...'} (exit 0 passes; import-linter, dependency-cruiser, ArchUnit tests...). Author one rule per Project Details SEAM-N. See gates/README.md.",
   "seamRules": [],
   "_qaImportRules_comment": "Example: {id:'qa-no-impl-import', kind:'must_not_match', paths:'tests/**/*.cs', pattern:'using\\s+MyApp\\.Internal', message:'QA tests may not import production internals'}. (In the real rule, write the pattern as JSON: \"using\\\\s+MyApp\\\\.Internal\".) Read by qa_import_ban (copy qa_import_ban.template.* to a concrete name); the copied gate FAILS (exit 2) while this array is empty. Same rule shape as constitutionRules/seamRules. See gates/README.md.",
   "qaImportRules": []

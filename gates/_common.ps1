@@ -180,3 +180,57 @@ function Expand-Globs {
     }
     return @($result | Sort-Object)
 }
+
+function Invoke-ShellCapture {
+    # Run a configured command the way the sh twin's `sh -c` does (cmd /c on Windows) and return
+    # @{ rc; out }: stdout + stderr merged, CRs dropped, trailing newlines trimmed as `$(...)` does.
+    param([string]$Cmd)
+    $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    try {
+        # stdin is an empty pipe, as the sh twin's </dev/null: a command that reads stdin gets EOF.
+        if ($env:ComSpec) { $lines = @() | & $env:ComSpec /c $Cmd 2>&1 } else { $lines = @() | & sh -c $Cmd 2>&1 }
+        $rc = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $prev }
+    $text = ((@($lines) | ForEach-Object { "$_" }) -join "`n") -replace "`r", ''
+    return @{ rc = $rc; out = $text.TrimEnd("`n") }
+}
+
+function Get-TailLines {
+    # The last $N non-empty lines of $Text (the sh twin: sed '/^$/d' | tail -n N).
+    param([string]$Text, [int]$N)
+    $l = @($Text.Split([char]10) | Where-Object { $_ -ne '' })
+    if ($l.Count -le $N) { return $l }
+    return $l[($l.Count - $N)..($l.Count - 1)]
+}
+
+function Test-PortableRegex {
+    # A configured regex both twins read alike (the sh twin's check_regex), else a FAIL line + $false:
+    # no inline flags (?...) or lazy quantifiers, and it must compile.
+    param([string]$Gate, [string]$Key, [string]$Re)
+    if ($Re -match '\(\?|\*\?|\+\?|\}\?|\?\?') {
+        [Console]::Out.WriteLine("FAIL ${Gate}: $Key uses (?...) or a lazy quantifier - outside the portable regex subset (gates/README.md)")
+        return $false
+    }
+    try { [void][regex]$Re } catch { [Console]::Out.WriteLine("FAIL ${Gate}: $Key is not a valid regex"); return $false }
+    return $true
+}
+
+function Test-OneLine {
+    # A configured command must be one line: cmd /c runs only the first line, sh -c runs them all.
+    param([string]$Gate, [string]$Key, [string]$Cmd)
+    if ($Cmd -match "[`r`n]") { [Console]::Out.WriteLine("FAIL ${Gate}: $Key must be one line (cmd /c on Windows runs only the first)"); return $false }
+    return $true
+}
+
+function Get-RawText {
+    # A config value as the sh twin's read_raw prints it: null/absent -> $Default; booleans as jq
+    # spells them (false/true); numbers in invariant culture.
+    param($Obj, [string]$Name, [string]$Default)
+    if ($null -eq $Obj) { return $Default }
+    $p = $Obj.PSObject.Properties[$Name]
+    if ($null -eq $p -or $null -eq $p.Value -or "$($p.Value)" -eq '') { return $Default }
+    $v = $p.Value
+    if ($v -is [bool]) { return $(if ($v) { 'true' } else { 'false' }) }
+    if ($v -is [array] -or $v -is [System.Management.Automation.PSCustomObject]) { return ($v | ConvertTo-Json -Compress) }
+    return [string]::Format([Globalization.CultureInfo]::InvariantCulture, '{0}', $v)
+}

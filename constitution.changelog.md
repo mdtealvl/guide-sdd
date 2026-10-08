@@ -407,3 +407,23 @@ No invariant change; still ten.
 - Persona guard (closes #5): a qa path with a `..` segment is denied wherever it starts; repeated and inner `./` segments and the Windows `\\?\` / `\\.\` prefixes are normalized away; the project root itself maps to the root. Grep/Glob are judged by what they reach (PG.3c): the search root (none = the project root) joined with the Glob pattern or Grep glob (a pattern with no `/` matches at any depth; a Grep glob is split on blanks and commas, a leading `!` counts as everything, a leading `/` anchors to the root). A search at, under or above a `paths.code` directory is denied unless it is confined to tests (its pattern matches a testGlob, or it sits under a `<dir>/**` testGlob; a braced pattern gets neither). A `paths.code` glob with no literal directory (`**/*.cs`) is compared by its last segment. A heuristic; QA scopes its searches to spec and test paths.
 - `coverage_check --plan` (closes #6): the plan glob is `--plan-glob` > `paths.plan` > `paths.spec` with its last segment `*X` made `*plan*X` (HTML shards get `*plan*.body.html`) > `spec/**/*plan*.body.md`. Smoke controls on both twins.
 - Spine docs: a word-cutting pass (−6.4%), fidelity-reviewed; no rule, heading or table row dropped.
+
+## v1.16.0 — static analysis, mutation testing, real seam checkers (per SDD-amend-v1.16.0, 2026-10-07)
+
+No invariant change; still ten. The bank now checks the code beyond the suite.
+- `static_check` (closes #7): a new generic gate, ps1/sh twins. It runs `checkCmd` (lint + type-check + format check), which is **mandatory** like `suiteCmd`: unset is exit 2, and `"none"` opts out on the record. `staticCheck.findingRegex` + `baseline` give the brownfield ratchet: findings above the baseline FAIL, below it PASS with a note to lower it, a non-zero exit with no matching line FAILs, and so does an exit code outside `staticCheck.findingExitCodes` (default 0, 1): a crash after some findings is not a count. `run_all` runs it before `suite_green`; Stage 6 closes on it; Validation re-runs it.
+- Per-edit feedback (Claude Code plugin): `hooks/static-feedback.sh`, PostToolUse on Edit/Write/MultiEdit. It runs `staticCheck.fileCmd` on the edited file under `fileGlobs` (default `paths.code`) and hands the findings back at once (exit 2); the edit stands.
+- Rule kind `command` (closes #8): any rule gate (`constitution_lint`, `seam_conformance`, `qa_import_ban`) can run a real checker (import-linter, dependency-cruiser, ArchUnit, NetArchTest, go-arch-lint). Exit 0 passes; a failure prints the last 10 output lines.
+- `mutation_check` (closes #9): a new optional gate, ps1/sh twins. `mutation.cmd` runs with `{base}` set to the QA-frozen SHA, so it can mutate only the diff. With `scoreRegex`, the score is compared with `minScore`; without it, the exit code decides; unset prints "not configured". Validation's verification-gap lens reads the surviving mutants: each in changed code is a `test` finding, routed to QA.
+- Integrity: the default `testGlobs` now lists linter, mutation and architecture-checker config files, so they freeze with the tests. The docs say to ban inline suppressions with a `constitutionRules` row.
+- INIT §5 proposes `checkCmd`, `fileCmd`, `mutation.cmd` and seam checkers per detected stack (table in `gates/README.md`). Project Details gains `TOOL-7` (static check) and `TOOL-8` (mutation).
+- **Updating:** the config merge adds `checkCmd` as a placeholder, so `static_check` exits 2 and the bank stops until you set it (or set `"none"`).
+- Hardened before release, after an adversarial review:
+  - Configured commands run with stdin closed, so a command that reads stdin can no longer swallow the later rules and PASS.
+  - Invalid `findingRegex` / `scoreRegex` values, inline flags and lazy quantifiers are config errors (exit 2), never a silent count.
+  - `to_ere` rewrites `\d`/`\w`/`\s` inside brackets (`[\d.]` -> `[0-9.]`), so both twins read them alike.
+  - `false`, oversized and `.`-only numbers are rejected identically in both twins.
+  - Multi-line commands are refused, because `cmd /c` runs only the first line.
+  - The hook strips the root correctly on non-ASCII paths.
+  - Each fix has a smoke negative control on both twins.
+- `flow.html`: an animated flow map (route x host tier x deployment x coverage, plus the gate switches), published on GitHub Pages beside the landing page, which links to it.

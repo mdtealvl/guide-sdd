@@ -3,13 +3,29 @@
 # Sourced by both gates (the .py originals shared run_rule/run_rules the same way).
 # Requires _common.sh (expand_globs, to_ere) to be sourced first, plus jq + grep.
 
-# run_rule emits, on stdout, exactly one line:
+# run_rule emits, on stdout, one verdict line:
 #   OK            (rule passed)
 #   FAIL<TAB>detail
+# then, for kind `command` only, the last lines of the command's output (printed under the verdict).
 # It is fed one rule as a compact JSON object on argument $1.
 run_rule() {
   _rule="$1"
   _kind=$(printf '%s' "$_rule" | jq -r '.kind // empty')
+
+  # command: a real checker (import-linter, dependency-cruiser, ArchUnit tests...) run from the
+  # project root; exit 0 passes. The regex kinds below are the no-dependency fallback.
+  if [ "$_kind" = "command" ]; then
+    _cmd=$(printf '%s' "$_rule" | jq -r '.cmd // empty')
+    if [ -z "$_cmd" ]; then printf "FAIL\tbad cmd: 'cmd'\n"; return; fi
+    case "$_cmd" in *'
+'*|*"$(printf '\r')"*) printf 'FAIL\tcmd must be one line (cmd /c on Windows runs only the first)\n'; return ;; esac
+    _out=$(sh -c "$_cmd" </dev/null 2>&1); _rc=$?   # stdin closed: the rule list is on ours
+    if [ "$_rc" -eq 0 ]; then printf 'OK\n'; return; fi
+    printf 'FAIL\t`%s` exited %s\n' "$_cmd" "$_rc"
+    printf '%s\n' "$_out" | tr -d '\r' | sed '/^$/d' | tail -n 10
+    return
+  fi
+
   # paths can be a string or array -> newline list
   _paths=$(printf '%s' "$_rule" | jq -r '(.paths // empty) | if type=="array" then .[] else . end')
 
@@ -81,6 +97,7 @@ run_rules() {
       _detail=$(printf '%s' "$_res" | head -n1 | cut -f2-)
       printf '  [FAIL] %s: %s\n' "$_id" "$_msg"
       printf '         -> %s\n' "$_detail"
+      printf '%s\n' "$_res" | sed '1d' | sed 's/^/         | /'
     fi
   done
   rm -f "$RULE_TMP" 2>/dev/null || true

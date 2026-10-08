@@ -9,8 +9,8 @@
 # Project-specific (the production-internal surface differs per project), so it ships as a
 # template like constitution_lint / seam_conformance and reuses the SAME rule engine.
 # Copy this file to gates/qa_import_ban.ps1 (no edits) and author the "qaImportRules" array
-# in gates/gates.config.json. Same four kinds as the other rule gates:
-#   must_match | must_not_match | file_exists | pair_requires
+# in gates/gates.config.json. Same five kinds as the other rule gates:
+#   must_match | must_not_match | file_exists | pair_requires | command (a real checker, e.g. import-linter)
 #
 # Rule shape (a row in gates.config.json -> qaImportRules[]):
 #   { "id": "qa-no-impl-import", "kind": "must_not_match",

@@ -58,14 +58,18 @@ clone with no project runtime.
 | link_check | `link_check.ps1` / `.sh` | generic | every spec cross-ref resolves to a real anchor/shard | 3, 7 |
 | prose_check | `prose_check.ps1` / `.sh` | generic | spec shards are terse and structured (SDD-PROP-09): paragraph-word share + longest paragraph, **changed shards vs base** by default (`-All` / `--all` for the corpus); `proseCheck.mode` warn / strict / off | 3, 7 |
 | fold_check | `fold_check.ps1` / `.sh` | generic | every clause changed this ship carries a resolving provenance pin. CI runs **`--strict`** | 7 |
+| static_check | `static_check.ps1` / `.sh` | generic | the project's linter / type checker / format check (`checkCmd`) passes, or its finding count stays at or under `staticCheck.baseline` (the brownfield ratchet); **`checkCmd` is mandatory** (unset = exit 2; `"none"` opts out on the record) | 6, 7 |
 | suite_green | `suiteCmd` wrapper | generic | the project suite exits 0; **`suiteCmd` is mandatory** (unset = exit 2, never a skip) | 6, 7 |
+| mutation_check | `mutation_check.ps1` / `.sh` | generic, **optional** | the suite kills enough planted faults: `mutation.cmd` exits 0, or its score ≥ `mutation.minScore`; `{base}` scopes it to the diff; unset = "not configured" | 7 |
 | constitution_lint | `constitution_lint.template.ps1` / `.sh` | **project** | project principle checks (e.g. no hardcoded UI strings) | 7 |
 | seam_conformance | `seam_conformance.template.ps1` / `.sh` | **project** | each Project Details §1 seam holds | 7 |
 | qa_import_ban | `qa_import_ban.template.ps1` / `.sh` | **project** | QA tests don't import production internals (structural half of QA⊥impl; **FAILS with no rules**; the plugin hook adds the read-guard while the `qa` persona is set) | 7 |
 | run_all | `run_all.ps1` / `.sh` | generic | the whole bank in order, fail-fast | 7 |
 
 Shared helpers, not gates: `_common.ps1` / `.sh` (config + glob + regex) and `_rules.ps1` / `.sh` (the
-rule engine of the three project gates).
+rule engine of the three project gates). The Claude Code plugin adds a per-edit loop:
+`hooks/static-feedback.sh` runs `staticCheck.fileCmd` on each file the agent writes and hands the findings
+straight back ([static analysis](#static-analysis-and-mutation-testing)).
 
 A clause-ID counts as DECLARED only if it carries an inline anchor; bare prose occurrences are
 citations that must resolve (spec-format/README §4).
@@ -78,7 +82,8 @@ contract. Run the Windows (`pwsh …`) **or** the Linux–macOS (`sh …`) form,
 - **Per-stage:** `link_check` + `prose_check` + `structure_check --plan` after any spec edit (Stage 3);
   `coverage_check --plan` at Stage 4; `structure_check --plan` + `token_ledger verify` / `report` at Stage 4b
   and `token_ledger report --slice` at every slice end; `coverage_check` then `freeze` at end of Stage 5;
-  `test_edit_ban <frozen-sha>` + `structure_check --frozen <frozen-sha>` + `suite_green` at end of Stage 6.
+  `test_edit_ban <frozen-sha>` + `structure_check --frozen <frozen-sha>` + `static_check` + `suite_green` at
+  end of Stage 6; `mutation_check` (when configured) in the Stage-7 bank, read by Validation.
 
   | Gate | Windows | Linux / macOS |
   |---|---|---|
@@ -101,6 +106,8 @@ contract. Run the Windows (`pwsh …`) **or** the Linux–macOS (`sh …`) form,
   | constitution_lint | `pwsh gates/constitution_lint.ps1` | `sh gates/constitution_lint.sh` |
   | seam_conformance | `pwsh gates/seam_conformance.ps1` | `sh gates/seam_conformance.sh` |
   | qa_import_ban | `pwsh gates/qa_import_ban.ps1` | `sh gates/qa_import_ban.sh` |
+  | static_check | `pwsh gates/static_check.ps1` | `sh gates/static_check.sh` |
+  | mutation_check | `pwsh gates/mutation_check.ps1 [-Base <frozen-sha>]` | `sh gates/mutation_check.sh [--base <frozen-sha>]` |
 
   Every gate takes a config override: `-Config <path>` / `--config <path>` (default
   `gates/gates.config.json`).
@@ -188,9 +195,9 @@ contract. Run the Windows (`pwsh …`) **or** the Linux–macOS (`sh …`) form,
 
 - **Ship (Stage 7):** run the whole bank, fail-fast, in order:
   ```
-  link_check → prose_check → coverage_check → test_edit_ban → structure_check → suite_green
-             → constitution_lint* → seam_conformance* → qa_import_ban* → fold_check
-             → suite_green (re-run)
+  link_check → prose_check → coverage_check → test_edit_ban → structure_check → static_check
+             → suite_green → constitution_lint* → seam_conformance* → qa_import_ban*
+             → mutation_check → fold_check → suite_green (re-run)
   ```
   (`structure_check --frozen` precedes the trace on the persona route's `--pre-fold` pass only.)
   - **Windows:** `pwsh gates/run_all.ps1 [baseRef] [-PreFold] [-Mechanical] [-Strict]`
@@ -201,6 +208,8 @@ contract. Run the Windows (`pwsh …`) **or** the Linux–macOS (`sh …`) form,
   from the config (relative to the spine dir) for a non-git layout. Config paths are root-relative; run
   individual gates from the root too. `[baseRef]` is the QA-frozen SHA; omitted, `test_edit_ban` reads
   `gates/.frozen`. **`suiteCmd` unset ⇒ exit 2** — never ALL GATES PASSED without running the suite.
+  **`checkCmd` unset ⇒ `static_check` exits 2** the same way; `mutation_check` runs in every pass when
+  `mutation.cmd` is set.
 
   `*` project gates run **only if** their concrete same-OS script + rules exist; else skipped with a
   notice (a fresh repo is green before you author them).
@@ -231,10 +240,65 @@ in a script.
 | `baseRef` | fallback base for diffs (`main`). `test_edit_ban` uses the QA-frozen SHA (argument, else `gates/.frozen`) and warns when it falls back to a branch name. |
 | `projectRoot` | optional; the project root relative to the spine directory, for a non-git layout. Default: the git top-level. |
 | `suiteCmd` | the project's full-suite command, from Project Details §3 `#TOOL-3`. |
+| `checkCmd` | the lint + type-check + format-check command, from `#TOOL-7`; **mandatory** (`"none"` opts out on the record). |
+| `staticCheck` | `findingRegex` + `baseline` (the ratchet), `fileCmd` + `fileGlobs` (the plugin's per-edit loop; default `paths.code`). |
+| `mutation` | optional: `cmd` (from `#TOOL-8`; `{base}` = the QA-frozen SHA), `scoreRegex`, `minScore`. |
 | `unitIdRegex` | what a changelog unit-id looks like — Jira key (Mode A) or backlog id (Mode B). Read by fold_check; otherwise mode-blind. |
 | `proseCheck` | `prose_check` tunables: `mode` (warn / strict / off), `maxParaShare`, `maxParaWords`, `minWords`, `excludeGlobs[]` (see above). |
 | `constitutionRules[]` / `seamRules[]` | project-gate rule arrays (see schema). |
 | `qaImportRules[]` | `qa_import_ban`'s rule array, same shape — typically `must_not_match` an import of a production-internal namespace/path over the QA test glob. **Why:** QA-blind independence is otherwise honor-system; this catches its structural half. |
+
+## Static analysis and mutation testing
+
+The suite proves what QA thought to test. Two gates measure the rest.
+
+**`static_check`** runs `checkCmd` from the project root.
+- No `findingRegex`: the exit code decides.
+- With `findingRegex` (the brownfield ratchet): the gate counts output lines matching it. Above
+  `baseline` FAILs (new findings); below PASSes and names the lower baseline to commit.
+- The count is trusted only from a run that finished: an exit code outside
+  `staticCheck.findingExitCodes` (default `[0, 1]`; add `2` for `tsc`) FAILs as a tool error.
+- A non-zero exit with no matching line FAILs: the tool broke, or the regex no longer fits.
+- The ratchet counts totals: fixing one old finding pays for one new one. Lower the baseline as it
+  drops.
+
+**Commands and regexes, both twins.** Every configured command (`checkCmd`, `mutation.cmd`, a `command`
+rule) runs under `sh -c` in the `.sh` twin and `cmd /c` on Windows, from the project root, stdin closed.
+- Keep it one line (a multi-line command is a config error), and write what both shells read alike;
+  anything more goes in a script the command calls.
+- `findingRegex` / `scoreRegex` stay in the portable subset below. An invalid regex, an inline flag
+  `(?i)` or a lazy quantifier is a config error (exit 2), never a silent count.
+
+**`mutation_check`** runs `mutation.cmd` when set.
+- With `scoreRegex`: the first number in its first match is the score, compared with `minScore`; the exit
+  code is ignored.
+- Without: the exit code decides, so the tool's own threshold applies (Stryker `thresholds.break`, PIT
+  `mutationThreshold`).
+- `{base}` becomes the QA-frozen SHA, to mutate only the diff. Gitignore the tool's work directory: an
+  untracked copy of `tests/` trips `test_edit_ban`.
+- A surviving mutant in changed code is a missing test: route it to QA (Stage 5), never the Engineer.
+
+**Integrity.** Both commands live in the frozen config, so the Engineer cannot loosen them.
+- The tools' own config files are in the default `testGlobs`, so they freeze with the tests. Add yours
+  if it is not listed.
+- Config inside `pyproject.toml` or `package.json` cannot be split out.
+- Inline suppressions (`eslint-disable`, `noqa`, `type: ignore`, `#pragma warning disable`,
+  `@SuppressWarnings`, `#[allow(`) pass the gate. Ban them with a `constitutionRules` `must_not_match` row
+  over `paths.code`.
+
+**Per-edit loop (Claude Code plugin).** `hooks/static-feedback.sh` runs `staticCheck.fileCmd` on each file
+the agent writes under `fileGlobs` (default `paths.code`). `{file}` is the root-relative path, already
+quoted: write it bare (`eslint {file}`). Findings
+go straight back to the agent; the edit stands. The gate is the proof, the hook only the fast loop.
+
+| Stack | `checkCmd` | `staticCheck.fileCmd` | `mutation.cmd` |
+|---|---|---|---|
+| Python | `ruff check . && ruff format --check . && mypy src` | `ruff check {file}` | `mutmut run` |
+| JS / TS | `eslint . && tsc --noEmit && prettier --check .` | `eslint {file}` | `npx stryker run --incremental` |
+| .NET | `dotnet build -warnaserror && dotnet format --verify-no-changes` | — (build-level) | `dotnet stryker --since:{base}` |
+| JVM | `gradle check` (Error Prone, SpotBugs, Checkstyle) | — | `gradle pitest` |
+| Go | `golangci-lint run` | `golangci-lint run {file}` | `go-mutesting ./...` |
+| Rust | `cargo clippy -- -D warnings && cargo fmt --check` | — (crate-level) | `git diff {base} > mut.diff && cargo mutants --in-diff mut.diff` |
 
 ## Generic vs project-specific — the split (C2)
 
@@ -253,7 +317,7 @@ in a script.
 ```jsonc
 {
   "id": "SEAM-2-audit",                // stable; for seamRules MUST key to an Project Details SEAM-N
-  "kind": "pair_requires",             // one of the four kinds below
+  "kind": "pair_requires",             // one of the five kinds below
   "paths": "src/**/Handlers/**/*.cs",  // glob the rule applies to
   "pattern": "ICommandHandler",        // the trigger regex
   "expect": "IAuditSink",              // (pair_requires only) regex that must ALSO be present
@@ -267,23 +331,41 @@ in a script.
 | `must_not_match` | no file in `paths` matches `pattern` | "no hardcoded UI string", "no manual DI in `Program.cs`", "no QA test imports a production-internal namespace" |
 | `file_exists` | a file matching `paths` exists | "a workflow diagram accompanies a config change" |
 | `pair_requires` | every file matching `pattern` ALSO matches `expect` | audit invariant, dispatch registration, `[OnEnter]` pairing |
+| `command` | `cmd` exits 0 (run from the project root; no `paths`/`pattern`). A failure prints its last 10 output lines | layering, forbidden dependencies, import cycles — through a real checker |
 
-`pair_requires` is the workhorse: most seams reduce to "if a file does X it must also do Y" — e.g. Polars'
-"every `ICommandHandler` writes via `IAuditSink`" and "every handler carries `[Command(...)]`".
+`pair_requires` is the workhorse of the regex kinds: most seams reduce to "if a file does X it must also
+do Y" — e.g. Polars' "every `ICommandHandler` writes via `IAuditSink`" and "every handler carries
+`[Command(...)]`".
+
+**Prefer `command` where the stack has a real checker.** Regex sees one line at a time; these tools see
+the import graph. The regex kinds stay as the no-dependency fallback.
+
+| Stack | Checker | `seamRules` row |
+|---|---|---|
+| Python | import-linter (contracts in `.importlinter`) | `{"id":"SEAM-3-layers","kind":"command","cmd":"lint-imports"}` |
+| JS / TS | dependency-cruiser | `{"id":"SEAM-3-layers","kind":"command","cmd":"npx depcruise src"}` |
+| .NET | NetArchTest / ArchUnitNET (architecture tests) | `{"id":"SEAM-3-layers","kind":"command","cmd":"dotnet test --filter Category=Architecture"}` |
+| JVM | ArchUnit (architecture tests) | `{"id":"SEAM-3-layers","kind":"command","cmd":"gradle test --tests *ArchTest"}` |
+| Go | go-arch-lint | `{"id":"SEAM-3-layers","kind":"command","cmd":"go-arch-lint check"}` |
+
+Architecture tests written as tests sit under `testGlobs`: QA owns them and they freeze with the suite.
 
 - **Regex portability:** `.ps1` uses .NET regex; `.sh` uses POSIX ERE via `grep -E`.
   - Stay in the portable subset (character classes, `+ * ? { } | ( )`, anchors). `\b` works in both;
     avoid PCRE-only constructs like lookaround.
   - Both match **line by line** (since v1.15.0): `^` and `$` anchor each line; no match spans a newline.
+  - No inline flags (`(?i)`) and no lazy quantifiers (`+?`): .NET honours them, `grep -E` does not.
   - Inside `[...]`, write a tab as the JSON escape `"\t"` (a real tab), never the regex escape `\\t` —
     `grep -E` reads that as a backslash and a `t`.
-  - `\d`/`\s` are accepted (the `.sh` engine rewrites them to `[0-9]`/`[[:space:]]`).
+  - `\d`/`\s` are accepted, inside brackets too (the `.sh` engine rewrites `\d` to `[0-9]` and `[\d.]` to
+    `[0-9.]`).
 
 ## Recipe — making a project-specific gate scriptable
 
 1. State the principle as a **mechanical predicate** over file text: *X must/must-not appear*, or
    *files doing X must also do Y*.
-2. Pick the `kind`; write `pattern` (and `expect`) as a regex; scope with a `paths` glob.
+2. Pick the `kind`; write `pattern` (and `expect`) as a regex; scope with a `paths` glob. Or, when a
+   real checker expresses the rule, a `command` row.
 3. Add the rule to `constitutionRules[]` (principles), `seamRules[]` (seams, keyed to a `SEAM-N`
    in Project Details §1), or `qaImportRules[]` (QA must not import production internals).
 4. Copy the template **for your OS** to a concrete name, unedited (it reads its rule array by name):
@@ -309,7 +391,7 @@ Catch it, cheapest-first:
    forbid its *definition* (e.g. a default value on the arm parameter) with a `must_not_match` rule over
    the defining file — caught at the source, not the call sites.
 3. **Callers-count check (full form — engine follow-up).** "≥1 caller in `<glob>` passes the arm
-   explicitly" is an **`any_match`** semantic the four-kind engine does **not** express; do **not**
+   explicitly" is an **`any_match`** semantic the regex kinds do **not** express; do **not**
    approximate it with a regex. An `any_match` kind is a tracked follow-up, to be **smoke-tested in a
    live repo** before trusted (a gate that has never run is not trustworthy); until then, rely on (1) + (2).
 
@@ -324,7 +406,8 @@ Catch it, cheapest-first:
 - A gate is a pure function of working tree + git history + config. No network unless a mode needs it
   (fold_check Mode A may resolve a tracker key; offline it degrades to file-exists and says so).
 - A gate must FAIL CLOSED: `test_edit_ban` and `fold_check` exit 2 (never a silent PASS) when their
-  base does not resolve or is not an ancestor of HEAD; `run_all` exits 2 when `suiteCmd` is unset; a
+  base does not resolve or is not an ancestor of HEAD; `run_all` exits 2 when `suiteCmd` is unset and
+  `static_check` when `checkCmd` is; a
   copied-in project gate with an empty rule array exits 2. A needed skip is said in a FAIL line, never
   a PASS line.
 - A gate must ship with a **negative control** in `ci/smoke.sh` + `ci/smoke.ps1`: a violating case where

@@ -56,6 +56,8 @@ half only; the rest is on you.
   resolves it.
 - Tests must be **red and compiling** at handoff — red because no impl yet; compiling so the Engineer
   has an executable acceptance bar.
+- **Red is not strong.** A test can fail without the code and still pass a wrong implementation. Where
+  `mutation_check` is configured, surviving mutants come back to you from Stage 7 as missing tests.
 - **Ledger.** Open with `token_ledger verify --for <your slice>` (a STALE row is re-read, never trusted);
   record every read (`token_ledger add --kind read --by <slice>`). Before handing back, **pin for the
   Engineer** (`--kind pin --aud eng`) each test's name + assertion lines per clause, so it reads the

@@ -24,7 +24,7 @@ Every tool has a rules file and can read files, so `always-load` and `demand-loa
 | Tier | Host can… | Persona loop | Independence guarantee |
 |---|---|---|---|
 | **A** | spawn scoped sub-agents | runs as written | physical context exclusion **+** the structural gates |
-| **B** | start fresh sessions, no spawning | each persona in a fresh session; artifacts the only channel | the `test_edit_ban` + `qa_import_ban` gates (structural half), honor-system for the rest |
+| **B** | start fresh sessions, no spawning | each persona in a fresh session; artifacts the only channel | the `test_edit_ban` + `qa_import_ban` gates (structural half; `static_check` and `suite_green` re-run by the Orchestrator), honor-system for the rest |
 | **C** | single context only | **not available** — Mechanical lane only | none; risky work re-triaged up to an A/B box |
 
 - Tier B is credible where a pure-prompt method is not because the gates are pure git/text with exit

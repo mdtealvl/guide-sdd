@@ -19,13 +19,15 @@ unit open.
 From anywhere inside the repo: `pwsh gates/run_all.ps1 <base> -PreFold`
 / `sh gates/run_all.sh <base> --pre-fold` (persona route) or add `-Mechanical` / `--mechanical`
 (mechanical route). It runs `link_check` + `prose_check` + `coverage_check` + (`test_edit_ban` +
-`structure_check --frozen`, persona only) + `structure_check` + `suite_green`, but **SKIPS** `fold_check` —
+`structure_check --frozen`, persona only) + `structure_check` + `static_check` + `suite_green` + the project
+gates + `mutation_check` (when configured), but **SKIPS** `fold_check` —
 the provenance pins do not exist yet (step 3).
 
 `<base>` is the **QA-frozen SHA** from the item's `frozen:` line (persona route; written by
 `gates/freeze.*` at Stage 5 exit and mirrored in `gates/.frozen`) or the pre-work base (mechanical).
 Pass the SHA, not a branch name: `test_edit_ban` diffs that commit against the **working tree** and
-proves the gate config and scripts are the ones QA froze. `suiteCmd` must be set — an unset suite is
+proves the gate config and scripts are the ones QA froze. `suiteCmd` and `checkCmd` must be set (an
+unset `checkCmd` is exit 2 too; `"none"` is the recorded opt-out) — an unset suite is
 exit 2, never a skip.
 
 | Gate | Proves | Type |
@@ -37,7 +39,9 @@ exit 2, never a skip.
 | `constitution_lint` | project principle checks hold | template + config |
 | `seam_conformance` | architecture seams (`#SEAM-N`) not bypassed | template + config |
 | `qa_import_ban` | QA tests import nothing production-internal (fails with no rules) | template + config |
+| `static_check` | lint / type-check / format check passes, or findings stay at or under the ratchet baseline | generic script + `checkCmd` |
 | `suite_green` | the project suite exits 0, **re-run by the Orchestrator** | runner (project details) |
+| `mutation_check` | optional: the suite kills enough planted faults (score ≥ `minScore`, or the tool's own threshold) | generic script + `mutation.cmd` |
 
 The Orchestrator re-runs the suite; an agent's "tests pass" is not accepted. Project-specific gates
 run only if their concrete script + rules exist.
@@ -52,6 +56,7 @@ run only if their concrete script + rules exist.
 | the shard manifest's spec clauses + the approved structure shard + the constitution | the Engineer's or QA's reports ("tests pass", "done") |
 | the changelog item: verbatim request, ACs, Boundaries, Stage-4 matrix, QA's fixture-gap notes | `HANDOFF.md`, memory, prior verdicts |
 | the suite output, filtered to verdict lines + failure names | anything the diff does not touch |
+| the `mutation_check` score + surviving mutants in changed code (when configured) | |
 | Project Details rows for the touched seams + applicable non-functional categories | |
 
 **Output schema** — one line per finding, no prose around it:
@@ -77,7 +82,9 @@ left **blank** (the Orchestrator sets it, §3). Then one verdict line: `accept` 
 - **2c Verification gap** — for each changed behaviour: name the smallest regression (invert the branch,
   drop the default, omit the field, return the old error) and the test that would fail; **read that
   test**. Snapshot-only, no-throw, mock-call and "it exists but is skipped or filtered" checks do not
-  count. No such test ⇒ finding, class `test`.
+  count. No such test ⇒ finding, class `test`. Where `mutation_check` ran, each surviving mutant in
+  changed code is that regression already named: a finding, class `test`, unless the mutant is
+  equivalent (no observable change; say why).
 - **2d Intent alignment** — against the **verbatim request** on the item: enumerate the plausible
   readings; which one does the diff implement; where does it diverge from the request in scope or
   meaning. Diff-vs-spec passes when Stages 1–3 misread the PM; this catches it. A

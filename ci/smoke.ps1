@@ -24,9 +24,10 @@ try {
     Set-Location $proj
     git init -q -b main . ; git config user.email ci@guide-sdd ; git config user.name ci
     $utf8 = [Text.UTF8Encoding]::new($false)
-    # INIT §5: the suite command is mandatory (an unset suiteCmd is exit 2, never a silent skip).
+    # INIT §5: the suite and static-check commands are mandatory (unset is exit 2, never a silent skip).
     $cfgObj = Get-Content gates/gates.config.template.json -Raw | ConvertFrom-Json
     $cfgObj.suiteCmd = 'exit 0'
+    $cfgObj.checkCmd = 'exit 0'
     [IO.File]::WriteAllText("$proj/gates/gates.config.json", ($cfgObj | ConvertTo-Json -Depth 10), $utf8)
     New-Item -ItemType Directory -Force spec, tests | Out-Null
     [IO.File]::WriteAllText("$proj/spec/demo.body.md", "## DEMO.1 smoke {#DEMO.1}`nWhen init runs, the system shall pass the smoke test.`n", $utf8)
@@ -174,6 +175,99 @@ try {
     Expect 0 'constitution_lint PASS: no phantom empty line after the final newline' @('gates/constitution_lint.template.ps1', '-Config', 'rules.smoke.json')
     Remove-Item -Recurse -Force "$proj/notes", "$proj/rules.smoke.json"
 
+    # static_check (#7): checkCmd is required (unset = exit 2), "none" opts out on the record, the exit
+    # code decides, and findingRegex + baseline ratchet. Commands run under both cmd /c and sh -c.
+    function St([scriptblock]$f) {
+        $o = Get-Content $cfg -Raw | ConvertFrom-Json; & $f $o
+        [IO.File]::WriteAllText("$proj/st.smoke.json", ($o | ConvertTo-Json -Depth 10), $utf8)
+    }
+    St { param($o) $o.PSObject.Properties.Remove('checkCmd') }
+    Expect 1 'static_check refuses unset checkCmd' @('gates/static_check.ps1', '-Config', 'st.smoke.json')
+    Names 'static_check (unset)' 'checkCmd is not set'
+    if ($script:lastRc -ne 2) { Write-Output "FAIL  unset checkCmd should exit 2 (rc=$($script:lastRc))"; $script:fails++ }
+    St { param($o) $o.checkCmd = 'none' }
+    Expect 0 'static_check PASS: opted out on the record' @('gates/static_check.ps1', '-Config', 'st.smoke.json')
+    Names 'static_check (none)' 'opted out'
+    St { param($o) $o.checkCmd = 'echo lint clean' }
+    Expect 0 'static_check PASS: exit 0' @('gates/static_check.ps1', '-Config', 'st.smoke.json')
+    St { param($o) $o.checkCmd = 'echo a.py:1: E1 bad&& exit 3' }
+    Expect 1 'static_check FAIL: non-zero exit' @('gates/static_check.ps1', '-Config', 'st.smoke.json')
+    Names 'static_check (exit 3)' 'exited 3'
+    $lint = 'echo a.py:1: E1 bad&& echo a.py:2: E2 bad&& echo 2 errors&& exit 1'
+    St { param($o) $o.checkCmd = $lint; $o.staticCheck.findingRegex = '^a[.]py:[0-9]+:'; $o.staticCheck.baseline = 2 }
+    Expect 0 'static_check ratchet PASS: findings = baseline' @('gates/static_check.ps1', '-Config', 'st.smoke.json')
+    Names 'static_check (ratchet =)' '2 finding(s) = baseline 2'
+    St { param($o) $o.checkCmd = $lint; $o.staticCheck.findingRegex = '^a[.]py:[0-9]+:'; $o.staticCheck.baseline = 3 }
+    Expect 0 'static_check ratchet PASS: below baseline, asks to lower it' @('gates/static_check.ps1', '-Config', 'st.smoke.json')
+    Names 'static_check (ratchet <)' 'lower staticCheck.baseline to 2'
+    St { param($o) $o.checkCmd = $lint; $o.staticCheck.findingRegex = '^a[.]py:[0-9]+:'; $o.staticCheck.baseline = 1 }
+    Expect 1 'static_check ratchet FAIL: new findings' @('gates/static_check.ps1', '-Config', 'st.smoke.json')
+    Names 'static_check (ratchet >)' '2 finding(s) > baseline 1'
+    St { param($o) $o.checkCmd = 'echo crashed&& exit 1'; $o.staticCheck.findingRegex = '^a[.]py:[0-9]+:'; $o.staticCheck.baseline = 5 }
+    Expect 1 'static_check ratchet FAIL: non-zero exit, no finding matched' @('gates/static_check.ps1', '-Config', 'st.smoke.json')
+    Names 'static_check (no match)' 'no line matched'
+    # Review findings (v1.16.0): each was a PASS that should FAIL, or a twin divergence.
+    function Rc2([string]$label) { if ($script:lastRc -ne 2) { Write-Output "FAIL  $label should exit 2 (rc=$($script:lastRc))"; $script:fails++ } }
+    St { param($o) $o.checkCmd = 'echo a.py:1: E1 bad&& echo Traceback&& exit 4'; $o.staticCheck.findingRegex = '^a[.]py:[0-9]+:'; $o.staticCheck.baseline = 5 }
+    Expect 1 'static_check ratchet FAIL: a crash after some findings is not a count' @('gates/static_check.ps1', '-Config', 'st.smoke.json')
+    Names 'static_check (crash)' 'not a findings exit code'
+    St { param($o) $o.checkCmd = $lint; $o.staticCheck.findingRegex = '^a[.]py:[\d]:'; $o.staticCheck.baseline = 1 }
+    Expect 1 'static_check: [\d] inside brackets counts' @('gates/static_check.ps1', '-Config', 'st.smoke.json')
+    Names 'static_check (bracket class)' '2 finding(s) > baseline 1'
+    St { param($o) $o.checkCmd = 'exit 1'; $o.staticCheck.findingRegex = 'E1[' }
+    Expect 1 'static_check: an invalid regex is a config error' @('gates/static_check.ps1', '-Config', 'st.smoke.json')
+    Rc2 'static_check (bad regex)'
+    St { param($o) $o.checkCmd = 'exit 1'; $o.staticCheck.findingRegex = '(?i)e1' }
+    Expect 1 'static_check: an inline flag is outside the portable subset' @('gates/static_check.ps1', '-Config', 'st.smoke.json')
+    Rc2 'static_check (inline flag)'
+    St { param($o) $o.checkCmd = 'exit 0'; $o.staticCheck.findingRegex = 'x'; $o.staticCheck.baseline = $false }
+    Expect 1 'static_check: baseline false is a config error' @('gates/static_check.ps1', '-Config', 'st.smoke.json')
+    Rc2 'static_check (baseline false)'
+    St { param($o) $o.checkCmd = "echo hi`nexit 4" }
+    Expect 1 'static_check: a multi-line checkCmd is a config error' @('gates/static_check.ps1', '-Config', 'st.smoke.json')
+    Rc2 'static_check (multi-line)'
+
+    # Rule kind command (#8): a real checker behind a rule row; exit 0 passes, a failure shows its output.
+    [IO.File]::WriteAllText("$proj/rules.smoke.json", '{"seamRules":[{"id":"SEAM-1-ok","kind":"command","cmd":"echo fine","message":"m"},{"id":"SEAM-2-layers","kind":"command","cmd":"echo src.ui imports src.db&& exit 3","message":"m"}]}' + "`n", $utf8)
+    Expect 1 'seam_conformance FAIL: command rule exits non-zero' @('gates/seam_conformance.template.ps1', '-Config', 'rules.smoke.json')
+    Names 'seam_conformance (command)' 'src.ui imports src.db'
+    Names 'seam_conformance (command id)' 'SEAM-2-layers: m'
+    [IO.File]::WriteAllText("$proj/rules.smoke.json", '{"seamRules":[{"id":"SEAM-1-ok","kind":"command","cmd":"echo fine","message":"m"}]}' + "`n", $utf8)
+    Expect 0 'seam_conformance PASS: command rule exits 0' @('gates/seam_conformance.template.ps1', '-Config', 'rules.smoke.json')
+    # A command that reads stdin must not eat the rule list (sort reads stdin under sh and cmd alike).
+    [IO.File]::WriteAllText("$proj/rules.smoke.json", '{"seamRules":[{"id":"SEAM-1-reads","kind":"command","cmd":"sort","message":"m"},{"id":"SEAM-2-late","kind":"command","cmd":"exit 3","message":"m"}]}' + "`n", $utf8)
+    Expect 1 'seam_conformance FAIL: a stdin reader does not swallow later rules' @('gates/seam_conformance.template.ps1', '-Config', 'rules.smoke.json')
+    Names 'seam_conformance (stdin)' 'SEAM-2-late: m'
+    [IO.File]::WriteAllText("$proj/rules.smoke.json", '{"seamRules":[{"id":"SEAM-1-two","kind":"command","cmd":"echo hi\nexit 4","message":"m"}]}' + "`n", $utf8)
+    Expect 1 'seam_conformance FAIL: a multi-line cmd is refused' @('gates/seam_conformance.template.ps1', '-Config', 'rules.smoke.json')
+    Names 'seam_conformance (multi-line)' 'must be one line'
+
+    # mutation_check (#9): optional; the exit code decides, or scoreRegex + minScore; {base} is substituted.
+    Expect 0 'mutation_check PASS: not configured' @('gates/mutation_check.ps1', '-Config', $cfg)
+    Names 'mutation_check (unset)' 'not configured'
+    $mut = 'echo Mutation score: 85.5&& exit 1'
+    St { param($o) $o.mutation.cmd = $mut; $o.mutation.scoreRegex = 'Mutation score: [0-9.]+'; $o.mutation.minScore = 80 }
+    Expect 0 'mutation_check PASS: score >= minScore (exit code ignored)' @('gates/mutation_check.ps1', '-Config', 'st.smoke.json')
+    Names 'mutation_check (score)' '85.5 >= minScore 80'
+    St { param($o) $o.mutation.cmd = $mut; $o.mutation.scoreRegex = 'Mutation score: [0-9.]+'; $o.mutation.minScore = 90 }
+    Expect 1 'mutation_check FAIL: score < minScore' @('gates/mutation_check.ps1', '-Config', 'st.smoke.json')
+    Names 'mutation_check (low score)' 'route to QA'
+    St { param($o) $o.mutation.cmd = 'echo survived: 3&& exit 2' }
+    Expect 1 'mutation_check FAIL: exit code decides without scoreRegex' @('gates/mutation_check.ps1', '-Config', 'st.smoke.json')
+    St { param($o) $o.mutation.cmd = 'echo since {base} and {base}' }
+    Expect 0 'mutation_check substitutes {base}' @('gates/mutation_check.ps1', '-Base', 'abc123', '-Config', 'st.smoke.json')
+    Names 'mutation_check ({base})' 'since abc123 and abc123'
+    St { param($o) $o.mutation.cmd = $mut; $o.mutation.scoreRegex = 'score: [\d.]+'; $o.mutation.minScore = 80 }
+    Expect 0 'mutation_check: [\d.] inside brackets reads the score' @('gates/mutation_check.ps1', '-Config', 'st.smoke.json')
+    Names 'mutation_check (bracket class)' '85.5 >= minScore 80'
+    St { param($o) $o.mutation.cmd = $mut; $o.mutation.scoreRegex = 'score: [0-9]+'; $o.mutation.minScore = '.' }
+    Expect 1 'mutation_check: minScore "." is a config error' @('gates/mutation_check.ps1', '-Config', 'st.smoke.json')
+    Rc2 'mutation_check (minScore .)'
+    St { param($o) $o.mutation.cmd = $mut; $o.mutation.scoreRegex = 'score: [0-9]+?' }
+    Expect 1 'mutation_check: a lazy quantifier is outside the portable subset' @('gates/mutation_check.ps1', '-Config', 'st.smoke.json')
+    Rc2 'mutation_check (lazy)'
+    Remove-Item -Force "$proj/st.smoke.json", "$proj/rules.smoke.json"
+
     # Freeze: record the QA-frozen SHA; the gate then needs no base argument.
     Expect 0 'freeze writes gates/.frozen' @('gates/freeze.ps1', '-Unit', 'DEMO-1')
     Names 'freeze' 'sha='
@@ -200,9 +294,19 @@ try {
     Names 'run_all (no suite)' 'suiteCmd is not set'
     if ($script:lastRc -ne 2) { Write-Output "FAIL  unset suiteCmd should exit 2 (rc=$($script:lastRc))"; $script:fails++ }
     git reset -q --hard HEAD~1
+    # checkCmd is mandatory too: unset, the bank stops at static_check.
+    $noCheck = Get-Content $cfg -Raw | ConvertFrom-Json
+    $noCheck.PSObject.Properties.Remove('checkCmd')
+    [IO.File]::WriteAllText("$proj/$cfg", ($noCheck | ConvertTo-Json -Depth 10), $utf8)
+    git commit -q -am 'unset check'
+    Expect 1 'run_all refuses unset checkCmd' @('gates/run_all.ps1', '-Mechanical')
+    Names 'run_all (no check)' 'checkCmd is not set'
+    git reset -q --hard HEAD~1
 
     # Whole bank over the clean demo tree (base from .frozen), then with an explicit base.
     Expect 0 'run_all clean (base from .frozen)' @('gates/run_all.ps1')
+    Names 'run_all (static_check)' 'PASS static_check: checkCmd exited 0'
+    Names 'run_all (mutation_check)' 'mutation_check: not configured'
     Expect 0 'run_all HEAD clean' @('gates/run_all.ps1', 'HEAD')
     Expect 0 'run_all -PreFold clean (frozen-diagram half runs)' @('gates/run_all.ps1', '-PreFold')
     Names 'run_all (pre-fold)' 'structure_check --frozen'

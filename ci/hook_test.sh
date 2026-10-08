@@ -577,4 +577,30 @@ echo "      no-persona pre over 500 untracked assets took $((t1-t0))s"
 [ $((t1-t0)) -le 5 ] || { echo "FAIL  PG.9 no-persona pre exceeded 5s bound (expected near-instant / no process spawn)"; fails=$((fails+1)); }
 rm -rf "$P/assets2"
 
+echo "-- static-feedback (#7): PostToolUse runs staticCheck.fileCmd on the edited file; findings exit 2"
+SF="$REPO/plugin/hooks/static-feedback.sh"
+cp "$REPO/gates/_common.sh" "$P/sdd/gates/_common.sh"
+cp "$P/sdd/gates/gates.config.json" "$T/cfg.sf.json"
+sf() { # <want> <label> <json>
+  rc=$(printf '%s' "$3" | CLAUDE_PROJECT_DIR="$P" sh "$SF" 2>"$T/err"; echo $?)
+  if [ "$rc" = "$1" ]; then echo "ok    $2 (rc=$rc)"; else echo "FAIL  $2 (rc=$rc want $1)"; sed 's/^/      /' "$T/err"; fails=$((fails+1)); fi
+}
+printf 'BAD code\n' > "$P/src/bad.ts"; printf 'BAD spec\n' > "$P/spec/bad.body.md"
+sf 0 "SF no fileCmd configured: silent"           "$(post_edit Edit "$P/src/bad.ts")"
+jq '.paths.code = "src/**" | .staticCheck.fileCmd = "if grep -q BAD {file}; then echo BAD in {file}; exit 1; fi"' "$T/cfg.sf.json" > "$P/sdd/gates/gates.config.json"
+sf 2 "SF finding in paths.code goes back to the agent" "$(post_edit Edit "$P/src/bad.ts")"
+grep -q "BAD in src/bad.ts" "$T/err" || { echo "FAIL  SF stderr does not carry the finding for src/bad.ts"; fails=$((fails+1)); }
+sf 0 "SF clean file: silent"                       "$(post_edit Write "$P/src/foo.ts")"
+sf 0 "SF file outside paths.code: not linted"      "$(post_edit Edit "$P/spec/bad.body.md")"
+sf 0 "SF path outside the project: not linted"     "$(post_edit Edit "/elsewhere/src/bad.ts")"
+sf 2 "SF relative path"                            "$(post_edit Edit "src/bad.ts")"
+if command -v cygpath >/dev/null 2>&1; then   # Windows: the host hands a drive-letter, backslashed path
+  wp=$(cygpath -w "$P/src/bad.ts" | sed 's#\\#\\\\#g')
+  sf 2 "SF windows drive-letter path inside the project" "$(post_edit Edit "$wp")"
+fi
+jq '.paths.code = "src/**" | .staticCheck.fileGlobs = ["spec/**"] | .staticCheck.fileCmd = "if grep -q BAD {file}; then echo BAD in {file}; exit 1; fi"' "$T/cfg.sf.json" > "$P/sdd/gates/gates.config.json"
+sf 2 "SF fileGlobs override paths.code"            "$(post_edit Edit "$P/spec/bad.body.md")"
+sf 0 "SF fileGlobs override: paths.code no longer linted" "$(post_edit Edit "$P/src/bad.ts")"
+cp "$T/cfg.sf.json" "$P/sdd/gates/gates.config.json"; rm -f "$P/src/bad.ts" "$P/spec/bad.body.md" "$P/sdd/gates/_common.sh"
+
 if [ "$fails" -eq 0 ]; then echo "HOOK PASS"; else echo "HOOK FAIL ($fails)"; exit 1; fi

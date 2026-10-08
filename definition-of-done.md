@@ -85,7 +85,7 @@ accepts/declines against it (the Orchestrator re-runs, never reports).
 - [ ] **Token readout recorded** — a `tokens:` line per slice and one for the plan on the item
       (`gates/token_ledger.* report`; estimates from bytes admitted, never billed), read as cost beside
       `metrics.md`.
-- [ ] **Authoritative `run_all` gate bank green** (full bank incl. `fold_check`; `suiteCmd` set) over the
+- [ ] **Authoritative `run_all` gate bank green** (full bank incl. `fold_check`; `suiteCmd` and `checkCmd` set) over the
       folded + pinned + recompiled corpus.
 - [ ] **Fresh Validation accepts** — a context that did not build the thing, per `stages/7_ship.md` §2
       (conformance + hunt + verification-gap + intent alignment), reading **diffs + clauses + test

@@ -3,8 +3,9 @@
 # failing gate, so it drops into CI and pre-merge hooks unchanged.
 #
 # Order (Stage 7 ship):
-#   link_check -> prose_check -> coverage_check -> test_edit_ban -> structure_check -> suite_green
-#     -> constitution_lint* -> seam_conformance* -> qa_import_ban* -> fold_check
+#   link_check -> prose_check -> coverage_check -> test_edit_ban -> structure_check -> static_check
+#     -> suite_green -> constitution_lint* -> seam_conformance* -> qa_import_ban* -> mutation_check
+#     -> fold_check
 #     -> suite_green (re-run)
 # (*) project gates run only if their concrete (non-template) .ps1 script exists.
 # structure_check runs its -Frozen half (approved diagram unchanged vs the frozen base) only on
@@ -17,6 +18,8 @@
 #
 # suite_green is REQUIRED: an unset suiteCmd is exit 2, never a silent skip - a bank that
 # prints ALL GATES PASSED without running the suite proves nothing.
+# static_check is REQUIRED the same way (checkCmd; "none" opts out on the record). mutation_check is
+# optional: it runs when mutation.cmd is set and says "not configured" otherwise.
 #
 # This .ps1 runner invokes the .ps1 siblings (the Windows, dependency-free path).
 #
@@ -146,6 +149,10 @@ Write-Output "== structure_check =="
 Invoke-Gate 'structure_check.ps1' @('-Config', $CFG)
 if ($LASTEXITCODE -ne 0) { Fail 'structure_check' }
 
+Write-Output "== static_check =="
+Invoke-Gate 'static_check.ps1' @('-Config', $CFG)
+if ($LASTEXITCODE -ne 0) { Fail 'static_check' }
+
 Invoke-Suite
 
 # --- project-specific gates: only if copied from template ---
@@ -172,6 +179,12 @@ if (Test-Path -LiteralPath (Join-Path $HereDir 'qa_import_ban.ps1')) {
 } else {
     Write-Output "== qa_import_ban == (skipped: cp qa_import_ban.template.ps1 qa_import_ban.ps1)"
 }
+
+Write-Output "== mutation_check =="
+$mcArgs = @('-Config', $CFG)
+if ($base) { $mcArgs += @('-Base', $base) }
+Invoke-Gate 'mutation_check.ps1' $mcArgs
+if ($LASTEXITCODE -ne 0) { Fail 'mutation_check' }
 
 if ($PreFold) {
     Write-Output "== fold_check == (skipped: --pre-fold pass; runs in the authoritative post-fold pass)"
