@@ -10,6 +10,9 @@
 # citations that must resolve. SAFETY FALLBACK: if nothing is anchored, treat all
 # clause-IDs as declared and print a NOTE.
 #
+# linkCheck.skipGlobs (optional): project-root globs for repo files that are not shards. A relative
+# href whose file part, resolved against the linking shard's directory, matches one is not checked.
+#
 # Exit 0 PASS, 1 FAIL, 2 config error.
 # Usage:  sh gates/link_check.sh [--config gates/gates.config.json]
 
@@ -36,6 +39,10 @@ CLAUSE_RAW=$(read_cfg "$CFG" '.clauseIdRegex' '\b[A-Z]{2,}\.\d+\b')
 CLAUSE_RE=$(to_awk_ere "$CLAUSE_RAW")        # awk has no \b; strip it, enforce via wmatch
 CLAUSE_WB=$(had_word_boundary "$CLAUSE_RAW") # 1 if \b boundaries must be enforced
 SPEC_GLOB=$(read_cfg "$CFG" '.paths.spec' 'spec/**/*.body.md')
+SKIP_GLOBS=$(jq -r '(.linkCheck.skipGlobs // []) | if type=="array" then .[] else . end' "$CFG" 2>/dev/null)
+# Passed through the environment: awk -v would read the regex's backslashes as escapes.
+LC_SKIP_RE=$(printf '%s\n' "$SKIP_GLOBS" | sed '/^$/d' | while IFS= read -r g; do glob_to_regex "$g"; done | paste -sd '|' -)
+export LC_SKIP_RE
 
 SHARDS=$(expand_globs "$SPEC_GLOB")
 if [ -z "$SHARDS" ]; then
@@ -55,6 +62,22 @@ US=$(printf '\037')   # unit separator for structured awk output
 # no embedded single quotes; quote-bearing regexes are built dynamically from SQ.
 RESULT=$(awk -v clause="$CLAUSE_RE" -v wb="$CLAUSE_WB" -v US="$US" -v SQ=\' '
 function basename(p,   n, a) { n = split(p, a, "/"); return a[n] }
+
+# resolve(src, fp): fp relative to the directory of shard path src (a leading / is the project
+# root), with . and .. folded. A .. above the root is kept, so it matches no project glob.
+function resolve(src, fp,   p, n, a, i, st, k, out) {
+  if (substr(fp, 1, 1) == "/") p = substr(fp, 2)
+  else { p = src; sub(/[^\/]*$/, "", p); p = p fp }
+  n = split(p, a, "/"); k = 0
+  for (i = 1; i <= n; i++) {
+    if (a[i] == "" || a[i] == ".") continue
+    if (a[i] == ".." && k > 0 && st[k] != "..") { k--; continue }
+    st[++k] = a[i]
+  }
+  out = ""
+  for (i = 1; i <= k; i++) out = out (i > 1 ? "/" : "") st[i]
+  return out
+}
 
 # isword(c): is c a word char [A-Za-z0-9_]?
 function isword(c) { return (c ~ /[A-Za-z0-9_]/) }
@@ -97,6 +120,7 @@ BEGIN {
   q = "(\"[^\"]*\"|" SQ "[^" SQ "]*" SQ ")"   # a quoted value
   idname_re = "(id|name)[ \t]*=[ \t]*" q
   href_re   = "href[ \t]*=[ \t]*" q
+  skip_re   = ENVIRON["LC_SKIP_RE"]
 }
 
 {
@@ -153,7 +177,7 @@ BEGIN {
     tgt = seg
     sub(/^\][ \t]*\([ \t]*/, "", tgt)
     sub(/[ \t]*\)$/, "", tgt)
-    hrefs[++nhref] = name SUBSEP tgt
+    hrefs[++nhref] = name SUBSEP tgt SUBSEP FILENAME
     rest = substr(rest, RSTART + RLENGTH)
   }
   # HTML href="target"  (or single-quoted)
@@ -163,7 +187,7 @@ BEGIN {
     tgt = seg
     sub("^href[ \t]*=[ \t]*(\"|" SQ ")", "", tgt)
     sub("(\"|" SQ ")$", "", tgt)
-    hrefs[++nhref] = name SUBSEP tgt
+    hrefs[++nhref] = name SUBSEP tgt SUBSEP FILENAME
     rest = substr(rest, RSTART + RLENGTH)
   }
 }
@@ -189,6 +213,7 @@ END {
       if (hi > 0) { fp = substr(href, 1, hi - 1); frag = substr(href, hi + 1) }
       else        { fp = href; frag = "" }
       if (fp != "") {
+        if (skip_re != "" && resolve(a[3], fp) ~ skip_re) continue
         tname = basename(fp)
         if (!(tname in shardseen)) { print "BROKEN" US s US href US "no such shard"; continue }
         if (frag != "" && !((tname SUBSEP frag) in pershard)) print "BROKEN" US s US href US "shard has no anchor #" frag

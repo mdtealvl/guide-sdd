@@ -70,8 +70,11 @@
 # marker as another session's - dead, or live on a shared checkout - and IGNORES it (allow, note on stderr),
 # never obeys or deletes it. Before this, an engineer marker left by a crashed session blocked edits and
 # ran the sweep on every tool call of every later session.
+# Root (PG.10): the checkout holding the hook input's cwd (nearest ancestor with .git and a gate config),
+# so a sub-agent in its own worktree is guarded and swept against that worktree's markers, .frozen and
+# tree; else CLAUDE_PROJECT_DIR, else the git top-level, else $PWD.
 # Cost (2026-09-17): builtins only - no sed/grep/awk. Two exceptions fork: $(git rev-parse) for the root,
-# only when CLAUDE_PROJECT_DIR is unset, and the sweep's one pipe (git output into a reading subshell). The
+# only when neither cwd nor CLAUDE_PROJECT_DIR gives one, and the sweep's one pipe (git output into a reading subshell). The
 # only processes are git (sweep, snapshot), rm (session end) and one mkdir per session for the PG.5 state
 # dir. On a Windows box where every fork costs ~80 ms and every exec ~200 ms the old script spent ~5 s per
 # PreToolUse and >10 min per sweep of a tree with ~500 untracked files. stdin is read with builtins before
@@ -152,8 +155,23 @@ arr() { # $1 key -> A: the strings of the JSON array "key": [ ... ] in the gate 
   done
 }
 
-# --- root + marker + input (PG.1: agent_type is in stdin, so stdin is read before the no-persona exit) --
-root=${CLAUDE_PROJECT_DIR:-}
+# --- input + root + marker (PG.1: agent_type is in stdin, so stdin is read before the no-persona exit) --
+in=""; while IFS= read -r l || [ -n "$l" ]; do in="$in$l"; done
+# PG.10: the root is the checkout the agent works in - the nearest ancestor of the input's cwd holding
+# both .git and a gate config. A sub-agent in its own worktree has the session's CLAUDE_PROJECT_DIR, so
+# that comes second; a nested test repo (PG.6) has no gate config, so the walk passes over it.
+root=""
+jstr cwd
+if [ -n "$J" ]; then
+  fs "$J"; c_d=${R%/}
+  while [ -n "$c_d" ]; do
+    if [ -e "$c_d/.git" ] && { [ -f "$c_d/sdd/gates/gates.config.json" ] || [ -f "$c_d/gates/gates.config.json" ]; }; then
+      root=$c_d; break
+    fi
+    case $c_d in */*) c_d=${c_d%/*} ;; *) c_d="" ;; esac
+  done
+fi
+[ -n "$root" ] || root=${CLAUDE_PROJECT_DIR:-}
 [ -n "$root" ] || root=$(git rev-parse --show-toplevel 2>/dev/null)
 [ -n "$root" ] || root=$PWD
 fs "$root"; root=${R%/}
@@ -163,7 +181,6 @@ for m in "$root/sdd/.persona" "$root/.persona"; do
   if [ -f "$m" ]; then marker=$m; break; fi
 done
 
-in=""; while IFS= read -r l || [ -n "$l" ]; do in="$in$l"; done
 jstr tool_name; tool=$J
 jstr session_id; sid=$J
 jstr agent_type; at=$J; apersona=""

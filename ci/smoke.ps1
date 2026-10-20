@@ -55,6 +55,19 @@ try {
     $cfg = 'gates/gates.config.json'
     Expect 0 'coverage_check PASS'  @('gates/coverage_check.ps1', '-Config', $cfg)
     Expect 0 'link_check PASS'      @('gates/link_check.ps1', '-Config', $cfg)
+    # link_check (#14): a link to a repo file that is not a shard fails, unless linkCheck.skipGlobs
+    # names it (resolved against the linking shard's directory; a leading / is the project root).
+    New-Item -ItemType Directory -Force "$proj/spec/lk" | Out-Null
+    [IO.File]::WriteAllText("$proj/spec/lk/links.body.md", "# Links`nSee [r](../../docs/research/X.md#s), [y](/docs/Y.md) and [z](../../notes/Z.md).`n", $utf8)
+    Expect 1 'link_check FAIL: link to a non-shard file' @('gates/link_check.ps1', '-Config', $cfg)
+    Names 'link_check (non-shard)' "'../../docs/research/X.md#s' - no such shard"
+    $lkCfg = Get-Content $cfg -Raw | ConvertFrom-Json
+    $lkCfg.linkCheck.skipGlobs = @('docs/**')
+    [IO.File]::WriteAllText("$proj/lk.smoke.json", ($lkCfg | ConvertTo-Json -Depth 10), $utf8)
+    Expect 1 'link_check FAIL: skipGlobs skips docs/ only' @('gates/link_check.ps1', '-Config', 'lk.smoke.json')
+    Names 'link_check (skipGlobs)' "'../../notes/Z.md' - no such shard"
+    if ($script:lastOut -like '*docs/*') { Write-Output 'FAIL  link_check: checked a link under linkCheck.skipGlobs'; $script:fails++ }
+    Remove-Item -Recurse -Force "$proj/spec/lk", "$proj/lk.smoke.json"
     Expect 0 'prose_check PASS'     @('gates/prose_check.ps1', '-Config', $cfg, '-All')
     Expect 0 'test_edit_ban PASS (HEAD, warns moving ref)' @('gates/test_edit_ban.ps1', 'HEAD', $cfg)
     Names 'test_edit_ban' 'moving ref'
@@ -140,6 +153,25 @@ try {
     Expect 1 'structure_check -Plan FAIL: memberless diagram' @('gates/structure_check.ps1', '-Plan', '-Config', $cfg)
     Names 'structure_check (outline)' 'DEMO-2.structure.body.md'
     Remove-Item "$proj/spec/working/DEMO-2.structure.body.md"
+    # structure_check (#13): an HTML shard - <h2> section headings, <pre class="mermaid"> opening on the
+    # tag line and closing on the last member's line, entities decoded (&lt;&lt;entity&gt;&gt; is a
+    # stereotype, not a member). Line numbers stay those of the file.
+    $scCfg = Get-Content $cfg -Raw | ConvertFrom-Json
+    $scCfg.structureGlobs = @('spec/**/*.structure.body.html')
+    [IO.File]::WriteAllText("$proj/sc.smoke.json", ($scCfg | ConvertTo-Json -Depth 10), $utf8)
+    $htmlShard = "$proj/spec/working/DEMO-3.structure.body.html"
+    $htmlText = "<h2 id=`"added`">Added</h2>`n<figure class=`"diagram`"><pre class=`"mermaid`">classDiagram`n  class Wallet {`n    &lt;&lt;entity&gt;&gt;`n    +int Balance`n    +Deposit(int amount) bool</pre></figure>`n<h2>Removed</h2>`n<pre class=`"mermaid`">`nclassDiagram`n  class LegacyPurse {`n    +Empty()`n  }`n</pre>`n"
+    [IO.File]::WriteAllText($htmlShard, $htmlText, $utf8)
+    Expect 0 'structure_check -Plan PASS: HTML <pre> diagram' @('gates/structure_check.ps1', '-Plan', '-Config', 'sc.smoke.json')
+    Names 'structure_check (html plan)' '1 structure shard(s) at member level (0 warning(s))'
+    Expect 0 'structure_check trace PASS: HTML <pre> diagram' @('gates/structure_check.ps1', '-Config', 'sc.smoke.json')
+    [IO.File]::WriteAllText($htmlShard, $htmlText.Replace('+Deposit(int amount) bool<', '+Withdraw(int amount) bool<'), $utf8)
+    Expect 1 'structure_check FAIL: HTML planned member missing, on its own line' @('gates/structure_check.ps1', '-Config', 'sc.smoke.json')
+    Names 'structure_check (html missing)' 'DEMO-3.structure.body.html:6: Wallet.Withdraw'
+    [IO.File]::WriteAllText("$proj/src/legacy.cs", "public class LegacyPurse { }`n", $utf8)
+    Expect 1 'structure_check FAIL: HTML removed class still present' @('gates/structure_check.ps1', '-Config', 'sc.smoke.json')
+    Names 'structure_check (html removed)' 'removed class LegacyPurse'
+    Remove-Item "$proj/src/legacy.cs", $htmlShard, "$proj/sc.smoke.json"
 
     # token_ledger: the Stage-4b read ledger - add rows, report the tokens: lines, refuse a QA row into
     # the implementation, and (negative control) flag a stale row once its file changes.

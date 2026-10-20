@@ -577,6 +577,27 @@ echo "      no-persona pre over 500 untracked assets took $((t1-t0))s"
 [ $((t1-t0)) -le 5 ] || { echo "FAIL  PG.9 no-persona pre exceeded 5s bound (expected near-instant / no process spawn)"; fails=$((fails+1)); }
 rm -rf "$P/assets2"
 
+echo "-- PG.10 (#16) the root is the checkout holding the input's cwd: a sub-agent's worktree, not CLAUDE_PROJECT_DIR"
+WT="$T/wt"
+( cd "$P" && git worktree add -q "$WT" HEAD ) 2>/dev/null || { echo "FAIL  PG.10 worktree setup"; fails=$((fails+1)); }
+in_cwd() { printf '{"cwd":"%s","tool_name":"%s","tool_input":{"command":"true","file_path":"%s"},"tool_response":{}}' "$1" "$2" "${3:-}"; }
+printf 'another lane moved main\n' >> "$P/tests/a.test"
+run 0 "PG.10 post: dirt in the primary checkout is not this worktree's" --post engineer "" "$(in_cwd "$WT" Bash)"
+run 0 "PG.10 post: cwd in a subdirectory of the worktree" --post engineer "" "$(in_cwd "$WT/src" Bash)"
+run 2 "PG.10 control: no cwd falls back to CLAUDE_PROJECT_DIR (primary dirt seen)" --post engineer "" "$BASH"
+( cd "$P" && git checkout -q -- tests )
+printf 'engineer wrote a test\n' >> "$WT/tests/a.test"
+run 2 "PG.10 post: dirt in the worktree is swept" --post engineer "" "$(in_cwd "$WT" Bash)"
+if command -v cygpath >/dev/null 2>&1; then   # Windows: the host hands cwd as a drive-letter, backslashed path
+  run 2 "PG.10 post: windows drive-letter cwd" --post engineer "" "$(in_cwd "$(cygpath -w "$WT" | sed 's#\\#\\\\#g')" Bash)"
+fi
+run 0 "PG.10 control: the primary checkout is clean" --post engineer "" "$BASH"
+( cd "$WT" && git checkout -q -- tests )
+run 2 "PG.10 pre: a worktree test path is judged against the worktree root" --pre engineer "" "$(in_cwd "$WT" Edit "$WT/tests/a.test")"
+mkdir -p "$T/elsewhere"
+run 2 "PG.10 cwd outside any GUIDE checkout falls back to CLAUDE_PROJECT_DIR" --pre engineer "" "$(in_cwd "$T/elsewhere" Edit "$P/tests/a.test")"
+( cd "$P" && git worktree remove --force "$WT" ) 2>/dev/null
+
 echo "-- static-feedback (#7): PostToolUse runs staticCheck.fileCmd on the edited file; findings exit 2"
 SF="$REPO/plugin/hooks/static-feedback.sh"
 cp "$REPO/gates/_common.sh" "$P/sdd/gates/_common.sh"

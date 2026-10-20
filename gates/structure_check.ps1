@@ -2,8 +2,9 @@
 # structure_check - the PM-approved member-level structure diagram (classes, properties, methods) holds.
 #
 # Generic gate over STRUCTURE SHARDS: content-only spec shards (structureGlobs, default
-# **/*.structure.body.md) holding fenced ```mermaid classDiagram``` blocks at MEMBER level. A transient
-# shard is a DELTA under headings "Added" / "Changed" / "Removed"; a canonical shard is the area's
+# **/*.structure.body.md) holding mermaid classDiagram blocks at MEMBER level: a ```mermaid fence, or (an HTML
+# shard) a <pre> whose open tag names mermaid, HTML entities decoded. A transient shard is a DELTA under
+# headings (Markdown #, or <h1>-<h6>) "Added" / "Changed" / "Removed"; a canonical shard is the area's
 # current state (no headings needed). The mermaid text is the source; the drawing derives.
 #
 # Modes:
@@ -126,46 +127,69 @@ function Get-MemberName([string]$s) {
     $p = $t.IndexOf(':'); if ($p -ge 0) { return Get-IdentLast $t.Substring(0, $p) }
     return Get-IdentLast $t
 }
+# Entities in a <pre> block: &lt; &gt; &quot; &#39; &#x27;, then &amp; last (so &amp;lt; stays &lt;).
+function ConvertFrom-Entities([string]$s) {
+    return $s.Replace('&lt;', '<').Replace('&gt;', '>').Replace('&quot;', '"').Replace('&#39;', "'").Replace('&#x27;', "'").Replace('&amp;', '&')
+}
 function Parse-Shard([string]$file) {
     $recs = New-Object System.Collections.Generic.List[object]
-    $fence = $false; $dia = 0; $cls = ''; $sec = 'present'; $n = 0
-    foreach ($raw in (Read-FileLines $file)) {
-        $n++
-        $line = $raw
-        if (-not $fence) {
-            if ($line -match '^\s*#+\s') {
-                $h = $line.ToLowerInvariant()
-                if ($h -match 'removed|retired|deleted') { $sec = 'removed' }
-                elseif ($h -match 'changed|modified|updated') { $sec = 'changed' }
-                elseif ($h -match 'added|new') { $sec = 'added' }
-            }
-            if ($line -match '^\s*```') { $fence = $true; $dia = if ($line.ToLowerInvariant() -match 'mermaid') { -1 } else { 0 }; $cls = '' }
-            continue
-        }
-        if ($line -match '^\s*```') { $fence = $false; $dia = 0; $cls = ''; continue }
-        if ($dia -eq -1) { if ($line -match 'classDiagram') { $dia = 1 } elseif ($line -notmatch '^\s*$' -and $line -notmatch '^\s*%%') { $dia = 0 }; continue }
-        if ($dia -ne 1) { continue }
+    $st = @{ dia = 0; cls = ''; sec = 'present'; n = 0 }
+    # One line of a diagram block (fenced or <pre>): the classDiagram header, then classes and members.
+    $diagramLine = {
+        param([string]$line)
+        if ($st.dia -eq -1) { if ($line -match 'classDiagram') { $st.dia = 1 } elseif ($line -notmatch '^\s*$' -and $line -notmatch '^\s*%%') { $st.dia = 0 }; return }
+        if ($st.dia -ne 1) { return }
         $t = $line -replace '^\s+', ''
-        if ($t -eq '' -or $t -match '^%%') { continue }
-        if ($t -match '^(note|direction|link|click|callback|style|classDef|cssClass)\s') { continue }
-        if ($t -match '^namespace\s') { continue }
+        if ($t -eq '' -or $t -match '^%%') { return }
+        if ($t -match '^(note|direction|link|click|callback|style|classDef|cssClass)\s') { return }
+        if ($t -match '^namespace\s') { return }
         if ($t -match '^class\s+') {
             $t2 = $t -replace '^class\s+', ''; $c = Get-Ident $t2
-            if (-not $c) { continue }
-            $recs.Add(@{ sec = $sec; cls = $c; mem = ''; line = $n })
-            if ($t2 -match '\{\s*$') { $cls = $c }
-            continue
+            if (-not $c) { return }
+            $recs.Add(@{ sec = $st.sec; cls = $c; mem = ''; line = $st.n })
+            if ($t2 -match '\{\s*$') { $st.cls = $c }
+            return
         }
-        if ($t -match '^\}') { $cls = ''; continue }
-        if ($relRe.IsMatch($t)) { continue }
-        if ($t -match '^<<.*>>$') { continue }
-        if ($cls) { $m = Get-MemberName $t; if ($m) { $recs.Add(@{ sec = $sec; cls = $cls; mem = $m; line = $n }) }; continue }
+        if ($t -match '^\}') { $st.cls = ''; return }
+        if ($relRe.IsMatch($t)) { return }
+        if ($t -match '^<<.*>>$') { return }
+        if ($st.cls) { $m = Get-MemberName $t; if ($m) { $recs.Add(@{ sec = $st.sec; cls = $st.cls; mem = $m; line = $st.n }) }; return }
         if ($t -match '^[A-Za-z_][A-Za-z0-9_]*\s*:') {
             $c = Get-Ident $t; $rest = $t -replace '^[A-Za-z_][A-Za-z0-9_]*\s*:\s*', ''
-            $recs.Add(@{ sec = $sec; cls = $c; mem = ''; line = $n })
-            if ($rest -match '^<<.*>>$') { continue }
-            $m = Get-MemberName $rest; if ($m) { $recs.Add(@{ sec = $sec; cls = $c; mem = $m; line = $n }) }
+            $recs.Add(@{ sec = $st.sec; cls = $c; mem = ''; line = $st.n })
+            if ($rest -match '^<<.*>>$') { return }
+            $m = Get-MemberName $rest; if ($m) { $recs.Add(@{ sec = $st.sec; cls = $c; mem = $m; line = $st.n }) }
         }
+    }
+    $fence = ''
+    foreach ($raw in (Read-FileLines $file)) {
+        $st.n++
+        $line = $raw; $low = $line.ToLowerInvariant()
+        if (-not $fence) {
+            $h = ''
+            if ($line -match '^\s*#+\s') { $h = $low }
+            elseif ($low -match '<h[1-6][\s>]') { $h = [regex]::Replace($low, '<[^>]*>', '') }   # HTML heading: text only
+            if ($h) {
+                if ($h -match 'removed|retired|deleted') { $st.sec = 'removed' }
+                elseif ($h -match 'changed|modified|updated') { $st.sec = 'changed' }
+                elseif ($h -match 'added|new') { $st.sec = 'added' }
+            }
+            if ($line -match '^\s*```') { $fence = 'md'; $st.dia = if ($low -match 'mermaid') { -1 } else { 0 }; $st.cls = ''; continue }
+            # <pre class="mermaid">: the diagram may start on the open-tag line and end on the </pre> line
+            if ($low -match '<pre[^>]*mermaid') {
+                $fence = 'pre'; $st.dia = -1; $st.cls = ''
+                $p = $low.IndexOf('<pre'); $line = $line.Substring($p); $low = $low.Substring($p)
+                $p = $low.IndexOf('>'); $line = $line.Substring($p + 1); $low = $low.Substring($p + 1)
+            } else { continue }
+        } elseif ($fence -eq 'md') {
+            if ($line -match '^\s*```') { $fence = ''; $st.dia = 0; $st.cls = '' } else { & $diagramLine $line }
+            continue
+        }
+        # inside <pre>: up to </pre>, entities decoded
+        $p = $low.IndexOf('</pre>')
+        if ($p -ge 0) { $line = $line.Substring(0, $p) }
+        & $diagramLine (ConvertFrom-Entities $line)
+        if ($p -ge 0) { $fence = ''; $st.dia = 0; $st.cls = '' }
     }
     return $recs
 }

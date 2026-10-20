@@ -10,6 +10,9 @@
 # citations that must resolve. SAFETY FALLBACK: if nothing is anchored, treat all
 # clause-IDs as declared and print a NOTE.
 #
+# linkCheck.skipGlobs (optional): project-root globs for repo files that are not shards. A relative
+# href whose file part, resolved against the linking shard's directory, matches one is not checked.
+#
 # Exit 0 PASS, 1 FAIL, 2 config error.
 # Usage:  pwsh gates/link_check.ps1 [-Config gates/gates.config.json]
 
@@ -28,6 +31,25 @@ if ($cfg.PSObject.Properties.Name -contains 'paths' -and $cfg.paths -and ($cfg.p
     $specGlob = $cfg.paths.spec
 }
 $clauseRe = [regex]$clausePattern
+$skipRes = @()
+if ($cfg.PSObject.Properties.Name -contains 'linkCheck' -and $cfg.linkCheck -and ($cfg.linkCheck.PSObject.Properties.Name -contains 'skipGlobs')) {
+    $skipRes = @(@($cfg.linkCheck.skipGlobs) | Where-Object { $_ } | ForEach-Object { ConvertTo-Regex $_ })
+}
+
+# Resolve-Href: fp relative to the directory of shard path src (a leading / is the project root),
+# with . and .. folded. A .. above the root is kept, so it matches no project glob.
+function Resolve-Href([string]$src, [string]$fp) {
+    $src = $src -replace '\\', '/'
+    if ($fp.StartsWith('/')) { $p = $fp.Substring(1) }
+    else { $p = ($src -replace '[^/]*$', '') + $fp }
+    $st = New-Object System.Collections.Generic.List[string]
+    foreach ($seg in $p.Split('/')) {
+        if ($seg -eq '' -or $seg -eq '.') { continue }
+        if ($seg -eq '..' -and $st.Count -gt 0 -and $st[$st.Count - 1] -ne '..') { $st.RemoveAt($st.Count - 1); continue }
+        $st.Add($seg)
+    }
+    return ($st -join '/')
+}
 
 $shards = Expand-Globs $specGlob
 if ($shards.Count -eq 0) {
@@ -113,6 +135,10 @@ foreach ($s in $shards) {
                 $frag = ''
             }
             if ($filePart) {
+                if ($skipRes.Count -gt 0) {
+                    $resolved = Resolve-Href $s $filePart
+                    if (@($skipRes | Where-Object { $_.IsMatch($resolved) }).Count -gt 0) { continue }
+                }
                 $target = Split-Path -Leaf $filePart
                 if (-not $shardNames.Contains($target)) {
                     $broken.Add([pscustomobject]@{ src = $src; ref = $href; why = 'no such shard' })

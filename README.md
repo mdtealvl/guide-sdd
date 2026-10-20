@@ -1,6 +1,6 @@
 # GUIDE SDD — Gated, Unified, Intent-Driven Engineering
 
-> **v1.17.0 — 2026-10-16.** A reusable, token-efficient, spec-first / persona-split development
+> **v1.17.1 — 2026-10-20.** A reusable, token-efficient, spec-first / persona-split development
 > method that drops into large, multi-developer projects worked by humans **and** AI agents. It
 > merges two mature in-house practices (Mistwright's *How We Work*, Polars' *How To Develop*) with
 > the published SOTA into one copyable **spine** + a small, indexed **per-project surface**.
@@ -465,6 +465,18 @@ columns are GUIDE's stages, so it shows whose turn each item is and which sessio
 - **`board_check`** (sh/ps1, in `run_all`): board and backlog agree; `--ship <KEY>` at record-ship.
 - Teams: several orchestrator sessions on one box, one team each (`box-roles.md`, `#CL-12`/`#CL-13`).
 - **On update:** nothing to do; the board is off until `board.file` is set.
+Full record in `constitution.changelog.md`.
+
+### v1.17.1 Amendment — HTML structure diagrams, link_check skipGlobs, persona guard in worktrees (2026-10-20)
+
+No invariant change; still ten.
+- **`structure_check`** (closes #13) reads a diagram in an HTML shard's `<pre class="mermaid">` block
+  (entities decoded) and `<h1>`–`<h6>` Added / Changed / Removed headings, not only Markdown fences.
+- **`link_check`** (closes #14): new optional `linkCheck.skipGlobs` for repo files a shard links to that
+  are not shards (`docs/**`); a link resolving into one is not checked.
+- **Persona guard** (closes #16): a sub-agent in its own git worktree is guarded and swept against that
+  worktree (the checkout holding its `cwd`), not the session's primary checkout.
+- **On update:** nothing to do; set `linkCheck.skipGlobs` to drop a link workaround.
 Full record in `constitution.changelog.md`.
 
 ## Map to the source practices

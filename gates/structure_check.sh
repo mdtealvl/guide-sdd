@@ -2,8 +2,9 @@
 # structure_check - the PM-approved member-level structure diagram (classes, properties, methods) holds.
 #
 # Generic gate over STRUCTURE SHARDS: content-only spec shards (structureGlobs, default
-# **/*.structure.body.md) holding fenced ```mermaid classDiagram``` blocks at MEMBER level. A transient
-# shard is a DELTA under headings "Added" / "Changed" / "Removed"; a canonical shard is the area's
+# **/*.structure.body.md) holding mermaid classDiagram blocks at MEMBER level: a ```mermaid fence, or (an HTML
+# shard) a <pre> whose open tag names mermaid, HTML entities decoded. A transient shard is a DELTA under
+# headings (Markdown #, or <h1>-<h6>) "Added" / "Changed" / "Removed"; a canonical shard is the area's
 # current state (no headings needed). The mermaid text is the source; the drawing derives.
 #
 # Modes:
@@ -122,43 +123,66 @@ parse_shard() {
     if (t ~ /:/)  { p = index(t, ":"); return ident_last(substr(t, 1, p - 1)) }
     return ident_last(t)
   }
-  BEGIN { fence = 0; dia = 0; cls = ""; sec = "present" }
+  # entities in a <pre> block: &lt; &gt; &quot; &#39; &#x27;, then &amp; last (so &amp;lt; stays &lt;)
+  function decode(s) {
+    gsub(/&lt;/, "<", s); gsub(/&gt;/, ">", s); gsub(/&quot;/, "\"", s)
+    gsub(/&#39;|&#x27;/, "'"'"'", s); gsub(/&amp;/, "\\&", s)
+    return s
+  }
+  # one line of a diagram block (fenced or <pre>): the classDiagram header, then classes and members
+  function diagram_line(line,   t, c, rest, m) {
+    if (dia == -1) { if (line ~ /classDiagram/) dia = 1; else if (line !~ /^[[:space:]]*$/ && line !~ /^[[:space:]]*%%/) dia = 0; return }
+    if (dia != 1) return
+    t = line; sub(/^[[:space:]]+/, "", t)
+    if (t == "" || t ~ /^%%/) return
+    if (t ~ /^(note|direction|link|click|callback|style|classDef|cssClass)[[:space:]]/) return
+    if (t ~ /^namespace[[:space:]]/) return
+    if (t ~ /^class[[:space:]]+/) {
+      sub(/^class[[:space:]]+/, "", t); c = ident(t)
+      if (c == "") return
+      printf "%s|%s||%d\n", sec, c, NR
+      if (t ~ /\{[[:space:]]*$/) cls = c
+      return
+    }
+    if (t ~ /^\}/) { cls = ""; return }
+    if (t ~ /<\|--|--\|>|<\|\.\.|\.\.\|>|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.|--[[:space:]]|[[:space:]]--|\.\.[[:space:]]/) return
+    if (t ~ /^<<.*>>$/) return
+    if (cls != "") { m = member_name(t); if (m != "") printf "%s|%s|%s|%d\n", sec, cls, m, NR; return }
+    if (t ~ /^[A-Za-z_][A-Za-z0-9_]*[[:space:]]*:/) {
+      c = ident(t); rest = t; sub(/^[A-Za-z_][A-Za-z0-9_]*[[:space:]]*:[[:space:]]*/, "", rest)
+      printf "%s|%s||%d\n", sec, c, NR
+      if (rest ~ /^<<.*>>$/) return
+      m = member_name(rest); if (m != "") printf "%s|%s|%s|%d\n", sec, c, m, NR
+    }
+  }
+  BEGIN { fence = ""; dia = 0; cls = ""; sec = "present" }
   {
-    line = $0; sub(/\r$/, "", line)
-    if (!fence) {
-      if (line ~ /^[[:space:]]*#+[[:space:]]/) {
-        h = tolower(line)
+    line = $0; sub(/\r$/, "", line); low = tolower(line)
+    if (fence == "") {
+      h = ""
+      if (line ~ /^[[:space:]]*#+[[:space:]]/) h = low
+      else if (low ~ /<h[1-6][[:space:]>]/) { h = low; gsub(/<[^>]*>/, "", h) }   # HTML heading: text only
+      if (h != "") {
         if (h ~ /removed|retired|deleted/) sec = "removed"
         else if (h ~ /changed|modified|updated/) sec = "changed"
         else if (h ~ /added|new/) sec = "added"
       }
-      if (line ~ /^[[:space:]]*```/) { fence = 1; dia = (tolower(line) ~ /mermaid/) ? -1 : 0; cls = "" }
+      if (line ~ /^[[:space:]]*```/) { fence = "md"; dia = (low ~ /mermaid/) ? -1 : 0; cls = ""; next }
+      # <pre class="mermaid">: the diagram may start on the open-tag line and end on the </pre> line
+      if (low ~ /<pre[^>]*mermaid/) {
+        fence = "pre"; dia = -1; cls = ""
+        p = index(low, "<pre"); line = substr(line, p); low = substr(low, p)
+        p = index(low, ">"); line = substr(line, p + 1); low = substr(low, p + 1)
+      } else next
+    } else if (fence == "md") {
+      if (line ~ /^[[:space:]]*```/) { fence = ""; dia = 0; cls = "" } else diagram_line(line)
       next
     }
-    if (line ~ /^[[:space:]]*```/) { fence = 0; dia = 0; cls = ""; next }
-    if (dia == -1) { if (line ~ /classDiagram/) dia = 1; else if (line !~ /^[[:space:]]*$/ && line !~ /^[[:space:]]*%%/) dia = 0; next }
-    if (dia != 1) next
-    t = line; sub(/^[[:space:]]+/, "", t)
-    if (t == "" || t ~ /^%%/) next
-    if (t ~ /^(note|direction|link|click|callback|style|classDef|cssClass)[[:space:]]/) next
-    if (t ~ /^namespace[[:space:]]/) next
-    if (t ~ /^class[[:space:]]+/) {
-      sub(/^class[[:space:]]+/, "", t); c = ident(t)
-      if (c == "") next
-      printf "%s|%s||%d\n", sec, c, NR
-      if (t ~ /\{[[:space:]]*$/) cls = c
-      next
-    }
-    if (t ~ /^\}/) { cls = ""; next }
-    if (t ~ /<\|--|--\|>|<\|\.\.|\.\.\|>|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.|--[[:space:]]|[[:space:]]--|\.\.[[:space:]]/) next
-    if (t ~ /^<<.*>>$/) next
-    if (cls != "") { m = member_name(t); if (m != "") printf "%s|%s|%s|%d\n", sec, cls, m, NR; next }
-    if (t ~ /^[A-Za-z_][A-Za-z0-9_]*[[:space:]]*:/) {
-      c = ident(t); rest = t; sub(/^[A-Za-z_][A-Za-z0-9_]*[[:space:]]*:[[:space:]]*/, "", rest)
-      printf "%s|%s||%d\n", sec, c, NR
-      if (rest ~ /^<<.*>>$/) next
-      m = member_name(rest); if (m != "") printf "%s|%s|%s|%d\n", sec, c, m, NR
-    }
+    # inside <pre>: up to </pre>, entities decoded
+    p = index(low, "</pre>")
+    if (p > 0) line = substr(line, 1, p - 1)
+    diagram_line(decode(line))
+    if (p > 0) { fence = ""; dia = 0; cls = "" }
   }' "$1"
 }
 

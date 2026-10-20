@@ -124,7 +124,7 @@ gates. `ci/` is never installed into a target repo.
 | `ci/version_check.sh` — VERSION = README header = changelog tail = plugin.json (= tag on release) | ci, release | Script | Framework release metadata; no project gate has this subject. |
 | `ci/smoke.sh --compare` — the INIT §6 smoke plus a negative control per known bypass, sh gates with ps1 output compared | ci (ubuntu), release | Script | Tests the gates. A gate cannot test itself. |
 | `ci/smoke.ps1` — the same on the ps1 gates | ci (windows) | Script | Proves the Windows family on a Windows runner. |
-| `ci/hook_test.sh` — persona guard cases (PG.1–PG.9) | ci (ubuntu) | Script | Tests the hook against synthetic tool calls. |
+| `ci/hook_test.sh` — persona guard cases (PG.1–PG.10) | ci (ubuntu) | Script | Tests the hook against synthetic tool calls. |
 | `ci/install_test.sh` — the update check, its cache and the SessionStart hook; `update`'s handoff and careful merge (refresh, three-way merge, conflict left untouched, config key by key); both installer twins, merged files compared byte for byte | ci (ubuntu: both twins; windows: ps1) | Script | Tests the installer, whose subject is the install. |
 | `constitution_lint` over the spine with `ci/spine.gates.config.json` — no bashisms in `.sh` (Ubuntu `sh` is dash), ASCII-only gate output (`§` excepted), a builtins-only persona guard | ci (ubuntu: sh, strict; windows: ps1) | Gate | Framework conventions are single-file text facts, exactly what project rules are for. Running both twins on real rules also guards rule-engine parity. |
 | `prose_check` over the spine (strict), same committed config | ci (ubuntu) | Gate | The spine is held to its own spec form (SDD-PROP-09). Passes since v1.15.0. |

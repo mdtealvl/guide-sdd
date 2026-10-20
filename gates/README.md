@@ -55,7 +55,7 @@ clone with no project runtime.
 | freeze | `freeze.ps1` / `.sh` | generic (helper) | records the QA-frozen SHA in `gates/.frozen` at Stage 5 exit and prints the `frozen:` line for the item; refuses a dirty tree | 5 |
 | structure_check | `structure_check.ps1` / `.sh` | generic | the PM-approved **member-level structure diagram** holds: `--plan` every structure shard is member-level; `--frozen` no structure shard differs from the **QA-frozen SHA** (deviation guard; persona pre-fold pass); default every diagram class/member resolves under `paths.code` and a `Removed` class is absent (forward trace, every pass) | 3 / 4b (`--plan`), 6 (`--frozen`), 7 |
 | token_ledger | `token_ledger.ps1` / `.sh` | generic (helper) | the Stage-4b read ledger: `add` appends a hash-stamped row with its token estimate, `verify` names STALE rows (exit 1), `report` prints the `tokens:` lines | 4b, every slice end, 7 |
-| link_check | `link_check.ps1` / `.sh` | generic | every spec cross-ref resolves to a real anchor/shard | 3, 7 |
+| link_check | `link_check.ps1` / `.sh` | generic | every spec cross-ref resolves to a real anchor/shard; links to repo files under `linkCheck.skipGlobs` are not checked | 3, 7 |
 | prose_check | `prose_check.ps1` / `.sh` | generic | spec shards are terse and structured (SDD-PROP-09): paragraph-word share + longest paragraph, **changed shards vs base** by default (`-All` / `--all` for the corpus); `proseCheck.mode` warn / strict / off | 3, 7 |
 | fold_check | `fold_check.ps1` / `.sh` | generic | every clause changed this ship carries a resolving provenance pin. A clause is its definition span (anchor or leading id to the next one); one pin anywhere in it counts, and ids cited in prose are not clauses. CI runs **`--strict`** | 7 |
 | static_check | `static_check.ps1` / `.sh` | generic | the project's linter / type checker / format check (`checkCmd`) passes, or its finding count stays at or under `staticCheck.baseline` (the brownfield ratchet); **`checkCmd` is mandatory** (unset = exit 2; `"none"` opts out on the record) | 6, 7 |
@@ -140,6 +140,10 @@ contract. Run the Windows (`pwsh …`) **or** the Linux–macOS (`sh …`) form,
   - A structure shard (`structureGlobs`, default `**/*.structure.body.md`) holds fenced `mermaid`
     `classDiagram` blocks at member level; a transient shard is a delta under `## Added` / `## Changed` /
     `## Removed`, a canonical one the area's current state.
+  - An HTML shard (`*.structure.body.html`) may hold the diagram in a `<pre>` whose open tag names
+    `mermaid` (`<pre class="mermaid">`): the diagram may start on the open-tag line and end on the
+    `</pre>` line, and entities (`&lt;` `&gt;` `&amp;` `&quot;` `&#39;`) are decoded. `<h1>`–`<h6>`
+    Added / Changed / Removed headings mark the sections.
   - `--plan` proves shape (≥ 1 class with ≥ 1 member; a memberless class is WARNed).
   - `--frozen [sha]` is the **deviation guard**: `test_edit_ban`'s working-tree diff over the structure
     globs, fail-closed on a base that does not resolve or is not an ancestor of HEAD.
@@ -234,6 +238,7 @@ in a script.
 | `clauseIdRegex` | what a behavioural clause-ID looks like. Default `\b[A-Z]{2,}\.\d+\b` (matches `CB.12`, `POL.5`). Mirrors Project Details §5. |
 | `testClauseTag` | the literal prefix a test uses to claim a clause, e.g. `@clause:` — `@clause:CB.12` covers `CB.12`. |
 | `paths.spec` | glob for content-only spec shards (`spec/**/*.body.md`). |
+| `linkCheck.skipGlobs` | optional: project-root globs for repo files a shard may link to that are not shards (`["docs/**"]`). A relative href whose file part, resolved against the linking shard's directory (a leading `/` is the project root), matches one is not checked by `link_check`. Default: none. |
 | `paths.plan` | optional: the Stage-4 test-plan glob for `coverage_check --plan`. Unset, it is `paths.spec` with its last segment `*X` made `*plan*X` (`*.body.html` gives `*plan*.body.html`); `--plan-glob` / `-PlanGlob` beats both. |
 | `paths.tests` / `testGlobs` | test files **and test infrastructure** — snapshots, `jest.config.*`, `pytest.ini`, `conftest.py` (coverage_check scans tags; test_edit_ban forbids edits; the plugin hook denies them at edit time). One dialect everywhere: `**` spans directories, `*` does not, anchored at the project root. |
 | `testTagExcludeGlobs` | files under `testGlobs` whose `@clause:` tags do **not** count as coverage (default `**/*.md`, `**/*.txt`). |

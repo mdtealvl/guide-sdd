@@ -64,6 +64,19 @@ expect 0 "coverage_check PASS"  sh gates/coverage_check.sh --config $CFG
 twin "coverage_check" "$LAST_OUT" "$LAST_RC" gates/coverage_check.ps1 -Config $CFG
 expect 0 "link_check PASS"      sh gates/link_check.sh --config $CFG
 twin "link_check" "$LAST_OUT" "$LAST_RC" gates/link_check.ps1 -Config $CFG
+# link_check (#14): a link to a repo file that is not a shard fails, unless linkCheck.skipGlobs names
+# it (resolved against the linking shard's directory; a leading / is the project root).
+mkdir -p spec/lk
+printf '# Links\nSee [r](../../docs/research/X.md#s), [y](/docs/Y.md) and [z](../../notes/Z.md).\n' > spec/lk/links.body.md
+expect 1 "link_check FAIL: link to a non-shard file" sh gates/link_check.sh --config $CFG
+names "link_check (non-shard)" "'../../docs/research/X.md#s' - no such shard"
+twin "link_check (non-shard)" "$LAST_OUT" "$LAST_RC" gates/link_check.ps1 -Config $CFG
+jq '.linkCheck.skipGlobs = ["docs/**"]' $CFG > lk.smoke.json
+expect 1 "link_check FAIL: skipGlobs skips docs/ only" sh gates/link_check.sh --config lk.smoke.json
+names "link_check (skipGlobs)" "'../../notes/Z.md' - no such shard"
+case "$LAST_OUT" in *docs/*) echo "FAIL  link_check: checked a link under linkCheck.skipGlobs"; fails=$((fails+1));; esac
+twin "link_check (skipGlobs)" "$LAST_OUT" "$LAST_RC" gates/link_check.ps1 -Config lk.smoke.json
+rm -rf spec/lk lk.smoke.json
 expect 0 "prose_check PASS"     sh gates/prose_check.sh --config $CFG --all
 twin "prose_check" "$LAST_OUT" "$LAST_RC" gates/prose_check.ps1 -Config $CFG -All
 expect 0 "test_edit_ban PASS (HEAD, warns moving ref)" sh gates/test_edit_ban.sh HEAD $CFG
@@ -159,6 +172,25 @@ expect 1 "structure_check --plan FAIL: memberless diagram" sh gates/structure_ch
 names "structure_check (outline)" "DEMO-2.structure.body.md"
 twin "structure_check (outline)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Plan -Config $CFG
 rm spec/working/DEMO-2.structure.body.md
+# structure_check (#13): an HTML shard - <h2> section headings, <pre class="mermaid"> opening on the
+# tag line and closing on the last member's line, entities decoded (&lt;&lt;entity&gt;&gt; is a
+# stereotype, not a member). Line numbers stay those of the file.
+jq '.structureGlobs = ["spec/**/*.structure.body.html"]' $CFG > sc.smoke.json
+printf '<h2 id="added">Added</h2>\n<figure class="diagram"><pre class="mermaid">classDiagram\n  class Wallet {\n    &lt;&lt;entity&gt;&gt;\n    +int Balance\n    +Deposit(int amount) bool</pre></figure>\n<h2>Removed</h2>\n<pre class="mermaid">\nclassDiagram\n  class LegacyPurse {\n    +Empty()\n  }\n</pre>\n' > spec/working/DEMO-3.structure.body.html
+expect 0 "structure_check --plan PASS: HTML <pre> diagram" sh gates/structure_check.sh --plan --config sc.smoke.json
+names "structure_check (html plan)" "1 structure shard(s) at member level (0 warning(s))"
+twin "structure_check (html plan)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Plan -Config sc.smoke.json
+expect 0 "structure_check trace PASS: HTML <pre> diagram" sh gates/structure_check.sh --config sc.smoke.json
+twin "structure_check (html trace)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Config sc.smoke.json
+sed -i 's/+Deposit(int amount) bool</+Withdraw(int amount) bool</' spec/working/DEMO-3.structure.body.html
+expect 1 "structure_check FAIL: HTML planned member missing, on its own line" sh gates/structure_check.sh --config sc.smoke.json
+names "structure_check (html missing)" "DEMO-3.structure.body.html:6: Wallet.Withdraw"
+twin "structure_check (html missing)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Config sc.smoke.json
+printf 'public class LegacyPurse { }\n' > src/legacy.cs
+expect 1 "structure_check FAIL: HTML removed class still present" sh gates/structure_check.sh --config sc.smoke.json
+names "structure_check (html removed)" "removed class LegacyPurse"
+twin "structure_check (html removed)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Config sc.smoke.json
+rm -f src/legacy.cs spec/working/DEMO-3.structure.body.html sc.smoke.json
 
 # token_ledger: the Stage-4b read ledger - add rows, report the tokens: lines, refuse a QA row into
 # the implementation, and (negative control) flag a stale row once its file changes.
