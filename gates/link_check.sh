@@ -3,7 +3,9 @@
 #
 # Generic gate. Content-only spec shards keep the parse trivial, so link_check is a
 # pure set operation: collect the anchor set (declared anchors UNION clause-IDs) across
-# all shards, then assert every internal cross-ref points into it. Skips http/mailto.
+# all shards, then assert every internal cross-ref points into it. Skips http/mailto, and any
+# relative link whose target (resolved against the linking shard) matches linkCheck.skipGlobs:
+# a repo file that is not a shard, e.g. docs/research/X.md.
 #
 # A clause-ID is DECLARED only when it appears on an anchored line (id=, name=, {#..},
 # <!-- §..) or a heading / bold-or-list definition line; bare prose occurrences are
@@ -36,6 +38,8 @@ CLAUSE_RAW=$(read_cfg "$CFG" '.clauseIdRegex' '\b[A-Z]{2,}\.\d+\b')
 CLAUSE_RE=$(to_awk_ere "$CLAUSE_RAW")        # awk has no \b; strip it, enforce via wmatch
 CLAUSE_WB=$(had_word_boundary "$CLAUSE_RAW") # 1 if \b boundaries must be enforced
 SPEC_GLOB=$(read_cfg "$CFG" '.paths.spec' 'spec/**/*.body.md')
+SKIP_RE=$(jq -r '(.linkCheck.skipGlobs // empty) | if type=="array" then .[] else . end' "$CFG" 2>/dev/null \
+  | sed '/^$/d' | while IFS= read -r g; do glob_to_regex "$g"; done | paste -sd '|' -)
 
 SHARDS=$(expand_globs "$SPEC_GLOB")
 if [ -z "$SHARDS" ]; then
@@ -53,8 +57,23 @@ US=$(printf '\037')   # unit separator for structured awk output
 # Shards are passed as file args so FILENAME gives the source path per line.
 # SQ is the single-quote char, passed in via -v SQ=\' so the awk program body needs
 # no embedded single quotes; quote-bearing regexes are built dynamically from SQ.
-RESULT=$(awk -v clause="$CLAUSE_RE" -v wb="$CLAUSE_WB" -v US="$US" -v SQ=\' '
+# LC_SKIP_RE (via ENVIRON, so awk -v does not eat its backslashes) is the linkCheck.skipGlobs alternation.
+RESULT=$(LC_SKIP_RE="$SKIP_RE" awk -v clause="$CLAUSE_RE" -v wb="$CLAUSE_WB" -v US="$US" -v SQ=\' '
 function basename(p,   n, a) { n = split(p, a, "/"); return a[n] }
+function dirname(p,   i) { i = match(p, /\/[^\/]*$/); return i ? substr(p, 1, i - 1) : "" }
+
+# normpath(p): collapse "", "." and "dir/.." segments; a leading ".." that climbs out of the
+# project root is kept (and so matches no skip glob).
+function normpath(p,   n, a, i, k, out) {
+  n = split(p, a, "/"); k = 0
+  for (i = 1; i <= n; i++) {
+    if (a[i] == "" || a[i] == ".") continue
+    if (a[i] == ".." && k > 0 && seg[k] != "..") { k--; continue }
+    seg[++k] = a[i]
+  }
+  out = ""; for (i = 1; i <= k; i++) out = out (i > 1 ? "/" : "") seg[i]
+  return out
+}
 
 # isword(c): is c a word char [A-Za-z0-9_]?
 function isword(c) { return (c ~ /[A-Za-z0-9_]/) }
@@ -93,6 +112,7 @@ function collect(s, re, arr,   off, m) {
 }
 
 BEGIN {
+  skip = ENVIRON["LC_SKIP_RE"]
   # Dynamic, quote-aware patterns (double OR single quoted attribute values).
   q = "(\"[^\"]*\"|" SQ "[^" SQ "]*" SQ ")"   # a quoted value
   idname_re = "(id|name)[ \t]*=[ \t]*" q
@@ -153,7 +173,7 @@ BEGIN {
     tgt = seg
     sub(/^\][ \t]*\([ \t]*/, "", tgt)
     sub(/[ \t]*\)$/, "", tgt)
-    hrefs[++nhref] = name SUBSEP tgt
+    hrefs[++nhref] = name SUBSEP tgt; hdir[nhref] = dirname(FILENAME)
     rest = substr(rest, RSTART + RLENGTH)
   }
   # HTML href="target"  (or single-quoted)
@@ -163,7 +183,7 @@ BEGIN {
     tgt = seg
     sub("^href[ \t]*=[ \t]*(\"|" SQ ")", "", tgt)
     sub("(\"|" SQ ")$", "", tgt)
-    hrefs[++nhref] = name SUBSEP tgt
+    hrefs[++nhref] = name SUBSEP tgt; hdir[nhref] = dirname(FILENAME)
     rest = substr(rest, RSTART + RLENGTH)
   }
 }
@@ -189,6 +209,12 @@ END {
       if (hi > 0) { fp = substr(href, 1, hi - 1); frag = substr(href, hi + 1) }
       else        { fp = href; frag = "" }
       if (fp != "") {
+        # linkCheck.skipGlobs: the target, resolved against the linking shard (a leading / is the
+        # project root), is a repo file, not a shard - out of scope.
+        if (skip != "") {
+          rp = (fp ~ /^\//) ? normpath(fp) : normpath(hdir[i] "/" fp)
+          if (rp ~ skip) continue
+        }
         tname = basename(fp)
         if (!(tname in shardseen)) { print "BROKEN" US s US href US "no such shard"; continue }
         if (frag != "" && !((tname SUBSEP frag) in pershard)) print "BROKEN" US s US href US "shard has no anchor #" frag

@@ -160,6 +160,46 @@ names "structure_check (outline)" "DEMO-2.structure.body.md"
 twin "structure_check (outline)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Plan -Config $CFG
 rm spec/working/DEMO-2.structure.body.md
 
+# structure_check (#13): a raw-HTML structure shard. <pre class="mermaid"> blocks are read (diagram
+# text on the open-tag line, </pre> after the last line), entities decoded (&lt;&lt;interface&gt;&gt; is a
+# stereotype, not a member), <h2> headings set Added / Removed, and text after </pre> is not diagram.
+jq '.structureGlobs = ["spec/html/*.structure.body.html"]' $CFG > hs.smoke.json
+mkdir -p spec/html
+printf '<h2 id="added">Added</h2>\n<figure class="diagram"><pre class="mermaid">classDiagram\n  class Wallet {\n    &lt;&lt;interface&gt;&gt;\n    +int Balance\n    +Deposit(int amount) bool\n  }\n</pre><figcaption>Ghost : +Haunt()</figcaption></figure>\n<p>Ghost : +Haunt()</p>\n<h2>Removed</h2>\n<pre class="mermaid">\nclassDiagram\n  class LegacyPurse {\n    +Empty()\n  }</pre>\n' > spec/html/DEMO-3.structure.body.html
+expect 0 "structure_check --plan PASS: HTML <pre class=mermaid> shard" sh gates/structure_check.sh --plan --config hs.smoke.json
+twin "structure_check (HTML plan)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Plan -Config hs.smoke.json
+expect 0 "structure_check trace PASS: HTML shard, entities decoded, nothing read after </pre>" sh gates/structure_check.sh --config hs.smoke.json
+twin "structure_check (HTML trace)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Config hs.smoke.json
+sed -i 's/+Deposit(int amount) bool/&\n    +Withdraw(int amount) bool/' spec/html/DEMO-3.structure.body.html
+expect 1 "structure_check FAIL: HTML shard, planned member missing from code" sh gates/structure_check.sh --config hs.smoke.json
+names "structure_check (HTML missing member)" "Wallet.Withdraw"
+twin "structure_check (HTML missing member)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Config hs.smoke.json
+sed -i '/+Withdraw/d' spec/html/DEMO-3.structure.body.html
+printf 'public class LegacyPurse { }\n' > src/legacy.cs
+expect 1 "structure_check FAIL: HTML shard, class under <h2>Removed</h2> still present" sh gates/structure_check.sh --config hs.smoke.json
+names "structure_check (HTML removed class)" "LegacyPurse"
+twin "structure_check (HTML removed class)" "$LAST_OUT" "$LAST_RC" gates/structure_check.ps1 -Config hs.smoke.json
+rm -rf src/legacy.cs spec/html hs.smoke.json
+
+# link_check (#14): a link to a repo file that is not a shard fails "no such shard" unless its target,
+# resolved against the linking shard, matches linkCheck.skipGlobs. The skip is by resolved path (the
+# same text from another directory is still checked), and a shard link beside it is still checked.
+mkdir -p spec/area
+printf '## LNK.1 links {#LNK.1}\nThe system shall cite [research](../../docs/research/X.md) and [demo](../demo.body.md#DEMO.1).\n' > spec/area/links.body.md
+expect 1 "link_check FAIL: link to a non-shard repo file, no skipGlobs" sh gates/link_check.sh --config $CFG
+names "link_check (non-shard)" "'../../docs/research/X.md' - no such shard"
+twin "link_check (non-shard)" "$LAST_OUT" "$LAST_RC" gates/link_check.ps1 -Config $CFG
+jq '.linkCheck.skipGlobs = ["docs/**"]' $CFG > lk.smoke.json
+expect 0 "link_check PASS: target resolves under linkCheck.skipGlobs" sh gates/link_check.sh --config lk.smoke.json
+twin "link_check (skipGlobs)" "$LAST_OUT" "$LAST_RC" gates/link_check.ps1 -Config lk.smoke.json
+printf 'See <a href="docs/research/X.md">notes</a> and [gone](nosuch.body.md).\n' >> spec/area/links.body.md
+expect 1 "link_check FAIL: skipGlobs match the resolved path, and shard links are still checked" sh gates/link_check.sh --config lk.smoke.json
+names "link_check (resolved path)" "'docs/research/X.md' - no such shard"
+names "link_check (shard still checked)" "'nosuch.body.md' - no such shard"
+case "$LAST_OUT" in *"../../docs/research/X.md"*) echo "FAIL  link_check: a skipped target was reported"; fails=$((fails+1));; esac
+twin "link_check (resolved path)" "$LAST_OUT" "$LAST_RC" gates/link_check.ps1 -Config lk.smoke.json
+rm -rf spec/area lk.smoke.json
+
 # token_ledger: the Stage-4b read ledger - add rows, report the tokens: lines, refuse a QA row into
 # the implementation, and (negative control) flag a stale row once its file changes.
 BP=spec/working/DEMO-1.buildplan.md

@@ -14,6 +14,10 @@
   "testTagExcludeGlobs": ["**/*.md", "**/*.txt"],
   "_structureGlobs_comment": "Structure shards: the PM-approved member-level class diagrams (mermaid classDiagram in a content-only shard). Frozen with the tests (structure_check --frozen; the plugin hook denies the engineer persona edits); forward-traced into paths.code at ship (structure_check). A deviation is [NEEDS-PO:structure] -> PM -> replace wholesale -> re-freeze.",
   "structureGlobs": ["**/*.structure.body.md"],
+  "linkCheck": {
+    "_comment": "link_check: skipGlobs are project-root globs for relative links that point at repo files, not shards (e.g. docs/**). A link whose target, resolved against the linking shard (a leading / is the project root), matches one is out of scope; every other relative link must name a shard. A raw-HTML spec also sets structureGlobs to **/*.structure.body.html.",
+    "skipGlobs": []
+  },
   "_buildPlan_comment": "Stage 4b build plan + read ledger (token_ledger). glob finds <ITEM-ID>.buildplan.md; tokensPerChar is the estimate used for every token number the ledger reports (chars x 0.25 ~ 4 chars/token) - an estimate, never a billed count.",
   "buildPlan": { "glob": "**/*.buildplan.md", "tokensPerChar": 0.25 },
   "_baseRef_comment": "Fallback only. test_edit_ban diffs the QA-frozen SHA (passed by the Orchestrator / CI, mirrored in gates/.frozen by gates/freeze.*); a branch name here is warned as weak.",

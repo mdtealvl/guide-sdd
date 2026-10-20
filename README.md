@@ -1,6 +1,6 @@
 # GUIDE SDD — Gated, Unified, Intent-Driven Engineering
 
-> **v1.17.0 — 2026-10-16.** A reusable, token-efficient, spec-first / persona-split development
+> **v1.17.1 — 2026-10-19.** A reusable, token-efficient, spec-first / persona-split development
 > method that drops into large, multi-developer projects worked by humans **and** AI agents. It
 > merges two mature in-house practices (Mistwright's *How We Work*, Polars' *How To Develop*) with
 > the published SOTA into one copyable **spine** + a small, indexed **per-project surface**.
@@ -466,6 +466,15 @@ columns are GUIDE's stages, so it shows whose turn each item is and which sessio
 - Teams: several orchestrator sessions on one box, one team each (`box-roles.md`, `#CL-12`/`#CL-13`).
 - **On update:** nothing to do; the board is off until `board.file` is set.
 Full record in `constitution.changelog.md`.
+
+### v1.17.1 Amendment — gates read raw-HTML spec shards (2026-10-19)
+
+No invariant change; still ten. **`structure_check`** (closes #13) reads `<pre class="mermaid">`
+diagrams in `*.structure.body.html` shards (entities decoded, `<h2>` Added / Changed / Removed), so a
+raw-HTML spec no longer needs a comment-hidden Markdown fence. **`link_check`** (closes #14): the new
+`linkCheck.skipGlobs` marks repo files that are not shards (`docs/**`); a link whose target, resolved
+against the linking shard, matches one is out of scope instead of "no such shard". **On update:** a
+raw-HTML spec may drop both workarounds. Full record in `constitution.changelog.md`.
 
 ## Map to the source practices
 

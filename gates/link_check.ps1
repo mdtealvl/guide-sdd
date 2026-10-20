@@ -3,7 +3,9 @@
 #
 # Generic gate. Content-only spec shards keep the parse trivial, so link_check is a
 # pure set operation: collect the anchor set (declared anchors UNION clause-IDs) across
-# all shards, then assert every internal cross-ref points into it. Skips http/mailto.
+# all shards, then assert every internal cross-ref points into it. Skips http/mailto, and any
+# relative link whose target (resolved against the linking shard) matches linkCheck.skipGlobs:
+# a repo file that is not a shard, e.g. docs/research/X.md.
 #
 # A clause-ID is DECLARED only when it appears on an anchored line (id=, name=, {#..},
 # <!-- §..) or a heading / bold-or-list definition line; bare prose occurrences are
@@ -28,6 +30,22 @@ if ($cfg.PSObject.Properties.Name -contains 'paths' -and $cfg.paths -and ($cfg.p
     $specGlob = $cfg.paths.spec
 }
 $clauseRe = [regex]$clausePattern
+$skipRes = @()
+foreach ($g in @(Get-CfgValue (Get-CfgValue $cfg 'linkCheck' $null) 'skipGlobs' @())) {
+    if ($g) { $skipRes += ,(ConvertTo-Regex ($g -replace '\\', '/')) }
+}
+
+# Collapse "", "." and "dir/.." segments; a leading ".." that climbs out of the project root is
+# kept (and so matches no skip glob).
+function ConvertTo-NormPath([string]$p) {
+    $seg = New-Object System.Collections.Generic.List[string]
+    foreach ($a in $p.Split('/')) {
+        if ($a -eq '' -or $a -eq '.') { continue }
+        if ($a -eq '..' -and $seg.Count -gt 0 -and $seg[$seg.Count - 1] -ne '..') { $seg.RemoveAt($seg.Count - 1); continue }
+        $seg.Add($a)
+    }
+    return ($seg -join '/')
+}
 
 $shards = Expand-Globs $specGlob
 if ($shards.Count -eq 0) {
@@ -100,6 +118,7 @@ $broken = New-Object System.Collections.Generic.List[object]
 foreach ($s in $shards) {
     $t = $texts[$s]
     $src = Split-Path -Leaf $s
+    $slash = $s.LastIndexOf('/'); $srcDir = if ($slash -ge 0) { $s.Substring(0, $slash) } else { '' }
     foreach ($pat in $hrefPatterns) {
         foreach ($m in $pat.Matches($t)) {
             $href = $m.Groups[1].Value
@@ -113,6 +132,14 @@ foreach ($s in $shards) {
                 $frag = ''
             }
             if ($filePart) {
+                # linkCheck.skipGlobs: the target, resolved against the linking shard (a leading / is
+                # the project root), is a repo file, not a shard - out of scope.
+                if ($skipRes.Count -gt 0) {
+                    $rp = if ($filePart.StartsWith('/')) { ConvertTo-NormPath $filePart } else { ConvertTo-NormPath "$srcDir/$filePart" }
+                    $skipped = $false
+                    foreach ($re in $skipRes) { if ($re.IsMatch($rp)) { $skipped = $true; break } }
+                    if ($skipped) { continue }
+                }
                 $target = Split-Path -Leaf $filePart
                 if (-not $shardNames.Contains($target)) {
                     $broken.Add([pscustomobject]@{ src = $src; ref = $href; why = 'no such shard' })

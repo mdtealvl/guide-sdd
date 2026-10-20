@@ -141,6 +141,46 @@ try {
     Names 'structure_check (outline)' 'DEMO-2.structure.body.md'
     Remove-Item "$proj/spec/working/DEMO-2.structure.body.md"
 
+    # structure_check (#13): a raw-HTML structure shard. <pre class="mermaid"> blocks are read (diagram
+    # text on the open-tag line, </pre> after the last line), entities decoded (&lt;&lt;interface&gt;&gt; is a
+    # stereotype, not a member), <h2> headings set Added / Removed, and text after </pre> is not diagram.
+    $hsObj = Get-Content $cfg -Raw | ConvertFrom-Json
+    $hsObj.structureGlobs = @('spec/html/*.structure.body.html')
+    [IO.File]::WriteAllText("$proj/hs.smoke.json", ($hsObj | ConvertTo-Json -Depth 10), $utf8)
+    New-Item -ItemType Directory -Force spec/html | Out-Null
+    $hShard = "$proj/spec/html/DEMO-3.structure.body.html"
+    $hText = "<h2 id=`"added`">Added</h2>`n<figure class=`"diagram`"><pre class=`"mermaid`">classDiagram`n  class Wallet {`n    &lt;&lt;interface&gt;&gt;`n    +int Balance`n    +Deposit(int amount) bool`n  }`n</pre><figcaption>Ghost : +Haunt()</figcaption></figure>`n<p>Ghost : +Haunt()</p>`n<h2>Removed</h2>`n<pre class=`"mermaid`">`nclassDiagram`n  class LegacyPurse {`n    +Empty()`n  }</pre>`n"
+    [IO.File]::WriteAllText($hShard, $hText, $utf8)
+    Expect 0 'structure_check -Plan PASS: HTML <pre class=mermaid> shard' @('gates/structure_check.ps1', '-Plan', '-Config', 'hs.smoke.json')
+    Expect 0 'structure_check trace PASS: HTML shard, entities decoded, nothing read after </pre>' @('gates/structure_check.ps1', '-Config', 'hs.smoke.json')
+    [IO.File]::WriteAllText($hShard, $hText.Replace('+Deposit(int amount) bool', "+Deposit(int amount) bool`n    +Withdraw(int amount) bool"), $utf8)
+    Expect 1 'structure_check FAIL: HTML shard, planned member missing from code' @('gates/structure_check.ps1', '-Config', 'hs.smoke.json')
+    Names 'structure_check (HTML missing member)' 'Wallet.Withdraw'
+    [IO.File]::WriteAllText($hShard, $hText, $utf8)
+    [IO.File]::WriteAllText("$proj/src/legacy.cs", "public class LegacyPurse { }`n", $utf8)
+    Expect 1 'structure_check FAIL: HTML shard, class under <h2>Removed</h2> still present' @('gates/structure_check.ps1', '-Config', 'hs.smoke.json')
+    Names 'structure_check (HTML removed class)' 'LegacyPurse'
+    Remove-Item -Recurse -Force "$proj/src/legacy.cs", "$proj/spec/html", "$proj/hs.smoke.json"
+
+    # link_check (#14): a link to a repo file that is not a shard fails "no such shard" unless its target,
+    # resolved against the linking shard, matches linkCheck.skipGlobs. The skip is by resolved path (the
+    # same text from another directory is still checked), and a shard link beside it is still checked.
+    New-Item -ItemType Directory -Force spec/area | Out-Null
+    $lShard = "$proj/spec/area/links.body.md"
+    [IO.File]::WriteAllText($lShard, "## LNK.1 links {#LNK.1}`nThe system shall cite [research](../../docs/research/X.md) and [demo](../demo.body.md#DEMO.1).`n", $utf8)
+    Expect 1 'link_check FAIL: link to a non-shard repo file, no skipGlobs' @('gates/link_check.ps1', '-Config', $cfg)
+    Names 'link_check (non-shard)' "'../../docs/research/X.md' - no such shard"
+    $lkObj = Get-Content $cfg -Raw | ConvertFrom-Json
+    $lkObj.linkCheck.skipGlobs = @('docs/**')
+    [IO.File]::WriteAllText("$proj/lk.smoke.json", ($lkObj | ConvertTo-Json -Depth 10), $utf8)
+    Expect 0 'link_check PASS: target resolves under linkCheck.skipGlobs' @('gates/link_check.ps1', '-Config', 'lk.smoke.json')
+    [IO.File]::AppendAllText($lShard, "See <a href=`"docs/research/X.md`">notes</a> and [gone](nosuch.body.md).`n", $utf8)
+    Expect 1 'link_check FAIL: skipGlobs match the resolved path, and shard links are still checked' @('gates/link_check.ps1', '-Config', 'lk.smoke.json')
+    Names 'link_check (resolved path)' "'docs/research/X.md' - no such shard"
+    Names 'link_check (shard still checked)' "'nosuch.body.md' - no such shard"
+    if ($script:lastOut -like '*../../docs/research/X.md*') { Write-Output 'FAIL  link_check: a skipped target was reported'; $script:fails++ }
+    Remove-Item -Recurse -Force "$proj/spec/area", "$proj/lk.smoke.json"
+
     # token_ledger: the Stage-4b read ledger - add rows, report the tokens: lines, refuse a QA row into
     # the implementation, and (negative control) flag a stale row once its file changes.
     $bp = 'spec/working/DEMO-1.buildplan.md'

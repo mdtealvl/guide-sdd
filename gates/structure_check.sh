@@ -2,9 +2,10 @@
 # structure_check - the PM-approved member-level structure diagram (classes, properties, methods) holds.
 #
 # Generic gate over STRUCTURE SHARDS: content-only spec shards (structureGlobs, default
-# **/*.structure.body.md) holding fenced ```mermaid classDiagram``` blocks at MEMBER level. A transient
-# shard is a DELTA under headings "Added" / "Changed" / "Removed"; a canonical shard is the area's
-# current state (no headings needed). The mermaid text is the source; the drawing derives.
+# **/*.structure.body.md) holding classDiagram blocks at MEMBER level: fenced ```mermaid``` in Markdown,
+# or <pre class="mermaid"> in a raw-HTML shard (entities decoded). A transient shard is a DELTA under
+# headings "Added" / "Changed" / "Removed" (Markdown # or HTML <h1>-<h6>); a canonical shard is the
+# area's current state (no headings needed). The mermaid text is the source; the drawing derives.
 #
 # Modes:
 #   --plan            shape only (Stage 3 / 4b close): every shard in scope has >=1 classDiagram with
@@ -122,43 +123,60 @@ parse_shard() {
     if (t ~ /:/)  { p = index(t, ":"); return ident_last(substr(t, 1, p - 1)) }
     return ident_last(t)
   }
-  BEGIN { fence = 0; dia = 0; cls = ""; sec = "present" }
+  # A line of HTML <pre> text: decode the entities a mermaid diagram needs (&amp; last).
+  function unescape(s) {
+    gsub(/&lt;/, "<", s); gsub(/&gt;/, ">", s); gsub(/&quot;/, "\"", s); gsub(/&#0*39;|&apos;/, APOS, s)
+    gsub(/&amp;/, "\\&", s); return s
+  }
+  # One line inside a diagram block (Markdown fence or HTML <pre>).
+  function body(line,   t, c, m, rest) {
+    if (dia == -1) { if (line ~ /classDiagram/) dia = 1; else if (line !~ /^[[:space:]]*$/ && line !~ /^[[:space:]]*%%/) dia = 0; return }
+    if (dia != 1) return
+    t = line; sub(/^[[:space:]]+/, "", t)
+    if (t == "" || t ~ /^%%/) return
+    if (t ~ /^(note|direction|link|click|callback|style|classDef|cssClass)[[:space:]]/) return
+    if (t ~ /^namespace[[:space:]]/) return
+    if (t ~ /^class[[:space:]]+/) {
+      sub(/^class[[:space:]]+/, "", t); c = ident(t)
+      if (c == "") return
+      printf "%s|%s||%d\n", sec, c, NR
+      if (t ~ /\{[[:space:]]*$/) cls = c
+      return
+    }
+    if (t ~ /^\}/) { cls = ""; return }
+    if (t ~ /<\|--|--\|>|<\|\.\.|\.\.\|>|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.|--[[:space:]]|[[:space:]]--|\.\.[[:space:]]/) return
+    if (t ~ /^<<.*>>$/) return
+    if (cls != "") { m = member_name(t); if (m != "") printf "%s|%s|%s|%d\n", sec, cls, m, NR; return }
+    if (t ~ /^[A-Za-z_][A-Za-z0-9_]*[[:space:]]*:/) {
+      c = ident(t); rest = t; sub(/^[A-Za-z_][A-Za-z0-9_]*[[:space:]]*:[[:space:]]*/, "", rest)
+      printf "%s|%s||%d\n", sec, c, NR
+      if (rest ~ /^<<.*>>$/) return
+      m = member_name(rest); if (m != "") printf "%s|%s|%s|%d\n", sec, c, m, NR
+    }
+  }
+  # fence: 0 none, 1 Markdown ```mermaid, 2 HTML <pre ...mermaid...> (its open tag on one line; the
+  # diagram may start after it and end before </pre> on the same line).
+  BEGIN { fence = 0; dia = 0; cls = ""; sec = "present"; APOS = sprintf("%c", 39) }
   {
-    line = $0; sub(/\r$/, "", line)
-    if (!fence) {
-      if (line ~ /^[[:space:]]*#+[[:space:]]/) {
-        h = tolower(line)
+    line = $0; sub(/\r$/, "", line); closing = 0
+    if (fence == 0) {
+      if (line ~ /^[[:space:]]*#+[[:space:]]/ || tolower(line) ~ /^[[:space:]]*<h[1-6][[:space:]>]/) {
+        h = tolower(line); gsub(/<[^>]*>/, "", h)
         if (h ~ /removed|retired|deleted/) sec = "removed"
         else if (h ~ /changed|modified|updated/) sec = "changed"
         else if (h ~ /added|new/) sec = "added"
       }
-      if (line ~ /^[[:space:]]*```/) { fence = 1; dia = (tolower(line) ~ /mermaid/) ? -1 : 0; cls = "" }
-      next
+      if (line ~ /^[[:space:]]*```/) { fence = 1; dia = (tolower(line) ~ /mermaid/) ? -1 : 0; cls = ""; next }
+      if (!match(tolower(line), /<pre[[:space:]][^>]*mermaid[^>]*>/)) next
+      fence = 2; dia = -1; cls = ""; line = substr(line, RSTART + RLENGTH)
+    } else if (fence == 1 && line ~ /^[[:space:]]*```/) { fence = 0; dia = 0; cls = ""; next }
+    if (fence == 2) {
+      p = index(tolower(line), "</pre>")
+      if (p > 0) { line = substr(line, 1, p - 1); closing = 1 }
+      line = unescape(line)
     }
-    if (line ~ /^[[:space:]]*```/) { fence = 0; dia = 0; cls = ""; next }
-    if (dia == -1) { if (line ~ /classDiagram/) dia = 1; else if (line !~ /^[[:space:]]*$/ && line !~ /^[[:space:]]*%%/) dia = 0; next }
-    if (dia != 1) next
-    t = line; sub(/^[[:space:]]+/, "", t)
-    if (t == "" || t ~ /^%%/) next
-    if (t ~ /^(note|direction|link|click|callback|style|classDef|cssClass)[[:space:]]/) next
-    if (t ~ /^namespace[[:space:]]/) next
-    if (t ~ /^class[[:space:]]+/) {
-      sub(/^class[[:space:]]+/, "", t); c = ident(t)
-      if (c == "") next
-      printf "%s|%s||%d\n", sec, c, NR
-      if (t ~ /\{[[:space:]]*$/) cls = c
-      next
-    }
-    if (t ~ /^\}/) { cls = ""; next }
-    if (t ~ /<\|--|--\|>|<\|\.\.|\.\.\|>|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.|--[[:space:]]|[[:space:]]--|\.\.[[:space:]]/) next
-    if (t ~ /^<<.*>>$/) next
-    if (cls != "") { m = member_name(t); if (m != "") printf "%s|%s|%s|%d\n", sec, cls, m, NR; next }
-    if (t ~ /^[A-Za-z_][A-Za-z0-9_]*[[:space:]]*:/) {
-      c = ident(t); rest = t; sub(/^[A-Za-z_][A-Za-z0-9_]*[[:space:]]*:[[:space:]]*/, "", rest)
-      printf "%s|%s||%d\n", sec, c, NR
-      if (rest ~ /^<<.*>>$/) next
-      m = member_name(rest); if (m != "") printf "%s|%s|%s|%d\n", sec, c, m, NR
-    }
+    body(line)
+    if (closing) { fence = 0; dia = 0; cls = "" }
   }' "$1"
 }
 
