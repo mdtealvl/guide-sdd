@@ -4,8 +4,8 @@
 #
 # Order (Stage 7 ship):
 #   link_check -> prose_check -> coverage_check -> test_edit_ban -> structure_check -> static_check
-#     -> suite_green -> constitution_lint* -> seam_conformance* -> qa_import_ban* -> board_check
-#     -> mutation_check -> fold_check
+#     -> retire_check -> suite_green -> constitution_lint* -> seam_conformance* -> qa_import_ban* -> board_check
+#     -> mutation_check -> findings_check -> fold_check
 #     -> suite_green (re-run)
 # (*) project gates run only if their concrete (non-template) .sh script exists - a fresh
 #     repo is green before you author them.
@@ -20,7 +20,10 @@
 # suite_green is REQUIRED: an unset suiteCmd is exit 2, never a silent skip - a bank that
 # prints ALL GATES PASSED without running the suite proves nothing.
 # static_check is REQUIRED the same way (checkCmd; "none" opts out on the record). mutation_check is
-# optional: it runs when mutation.cmd is set and says "not configured" otherwise.
+# optional: it runs when mutation.cmd is set and says "not configured" otherwise. retire_check runs
+# when the retireCheck section is present (default mode warn), findings_check when a *.findings.md exists.
+# red_check and affected_tests are not in the bank: red_check runs right after freeze, affected_tests at
+# the Engineer exit (--list) and for the two-tier ship gate.
 #
 # This .sh runner invokes the .sh siblings (the Linux/macOS path; needs git + jq).
 #
@@ -119,6 +122,13 @@ bash "$HERE/structure_check.sh" --config "$CFG" || fail structure_check
 echo "== static_check =="
 bash "$HERE/static_check.sh" --config "$CFG" || fail static_check
 
+echo "== retire_check =="
+if [ -n "$BASE" ]; then
+  bash "$HERE/retire_check.sh" --base "$BASE" --config "$CFG" || fail retire_check
+else
+  bash "$HERE/retire_check.sh" --config "$CFG" || fail retire_check
+fi
+
 run_suite
 
 # --- project-specific gates: only if copied from template ---
@@ -152,6 +162,9 @@ if [ -n "$BASE" ]; then
 else
   bash "$HERE/mutation_check.sh" --config "$CFG" || fail mutation_check
 fi
+
+echo "== findings_check =="
+bash "$HERE/findings_check.sh" --config "$CFG" || fail findings_check
 
 if [ "$PREFOLD" = 1 ]; then
   echo "== fold_check == (skipped: --pre-fold pass; runs in the authoritative post-fold pass)"

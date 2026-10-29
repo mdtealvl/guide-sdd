@@ -4,8 +4,8 @@
 #
 # Order (Stage 7 ship):
 #   link_check -> prose_check -> coverage_check -> test_edit_ban -> structure_check -> static_check
-#     -> suite_green -> constitution_lint* -> seam_conformance* -> qa_import_ban* -> board_check
-#     -> mutation_check -> fold_check
+#     -> retire_check -> suite_green -> constitution_lint* -> seam_conformance* -> qa_import_ban* -> board_check
+#     -> mutation_check -> findings_check -> fold_check
 #     -> suite_green (re-run)
 # (*) project gates run only if their concrete (non-template) .ps1 script exists.
 # structure_check runs its -Frozen half (approved diagram unchanged vs the frozen base) only on
@@ -19,7 +19,10 @@
 # suite_green is REQUIRED: an unset suiteCmd is exit 2, never a silent skip - a bank that
 # prints ALL GATES PASSED without running the suite proves nothing.
 # static_check is REQUIRED the same way (checkCmd; "none" opts out on the record). mutation_check is
-# optional: it runs when mutation.cmd is set and says "not configured" otherwise.
+# optional: it runs when mutation.cmd is set and says "not configured" otherwise. retire_check runs
+# when the retireCheck section is present (default mode warn), findings_check when a *.findings.md exists.
+# red_check and affected_tests are not in the bank: red_check runs right after freeze, affected_tests at
+# the Engineer exit (-List) and for the two-tier ship gate.
 #
 # This .ps1 runner invokes the .ps1 siblings (the Windows, dependency-free path).
 #
@@ -153,6 +156,12 @@ Write-Output "== static_check =="
 Invoke-Gate 'static_check.ps1' @('-Config', $CFG)
 if ($LASTEXITCODE -ne 0) { Fail 'static_check' }
 
+Write-Output "== retire_check =="
+$rcArgs = @('-Config', $CFG)
+if ($base) { $rcArgs += @('-Base', $base) }
+Invoke-Gate 'retire_check.ps1' $rcArgs
+if ($LASTEXITCODE -ne 0) { Fail 'retire_check' }
+
 Invoke-Suite
 
 # --- project-specific gates: only if copied from template ---
@@ -189,6 +198,10 @@ $mcArgs = @('-Config', $CFG)
 if ($base) { $mcArgs += @('-Base', $base) }
 Invoke-Gate 'mutation_check.ps1' $mcArgs
 if ($LASTEXITCODE -ne 0) { Fail 'mutation_check' }
+
+Write-Output "== findings_check =="
+Invoke-Gate 'findings_check.ps1' @('-Config', $CFG)
+if ($LASTEXITCODE -ne 0) { Fail 'findings_check' }
 
 if ($PreFold) {
     Write-Output "== fold_check == (skipped: --pre-fold pass; runs in the authoritative post-fold pass)"
