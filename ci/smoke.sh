@@ -426,6 +426,133 @@ rc2 "mutation_check (lazy)"
 twin "mutation_check (lazy)" "$LAST_OUT" "$LAST_RC" gates/mutation_check.ps1 -Config st.smoke.json
 rm -f st.smoke.json rules.smoke.json
 
+# --- the review gates (v1.18): retire_check, findings_check, red_check, affected_tests. Each runs in a
+# scratch repo that carries a copy of the gates (a gate roots itself at the git top-level of its own dir).
+mk_rt() {  # <name> - a scratch repo with the gates copied in
+  RT="$WORK/$1"; rm -rf "$RT"; mkdir -p "$RT/src" "$RT/spec" "$RT/tests" "$RT/docs/archive"
+  cp -R "$PROJ/gates" "$RT/gates"; rm -f "$RT/gates/.frozen"
+  git -C "$RT" init -q -b main . && git -C "$RT" config user.email ci@guide-sdd && git -C "$RT" config user.name ci
+}
+in_rt() { (cd "$RT" && "$@"); }
+twin_rt() { [ "$COMPARE" = 1 ] || return 0; cd "$RT"; twin "$@"; cd "$PROJ"; }
+rt_cfg() { jq "$1" "$RT/rt.base.json" > "$RT/rt.json"; }
+
+# retire_check (#18)
+mk_rt rt1
+printf 'class WriterIntake { void submit_old() {} void KeepMe() {} }\n' > "$RT/src/WriterIntake.cs"
+printf 'The WriterIntake calls submit_old.\n[REMOVED 2026-01-01 - submit_old retired]\n' > "$RT/spec/s.md"
+printf '// test submit_old\n' > "$RT/tests/DoorTests.cs"
+printf 'see submit_old and KeepMe\n' > "$RT/docs/d.md"
+printf 'submit_old\n' > "$RT/docs/archive/a.md"
+echo '{"baseRef":"main","paths":{"spec":"spec/**/*.md","code":"src/**"},"testGlobs":["tests/**"],"retireCheck":{"mode":"strict","extraGlobs":["docs/**"],"excludeGlobs":["docs/archive/**"]}}' > "$RT/rt.base.json"
+git -C "$RT" add -A >/dev/null && git -C "$RT" commit -q -m seed
+printf 'class WriterIntake { void submit_new() {} void KeepMe() {} }\n' > "$RT/src/WriterIntake.cs"
+rt_cfg '.'
+expect 1 "retire_check FAIL: a name removed from the code survives in spec, tests and docs" in_rt sh gates/retire_check.sh --config rt.json
+names "retire_check (spec)" "spec/s.md:1: submit_old"
+names "retire_check (test)" "tests/DoorTests.cs:1: submit_old"
+names "retire_check (extraGlobs)" "docs/d.md:1: submit_old"
+case "$LAST_OUT" in *docs/archive*|*"spec/s.md:2"*|*KeepMe*) echo "FAIL  retire_check: reported an excluded, tombstoned or still-live name"; fails=$((fails+1));; esac
+twin_rt "retire_check" "$LAST_OUT" "$LAST_RC" gates/retire_check.ps1 -Config rt.json
+rt_cfg '.retireCheck.mode = "warn"'
+expect 0 "retire_check warn mode: hits print, exit 0" in_rt sh gates/retire_check.sh --config rt.json
+names "retire_check (warn)" "WARN retire_check: 3 reference(s)"
+twin_rt "retire_check (warn)" "$LAST_OUT" "$LAST_RC" gates/retire_check.ps1 -Config rt.json
+printf '# declared\nKeepMe -> KeepNew\n' > "$RT/gates/.retired"
+rt_cfg '.'
+expect 1 "retire_check FAIL: a declared name, with its replacement" in_rt sh gates/retire_check.sh --config rt.json
+names "retire_check (declared)" "docs/d.md:1: KeepMe -> KeepNew"
+twin_rt "retire_check (declared)" "$LAST_OUT" "$LAST_RC" gates/retire_check.ps1 -Config rt.json
+rm -f "$RT/gates/.retired"
+rt_cfg '.retireCheck.allow = ["submit_old"]'
+expect 0 "retire_check PASS: an allowed name" in_rt sh gates/retire_check.sh --config rt.json
+twin_rt "retire_check (allow)" "$LAST_OUT" "$LAST_RC" gates/retire_check.ps1 -Config rt.json
+for f in spec/s.md tests/DoorTests.cs docs/d.md; do sed 's/submit_old/submit_new/g' "$RT/$f" > "$RT/x.tmp" && mv "$RT/x.tmp" "$RT/$f"; done
+rt_cfg '.'
+expect 0 "retire_check PASS: the references are renamed" in_rt sh gates/retire_check.sh --config rt.json
+names "retire_check (clean)" "no retired name survives"
+twin_rt "retire_check (clean)" "$LAST_OUT" "$LAST_RC" gates/retire_check.ps1 -Config rt.json
+rt_cfg 'del(.retireCheck)'
+expect 0 "retire_check PASS: not configured" in_rt sh gates/retire_check.sh --config rt.json
+names "retire_check (unset)" "not configured"
+twin_rt "retire_check (unset)" "$LAST_OUT" "$LAST_RC" gates/retire_check.ps1 -Config rt.json
+
+# findings_check (#21)
+rt_cfg '.'
+printf '# unit findings\nprose is ignored\nF1 [LOW] a.cs:3 stale name | fixed abc1234\nF2 [HIGH] b.cs:9 a | b claim | defer out of range: tracked in X-9\n' > "$RT/u.findings.md"
+expect 0 "findings_check PASS: fixed <sha> and defer <evidence>" in_rt sh gates/findings_check.sh --config rt.json
+names "findings_check (pass)" "2 finding(s) in 1 file(s)"
+twin_rt "findings_check (pass)" "$LAST_OUT" "$LAST_RC" gates/findings_check.ps1 -Config rt.json
+printf 'F3 [LOW] c.cs:1 nit | accepted\nF4 [MED] d.cs:2 no disposition at all\nF5 [LOW] e.cs:3 bad sha | fixed xyz\nF6 [LOW] f.cs:4 no evidence | defer \nF7 [BLOCKER] g.cs:5 bad severity | fixed abc1234\n' >> "$RT/u.findings.md"
+expect 1 "findings_check FAIL: accepted, none, a bad sha, empty evidence, a bad severity" in_rt sh gates/findings_check.sh --config rt.json
+for n in F3 F4 F5 F6 F7; do names "findings_check ($n)" "$n "; done
+names "findings_check (accepted)" "disposition 'accepted'"
+case "$LAST_OUT" in *"F1 "*|*"F2 "*) echo "FAIL  findings_check: flagged a valid disposition"; fails=$((fails+1));; esac
+twin_rt "findings_check (fail)" "$LAST_OUT" "$LAST_RC" gates/findings_check.ps1 -Config rt.json
+rm -f "$RT/u.findings.md"
+expect 0 "findings_check PASS: no findings files" in_rt sh gates/findings_check.sh --config rt.json
+twin_rt "findings_check (none)" "$LAST_OUT" "$LAST_RC" gates/findings_check.ps1 -Config rt.json
+
+# red_check (#19) and affected_tests (#20): a unit branch with QA's tests frozen, then the Engineer's change
+mk_rt rt2
+printf 'class Writer {}\n' > "$RT/src/Writer.cs"
+printf 'uses Writer\n' > "$RT/tests/DoorTests.cs"
+printf 'nothing\n' > "$RT/tests/Unrelated.cs"
+echo '{"baseRef":"main","paths":{"code":"src/**"},"testGlobs":["tests/**"]}' > "$RT/rt.base.json"
+git -C "$RT" add -A >/dev/null && git -C "$RT" commit -q -m seed && git -C "$RT" checkout -q -b unit
+printf 'qa test\n' > "$RT/tests/NewTests.cs"
+git -C "$RT" add -A >/dev/null && git -C "$RT" commit -q -m qa
+FROZEN=$(git -C "$RT" rev-parse HEAD)
+rt_cfg '.redCheck = {"cmd":"echo Failed  Alpha&& echo Passed  Beta_pin&& echo Passed  Gamma && echo {tests}","passRegex":"^Passed +([A-Za-z_]+)"}'
+expect 1 "red_check FAIL: a test passes before any implementation" in_rt sh gates/red_check.sh --base "$FROZEN" --config rt.json
+names "red_check (Gamma)" "  Gamma"
+names "red_check (Beta)" "  Beta_pin"
+twin_rt "red_check" "$LAST_OUT" "$LAST_RC" gates/red_check.ps1 -Base "$FROZEN" -Config rt.json
+rt_cfg '.redCheck = {"cmd":"echo Failed  Alpha&& echo Passed  Beta_pin&& echo Passed  Gamma && echo {tests}","passRegex":"^Passed +([A-Za-z_]+)","allowGreen":["Beta_*","Gamma"]}'
+expect 0 "red_check PASS: the green tests are allowGreen entries (glob or exact)" in_rt sh gates/red_check.sh --base "$FROZEN" --config rt.json
+twin_rt "red_check (allowGreen)" "$LAST_OUT" "$LAST_RC" gates/red_check.ps1 -Base "$FROZEN" -Config rt.json
+rt_cfg '.redCheck = {"cmd":"echo Passed {tests}","passRegex":"^Passed +(.*)$","joiner":"+"}'
+expect 1 "red_check: {tests} is the stems of the added test files" in_rt sh gates/red_check.sh --base "$FROZEN" --config rt.json
+names "red_check ({tests})" "  NewTests"
+case "$LAST_OUT" in *DoorTests*) echo "FAIL  red_check: ran a test file QA did not touch"; fails=$((fails+1));; esac
+twin_rt "red_check ({tests})" "$LAST_OUT" "$LAST_RC" gates/red_check.ps1 -Base "$FROZEN" -Config rt.json
+rt_cfg '.redCheck = {"cmd":"echo Passed Beta","passRegex":"^Passed +([A-Za-z_]+)"}'
+expect 1 "red_check: a cmd without {tests} is a config error" in_rt sh gates/red_check.sh --base "$FROZEN" --config rt.json
+rc2 "red_check (no {tests})"
+rt_cfg '.'
+expect 0 "red_check PASS: not configured" in_rt sh gates/red_check.sh --base "$FROZEN" --config rt.json
+names "red_check (unset)" "not configured"
+twin_rt "red_check (unset)" "$LAST_OUT" "$LAST_RC" gates/red_check.ps1 -Base "$FROZEN" -Config rt.json
+
+printf 'class Writer { int x; }\n' > "$RT/src/Writer.cs"
+rt_cfg '.redCheck = {"cmd":"echo Passed {tests}","passRegex":"^Passed +(.*)$"}'
+expect 1 "red_check refuses a tree with paths.code changes" in_rt sh gates/red_check.sh --base "$FROZEN" --config rt.json
+rc2 "red_check (dirty code)"
+twin_rt "red_check (dirty)" "$LAST_OUT" "$LAST_RC" gates/red_check.ps1 -Base "$FROZEN" -Config rt.json
+
+rt_cfg '.affectedTests = {"cmd":"echo ran {tests}","joiner":"+","extraStems":["Extra"]}'
+printf 'Extra here\n' > "$RT/tests/ExtraTests.cs"
+expect 0 "affected_tests --list: changed tests plus whole-word key hits" in_rt sh gates/affected_tests.sh --list --base "$FROZEN" --config rt.json
+names "affected_tests (key)" "key: Writer"
+names "affected_tests (extra key)" "key: Extra"
+names "affected_tests (hit)" "test: tests/DoorTests.cs"
+names "affected_tests (hit extra)" "test: tests/ExtraTests.cs"
+names "affected_tests (changed)" "test: tests/NewTests.cs"
+case "$LAST_OUT" in *Unrelated*) echo "FAIL  affected_tests: listed an unrelated test"; fails=$((fails+1));; esac
+twin_rt "affected_tests --list" "$LAST_OUT" "$LAST_RC" gates/affected_tests.ps1 -List -Base "$FROZEN" -Config rt.json
+expect 0 "affected_tests PASS: runs cmd with {tests} and passes its exit code" in_rt sh gates/affected_tests.sh --base "$FROZEN" --config rt.json
+names "affected_tests (run)" "ran DoorTests+ExtraTests+NewTests"
+twin_rt "affected_tests (run)" "$LAST_OUT" "$LAST_RC" gates/affected_tests.ps1 -Base "$FROZEN" -Config rt.json
+rt_cfg '.affectedTests = {"cmd":"echo ran {tests}&& exit 3","joiner":"+"}'
+expect 1 "affected_tests FAIL: the cmd exits non-zero" in_rt sh gates/affected_tests.sh --base "$FROZEN" --config rt.json
+names "affected_tests (fail)" "exited 3"
+twin_rt "affected_tests (fail)" "$LAST_OUT" "$LAST_RC" gates/affected_tests.ps1 -Base "$FROZEN" -Config rt.json
+rt_cfg '.'
+expect 0 "affected_tests PASS: not configured" in_rt sh gates/affected_tests.sh --base "$FROZEN" --config rt.json
+names "affected_tests (unset)" "not configured"
+twin_rt "affected_tests (unset)" "$LAST_OUT" "$LAST_RC" gates/affected_tests.ps1 -Base "$FROZEN" -Config rt.json
+cd "$PROJ"
+
 # Freeze: record the QA-frozen SHA; the gate then needs no base argument.
 expect 0 "freeze writes gates/.frozen" sh gates/freeze.sh --unit DEMO-1
 names "freeze" "sha="

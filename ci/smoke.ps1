@@ -379,6 +379,156 @@ try {
     Rc2 'mutation_check (lazy)'
     Remove-Item -Force "$proj/st.smoke.json", "$proj/rules.smoke.json"
 
+    # --- the review gates (v1.18): retire_check, findings_check, red_check, affected_tests. Each runs in a
+    # scratch repo that carries a copy of the gates (a gate roots itself at the git top-level of its own dir).
+    function New-Rt([string]$name) {
+        $script:rt = Join-Path $work $name
+        if (Test-Path $script:rt) { Remove-Item -Recurse -Force $script:rt }
+        New-Item -ItemType Directory -Force "$($script:rt)/src", "$($script:rt)/spec", "$($script:rt)/tests", "$($script:rt)/docs/archive" | Out-Null
+        Copy-Item -Recurse "$proj/gates" "$($script:rt)/gates"
+        Remove-Item -Force "$($script:rt)/gates/.frozen" -ErrorAction SilentlyContinue
+        git -C $script:rt init -q -b main . ; git -C $script:rt config user.email ci@guide-sdd ; git -C $script:rt config user.name ci
+    }
+    function W([string]$rel, [string]$text) { [IO.File]::WriteAllText("$($script:rt)/$rel", $text, $utf8) }
+    function RtCfg([scriptblock]$f) {
+        $o = Get-Content "$($script:rt)/rt.base.json" -Raw | ConvertFrom-Json
+        if ($f) { & $f $o }
+        [IO.File]::WriteAllText("$($script:rt)/rt.json", ($o | ConvertTo-Json -Depth 10), $utf8)
+    }
+    function InRt([scriptblock]$b) { Push-Location $script:rt; try { & $b } finally { Pop-Location } }
+    function Not-Names([string]$label, [string]$needle) { if ($script:lastOut -like "*$needle*") { Write-Output "FAIL  ${label}: output names $needle"; $script:fails++ } }
+
+    # retire_check (#18)
+    New-Rt 'rt1'
+    W 'src/WriterIntake.cs' "class WriterIntake { void submit_old() {} void KeepMe() {} }`n"
+    W 'spec/s.md' "The WriterIntake calls submit_old.`n[REMOVED 2026-01-01 - submit_old retired]`n"
+    W 'tests/DoorTests.cs' "// test submit_old`n"
+    W 'docs/d.md' "see submit_old and KeepMe`n"
+    W 'docs/archive/a.md' "submit_old`n"
+    W 'rt.base.json' '{"baseRef":"main","paths":{"spec":"spec/**/*.md","code":"src/**"},"testGlobs":["tests/**"],"retireCheck":{"mode":"strict","extraGlobs":["docs/**"],"excludeGlobs":["docs/archive/**"]}}'
+    git -C $rt add -A | Out-Null ; git -C $rt commit -q -m seed
+    W 'src/WriterIntake.cs' "class WriterIntake { void submit_new() {} void KeepMe() {} }`n"
+    RtCfg $null
+    InRt {
+        Expect 1 'retire_check FAIL: a name removed from the code survives in spec, tests and docs' @('gates/retire_check.ps1', '-Config', 'rt.json')
+        Names 'retire_check (spec)' 'spec/s.md:1: submit_old'
+        Names 'retire_check (test)' 'tests/DoorTests.cs:1: submit_old'
+        Names 'retire_check (extraGlobs)' 'docs/d.md:1: submit_old'
+        Not-Names 'retire_check (archive)' 'docs/archive'
+        Not-Names 'retire_check (tombstone)' 'spec/s.md:2'
+        Not-Names 'retire_check (live)' 'KeepMe'
+    }
+    RtCfg { param($o) $o.retireCheck.mode = 'warn' }
+    InRt {
+        Expect 0 'retire_check warn mode: hits print, exit 0' @('gates/retire_check.ps1', '-Config', 'rt.json')
+        Names 'retire_check (warn)' 'WARN retire_check: 3 reference(s)'
+    }
+    W 'gates/.retired' "# declared`nKeepMe -> KeepNew`n"
+    RtCfg $null
+    InRt {
+        Expect 1 'retire_check FAIL: a declared name, with its replacement' @('gates/retire_check.ps1', '-Config', 'rt.json')
+        Names 'retire_check (declared)' 'docs/d.md:1: KeepMe -> KeepNew'
+    }
+    Remove-Item -Force "$rt/gates/.retired"
+    RtCfg { param($o) $o.retireCheck | Add-Member -NotePropertyName allow -NotePropertyValue @('submit_old') }
+    InRt { Expect 0 'retire_check PASS: an allowed name' @('gates/retire_check.ps1', '-Config', 'rt.json') }
+    foreach ($f in 'spec/s.md', 'tests/DoorTests.cs', 'docs/d.md') { W $f ((Get-Content "$rt/$f" -Raw) -replace 'submit_old', 'submit_new') }
+    RtCfg $null
+    InRt {
+        Expect 0 'retire_check PASS: the references are renamed' @('gates/retire_check.ps1', '-Config', 'rt.json')
+        Names 'retire_check (clean)' 'no retired name survives'
+    }
+    RtCfg { param($o) $o.PSObject.Properties.Remove('retireCheck') }
+    InRt {
+        Expect 0 'retire_check PASS: not configured' @('gates/retire_check.ps1', '-Config', 'rt.json')
+        Names 'retire_check (unset)' 'not configured'
+    }
+
+    # findings_check (#21)
+    RtCfg $null
+    W 'u.findings.md' "# unit findings`nprose is ignored`nF1 [LOW] a.cs:3 stale name | fixed abc1234`nF2 [HIGH] b.cs:9 a | b claim | defer out of range: tracked in X-9`n"
+    InRt {
+        Expect 0 'findings_check PASS: fixed <sha> and defer <evidence>' @('gates/findings_check.ps1', '-Config', 'rt.json')
+        Names 'findings_check (pass)' '2 finding(s) in 1 file(s)'
+    }
+    [IO.File]::AppendAllText("$rt/u.findings.md", "F3 [LOW] c.cs:1 nit | accepted`nF4 [MED] d.cs:2 no disposition at all`nF5 [LOW] e.cs:3 bad sha | fixed xyz`nF6 [LOW] f.cs:4 no evidence | defer `nF7 [BLOCKER] g.cs:5 bad severity | fixed abc1234`n", $utf8)
+    InRt {
+        Expect 1 'findings_check FAIL: accepted, none, a bad sha, empty evidence, a bad severity' @('gates/findings_check.ps1', '-Config', 'rt.json')
+        foreach ($n in 'F3', 'F4', 'F5', 'F6', 'F7') { Names "findings_check ($n)" "$n " }
+        Names 'findings_check (accepted)' "disposition 'accepted'"
+        Not-Names 'findings_check (F1)' 'F1 '
+        Not-Names 'findings_check (F2)' 'F2 '
+    }
+    Remove-Item -Force "$rt/u.findings.md"
+    InRt { Expect 0 'findings_check PASS: no findings files' @('gates/findings_check.ps1', '-Config', 'rt.json') }
+
+    # red_check (#19) and affected_tests (#20): a unit branch with QA's tests frozen, then the Engineer's change
+    New-Rt 'rt2'
+    W 'src/Writer.cs' "class Writer {}`n"
+    W 'tests/DoorTests.cs' "uses Writer`n"
+    W 'tests/Unrelated.cs' "nothing`n"
+    W 'rt.base.json' '{"baseRef":"main","paths":{"code":"src/**"},"testGlobs":["tests/**"]}'
+    git -C $rt add -A | Out-Null ; git -C $rt commit -q -m seed ; git -C $rt checkout -q -b unit
+    W 'tests/NewTests.cs' "qa test`n"
+    git -C $rt add -A | Out-Null ; git -C $rt commit -q -m qa
+    $frozen = (git -C $rt rev-parse HEAD).Trim()
+    RtCfg { param($o) $o | Add-Member -NotePropertyName redCheck -NotePropertyValue ([pscustomobject]@{ cmd = 'echo Failed  Alpha&& echo Passed  Beta_pin&& echo Passed  Gamma && echo {tests}'; passRegex = '^Passed +([A-Za-z_]+)' }) }
+    InRt {
+        Expect 1 'red_check FAIL: a test passes before any implementation' @('gates/red_check.ps1', '-Base', $frozen, '-Config', 'rt.json')
+        Names 'red_check (Gamma)' '  Gamma'
+        Names 'red_check (Beta)' '  Beta_pin'
+    }
+    RtCfg { param($o) $o | Add-Member -NotePropertyName redCheck -NotePropertyValue ([pscustomobject]@{ cmd = 'echo Failed  Alpha&& echo Passed  Beta_pin&& echo Passed  Gamma && echo {tests}'; passRegex = '^Passed +([A-Za-z_]+)'; allowGreen = @('Beta_*', 'Gamma') }) }
+    InRt { Expect 0 'red_check PASS: the green tests are allowGreen entries (glob or exact)' @('gates/red_check.ps1', '-Base', $frozen, '-Config', 'rt.json') }
+    RtCfg { param($o) $o | Add-Member -NotePropertyName redCheck -NotePropertyValue ([pscustomobject]@{ cmd = 'echo Passed {tests}'; passRegex = '^Passed +(.*)$'; joiner = '+' }) }
+    InRt {
+        Expect 1 'red_check: {tests} is the stems of the added test files' @('gates/red_check.ps1', '-Base', $frozen, '-Config', 'rt.json')
+        Names 'red_check ({tests})' '  NewTests'
+        Not-Names 'red_check (untouched)' 'DoorTests'
+    }
+    RtCfg { param($o) $o | Add-Member -NotePropertyName redCheck -NotePropertyValue ([pscustomobject]@{ cmd = 'echo Passed Beta'; passRegex = '^Passed +([A-Za-z_]+)' }) }
+    InRt {
+        Expect 1 'red_check: a cmd without {tests} is a config error' @('gates/red_check.ps1', '-Base', $frozen, '-Config', 'rt.json')
+        Rc2 'red_check (no {tests})'
+    }
+    RtCfg $null
+    InRt {
+        Expect 0 'red_check PASS: not configured' @('gates/red_check.ps1', '-Base', $frozen, '-Config', 'rt.json')
+        Names 'red_check (unset)' 'not configured'
+    }
+
+    W 'src/Writer.cs' "class Writer { int x; }`n"
+    RtCfg { param($o) $o | Add-Member -NotePropertyName redCheck -NotePropertyValue ([pscustomobject]@{ cmd = 'echo Passed {tests}'; passRegex = '^Passed +(.*)$' }) }
+    InRt {
+        Expect 1 'red_check refuses a tree with paths.code changes' @('gates/red_check.ps1', '-Base', $frozen, '-Config', 'rt.json')
+        Rc2 'red_check (dirty code)'
+    }
+
+    RtCfg { param($o) $o | Add-Member -NotePropertyName affectedTests -NotePropertyValue ([pscustomobject]@{ cmd = 'echo ran {tests}'; joiner = '+'; extraStems = @('Extra') }) }
+    W 'tests/ExtraTests.cs' "Extra here`n"
+    InRt {
+        Expect 0 'affected_tests --list: changed tests plus whole-word key hits' @('gates/affected_tests.ps1', '-List', '-Base', $frozen, '-Config', 'rt.json')
+        Names 'affected_tests (key)' 'key: Writer'
+        Names 'affected_tests (extra key)' 'key: Extra'
+        Names 'affected_tests (hit)' 'test: tests/DoorTests.cs'
+        Names 'affected_tests (hit extra)' 'test: tests/ExtraTests.cs'
+        Names 'affected_tests (changed)' 'test: tests/NewTests.cs'
+        Not-Names 'affected_tests (unrelated)' 'Unrelated'
+        Expect 0 'affected_tests PASS: runs cmd with {tests} and passes its exit code' @('gates/affected_tests.ps1', '-Base', $frozen, '-Config', 'rt.json')
+        Names 'affected_tests (run)' 'ran DoorTests+ExtraTests+NewTests'
+    }
+    RtCfg { param($o) $o | Add-Member -NotePropertyName affectedTests -NotePropertyValue ([pscustomobject]@{ cmd = 'echo ran {tests}&& exit 3'; joiner = '+' }) }
+    InRt {
+        Expect 1 'affected_tests FAIL: the cmd exits non-zero' @('gates/affected_tests.ps1', '-Base', $frozen, '-Config', 'rt.json')
+        Names 'affected_tests (fail)' 'exited 3'
+    }
+    RtCfg $null
+    InRt {
+        Expect 0 'affected_tests PASS: not configured' @('gates/affected_tests.ps1', '-Base', $frozen, '-Config', 'rt.json')
+        Names 'affected_tests (unset)' 'not configured'
+    }
+    Set-Location $proj
+
     # Freeze: record the QA-frozen SHA; the gate then needs no base argument.
     Expect 0 'freeze writes gates/.frozen' @('gates/freeze.ps1', '-Unit', 'DEMO-1')
     Names 'freeze' 'sha='

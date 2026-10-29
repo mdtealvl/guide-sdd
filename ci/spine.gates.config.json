@@ -8,6 +8,10 @@
     "minWords": 120,
     "excludeGlobs": ["README.md", "constitution.changelog.md", "project-config/PROPOSED_CHANGELOG.md", "website/**", "plugin/**"]
   },
+  "retireCheck": { "_comment": "retire_check is off for the spine: it has no paths.code, so there is no code diff to derive retired names from.", "mode": "off" },
+  "redCheck": { "_comment": "red_check is not used by the spine: it has no test runner (unset cmd = not configured).", "cmd": null },
+  "affectedTests": { "_comment": "affected_tests is not used by the spine: it has no test runner (unset cmd = not configured).", "cmd": null },
+  "findings": { "_comment": "findings_check over the spine: the framework keeps no Validation findings files, so none match.", "glob": "**/*.findings.md" },
   "constitutionRules": [
     { "id": "posix-sh-no-bashisms", "kind": "must_not_match",
       "paths": ["gates/*.sh", "plugin/hooks/*.sh", "install.sh", "ci/*.sh", "spec-format/*.sh"],

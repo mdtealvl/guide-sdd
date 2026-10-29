@@ -35,6 +35,35 @@
     "scoreRegex": null,
     "minScore": 0
   },
+  "retireCheck": {
+    "_comment": "retire_check (a retired name must not survive in the spec, tests or docs). Names = gates/.retired (file; one 'old -> new' per line) + tokens matching identRegex that are in removed lines of the paths.code diff vs {base}, were in paths.code at {base} and are gone now. Hits = whole-word occurrences in paths.spec, testGlobs and extraGlobs, minus excludeGlobs, minus lines matching tombstoneRegex, minus names in allow. mode: warn | strict | off. Unset file/identRegex/tombstoneRegex take the built-in defaults (git grep -E syntax). Remove the section for \"not configured\". See gates/README.md.",
+    "mode": "warn",
+    "file": null,
+    "identRegex": null,
+    "tombstoneRegex": null,
+    "extraGlobs": [],
+    "excludeGlobs": [],
+    "allow": []
+  },
+  "redCheck": {
+    "_comment": "red_check (optional; unset cmd = \"not configured\"). Run right after freeze: the tests added or changed since the branch point, run on the frozen tree. cmd holds {tests} (file stems joined by joiner, inside the quotes the runner needs), e.g. dotnet test --filter \"FullyQualifiedName~{tests}\" with joiner \"|FullyQualifiedName~\". passRegex: a line naming a PASSED test, capture group 1 = its name. allowGreen: glob entries for regression pins that are legitimately green. globs: default testGlobs. See gates/README.md.",
+    "cmd": null,
+    "passRegex": null,
+    "joiner": "|",
+    "globs": [],
+    "allowGreen": []
+  },
+  "affectedTests": {
+    "_comment": "affected_tests (optional; unset cmd = \"not configured\"; --list needs no cmd). Keys = file stems of the changed paths.code files + extraStems; affected = the changed test files + every test file under globs (default testGlobs) with a whole-word key hit. cmd holds {tests} like redCheck.cmd; joiner unset = redCheck.joiner. Put the project's always-run category in cmd. See gates/README.md.",
+    "cmd": null,
+    "joiner": null,
+    "globs": [],
+    "extraStems": []
+  },
+  "findings": {
+    "_comment": "findings_check: every F<n> [HIGH|MED|LOW|INFO] line in a file matching glob ends ' | fixed <sha>' or ' | defer <evidence>'. See gates/README.md.",
+    "glob": "**/*.findings.md"
+  },
   "unitIdRegex": "\\b[A-Z]{2,}-\\d+\\b",
   "foldCheck": {
     "_comment": "Mode B: backlogRoot is searched for <unit-id>* files, or a heading/anchor naming the unit inside a file; it may also name one backlog file. Mode A: set resolveCmd with {unit} placeholder, e.g. 'scripts/jira.sh get {unit}'. Omit both to degrade to syntactic pin validation.",
