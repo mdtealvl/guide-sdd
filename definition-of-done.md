@@ -90,6 +90,8 @@ accepts/declines against it (the Orchestrator re-runs, never reports).
 - [ ] **Fresh Validation accepts** — a context that did not build the thing, per `stages/7_ship.md` §2
       (conformance + hunt + verification-gap + intent alignment), reading **diffs + clauses + test
       output**, never a summary; verdict `validated: <base>..<head> accept` on the item.
+- [ ] **Every Validation finding has a disposition** — `<unit>.findings.md` lines each end `| fixed <sha>`
+      or `| defer <evidence>` (out of range only); `findings_check` green. "accepted" is not a disposition.
 - [ ] **Out-of-range findings deferred, not fixed** — each `[DEFER]` line carries evidence; nothing
       outside the unit's clause range changed.
 - [ ] **Docs updated in lockstep** — diagram-first where applicable, per slice, never batched.

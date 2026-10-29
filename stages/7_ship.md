@@ -19,8 +19,8 @@ unit open.
 From anywhere inside the repo: `pwsh gates/run_all.ps1 <base> -PreFold`
 / `sh gates/run_all.sh <base> --pre-fold` (persona route) or add `-Mechanical` / `--mechanical`
 (mechanical route). It runs `link_check` + `prose_check` + `coverage_check` + (`test_edit_ban` +
-`structure_check --frozen`, persona only) + `structure_check` + `static_check` + `suite_green` + the project
-gates + `mutation_check` (when configured), but **SKIPS** `fold_check` —
+`structure_check --frozen`, persona only) + `structure_check` + `static_check` + `retire_check` + `suite_green` + the project
+gates + `mutation_check` (when configured) + `findings_check`, but **SKIPS** `fold_check` —
 the provenance pins do not exist yet (step 3).
 
 `<base>` is the **QA-frozen SHA** from the item's `frozen:` line (persona route; written by
@@ -42,6 +42,8 @@ exit 2, never a skip.
 | `static_check` | lint / type-check / format check passes, or findings stay at or under the ratchet baseline | generic script + `checkCmd` |
 | `suite_green` | the project suite exits 0, **re-run by the Orchestrator** | runner (project details) |
 | `mutation_check` | optional: the suite kills enough planted faults (score ≥ `minScore`, or the tool's own threshold) | generic script + `mutation.cmd` |
+| `retire_check` | no retired name survives in the spec, tests or docs (`warn` by default; `strict` fails) | generic script |
+| `findings_check` | every finding in `<unit>.findings.md` ends `fixed <sha>` or `defer <evidence>` | generic script |
 
 The Orchestrator re-runs the suite; an agent's "tests pass" is not accepted. Project-specific gates
 run only if their concrete script + rules exist.
@@ -59,10 +61,11 @@ run only if their concrete script + rules exist.
 | the `mutation_check` score + surviving mutants in changed code (when configured) | |
 | Project Details rows for the touched seams + applicable non-functional categories | |
 
-**Output schema** — one line per finding, no prose around it:
-`<class> | <severity> | <file:line or clause-ID> | <claim> | <evidence: what was read>` —
-class ∈ `spec` · `code` · `test` · `migration` · `intentional-legacy` · `out-of-range`; severity is
-left **blank** (the Orchestrator sets it, §3). Then one verdict line: `accept` or `decline`.
+**Output** — Validation writes `<unit>.findings.md` (beside the changelog item): one finding per line, no
+prose around it, in the grammar `gates/README.md` defines:
+`F<n> [HIGH|MED|LOW|INFO] <file:line or clause-ID> <class>: <claim> (evidence: <what was read>)` —
+class ∈ `spec` · `code` · `test` · `migration` · `intentional-legacy` · `out-of-range`. Its `[SEV]` is a
+proposal: the Orchestrator sets the real one (§3). Then one verdict line: `accept` or `decline`.
 
 **Lenses** — run **2a** and **2b** as two separate fresh contexts (Tier A) or two fresh sessions
 (Tier B); 2c and 2d are questions 2a answers explicitly:
@@ -99,8 +102,14 @@ Write the verdict on the item: `validated: <frozen-sha>..<head-sha> accept` or `
 2. **Assign severity by consequence for the user** — `high` (intolerable) · `medium` (tolerable) ·
    `low` (cosmetic/none). Reviewers' own severities are disregarded: they judged under designed information
    asymmetry.
-3. **Score.** Any `high` ⇒ **decline**. Otherwise `3 × medium + low ≥ 5` ⇒ fix, then **one more fresh
-   2a pass** before accept. Below that ⇒ accept with the fixes applied and re-verified (step 1 re-run).
+3. **Score.** Any `high` ⇒ **decline**. Otherwise `3 × medium + low ≥ 5` ⇒ fix, then the **delta
+   re-review** (step 3b) before accept. Below that ⇒ accept with the fixes applied and re-verified (step 1 re-run).
+3b. **Delta re-review** after a fix round. A fresh Validation context (not the one that found them) is
+   briefed on `<validated-head>..<new-head>` plus the findings file, not the whole diff again.
+   - It confirms each fix: the sha resolves and the delta addresses the claim.
+   - It hunts only inside the delta.
+   - A new finding outside the delta is recorded `defer`, unless it is HIGH.
+   - One fix round is the norm; a second is the exception (the cap in step 5 still applies).
 4. **Route each finding by class** — the fix lands in the layer that caused it, never patched over:
 
 | Class | Root cause | Route |
@@ -112,6 +121,9 @@ Write the verdict on the item: `validated: <frozen-sha>..<head-sha> accept` or `
 | `intentional-legacy` | the spec is right but describes a future state the item was not meant to reach | Stage 3 correction (a lifecycle tag or an explicit deferral clause) → §2 re-validation only |
 | `out-of-range` | pre-existing, not caused by this unit | `[DEFER] <summary> — evidence: <file:line>` on the item; **never fixed here** |
 
+4b. **Disposition.** The Orchestrator ends every line of `<unit>.findings.md` with ` | fixed <sha>` or
+   ` | defer <evidence>`; `defer` is for out-of-range findings (and, in a delta re-review, those outside the delta). "accepted", "waived" and "won't fix"
+   are not dispositions: an in-range finding is fixed. `findings_check` FAILs any other line.
 5. **Cap.** Each decline increments `validation-pass:` on the item. A **third decline** transitions the
    item to PO-attention with `[BLOCKED:non-convergence]` and the finding history; the PM decides.
 6. **Lesson.** Every decline gets one line on the item: `lesson: <the upstream rule or stage that would
@@ -190,6 +202,8 @@ pushed) and the **PO box** runs §2–§3 + the merge (`box-roles.md` §"Box loo
 - [ ] Validation `accept` written as `validated: <base>..<head> accept` on the item — all four lenses,
       findings routed by class, out-of-range findings deferred, no `blocking` fixture gap, non-functional
       floor met or `N/A — reason`.
+- [ ] `<unit>.findings.md` complete: every finding `fixed <sha>` or `defer <evidence>` (`findings_check`); a
+      fix round was followed by a delta re-review.
 - [ ] Transient spec + structure delta folded + pinned; working spec and build plan archived;
       `spec/index.html` recompiled.
 - [ ] `structure_check` green — frozen half pre-fold, forward trace post-fold; Validation found no

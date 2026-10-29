@@ -89,6 +89,9 @@ and stalling — you **challenge** it:
 - [ ] Public surface matches the approved structure shard; every deviation went `[NEEDS-PO:structure]`
       → PM → re-freeze, never an edit.
 - [ ] Seams respected; staged by path; droppings cleaned.
+- [ ] Before handing to Validation, the mechanical gates are clean: `retire_check` (no retired name left in
+      the spec, tests or docs; declare renames in `gates/.retired`), `affected_tests` (the unit's own tests,
+      selected by the gate, green) and `static_check`.
 - [ ] Ledger current for the next slice; a `tokens:` line per slice on the item.
 
 ---
@@ -101,6 +104,10 @@ and stalling — you **challenge** it:
   (PASS: no structure shard differs from the frozen SHA — the approved diagram did not move.)
 - `static_check` — `gates/static_check.ps1` (Windows) / `gates/static_check.sh` (Linux/macOS).
   (PASS: `checkCmd` exits 0, or its findings stay at or under the ratchet baseline.)
+- `retire_check` — `gates/retire_check.ps1` (Windows) / `gates/retire_check.sh` (Linux/macOS).
+  (PASS: no retired name survives in `paths.spec`, `testGlobs` or `retireCheck.extraGlobs`.)
+- `affected_tests` — `gates/affected_tests.ps1 -List` / `gates/affected_tests.sh --list` names the unit's own
+  tests; without the flag it runs them via `affectedTests.cmd`. (PASS: that command exits 0.)
 - `suite_green` — Orchestrator re-runs the project suite (`suiteCmd`); exit 0 required.
 ### Next
 Return to PROCESS.md §0 and load Stage 7 (gates + ship). Read that stage file fully and follow it; this

@@ -62,6 +62,10 @@ clone with no project runtime.
 | suite_green | `suiteCmd` wrapper | generic | the project suite exits 0; **`suiteCmd` is mandatory** (unset = exit 2, never a skip) | 6, 7 |
 | board_check | `board_check.ps1` / `.sh` | generic, **optional** | the stage board (`board.file`) and the Mode B backlog agree: no board item missing from the backlog, open but shipped, or done but still open; `--ship <KEY>` also requires KEY done on the board and closed in the backlog; unset = "not configured" (`board/README.md`) | 7 |
 | mutation_check | `mutation_check.ps1` / `.sh` | generic, **optional** | the suite kills enough planted faults: `mutation.cmd` exits 0, or its score ≥ `mutation.minScore`; `{base}` scopes it to the diff; unset = "not configured" | 7 |
+| retire_check | `retire_check.ps1` / `.sh` | generic | no retired name (declared in `gates/.retired`, or removed from `paths.code` and gone now) survives in the spec, tests or docs; `retireCheck.mode` warn / strict / off; section absent = "not configured" ([review gates](#review-gates)) | 6, 7 |
+| red_check | `red_check.ps1` / `.sh` | generic, **optional** | the tests QA added or changed are RED on the frozen tree: any that passes (and is not `redCheck.allowGreen`) FAILs and routes to QA; unset `redCheck.cmd` = "not configured" | 5 (after `freeze`) |
+| affected_tests | `affected_tests.ps1` / `.sh` | generic, **optional** | the unit's own tests are picked mechanically (changed tests + whole-word hits of the changed code's file stems); `--list` prints them, else `affectedTests.cmd` runs them | 6, ship gate |
+| findings_check | `findings_check.ps1` / `.sh` | generic | every `<unit>.findings.md` line `F<n> [SEV]` ends `\| fixed <sha>` or `\| defer <evidence>`; "accepted" is not a disposition | 7 |
 | constitution_lint | `constitution_lint.template.ps1` / `.sh` | **project** | project principle checks (e.g. no hardcoded UI strings) | 7 |
 | seam_conformance | `seam_conformance.template.ps1` / `.sh` | **project** | each Project Details §1 seam holds | 7 |
 | qa_import_ban | `qa_import_ban.template.ps1` / `.sh` | **project** | QA tests don't import production internals (structural half of QA⊥impl; **FAILS with no rules**; the plugin hook adds the read-guard while the `qa` persona is set) | 7 |
@@ -82,9 +86,11 @@ contract. Run the Windows (`pwsh …`) **or** the Linux–macOS (`sh …`) form,
 
 - **Per-stage:** `link_check` + `prose_check` + `structure_check --plan` after any spec edit (Stage 3);
   `coverage_check --plan` at Stage 4; `structure_check --plan` + `token_ledger verify` / `report` at Stage 4b
-  and `token_ledger report --slice` at every slice end; `coverage_check` then `freeze` at end of Stage 5;
-  `test_edit_ban <frozen-sha>` + `structure_check --frozen <frozen-sha>` + `static_check` + `suite_green` at
-  end of Stage 6; `mutation_check` (when configured) in the Stage-7 bank, read by Validation.
+  and `token_ledger report --slice` at every slice end; `coverage_check` then `freeze`, then `red_check`
+  (when configured), at end of Stage 5;
+  `test_edit_ban <frozen-sha>` + `structure_check --frozen <frozen-sha>` + `retire_check` +
+  `affected_tests` + `static_check` + `suite_green` at end of Stage 6; `mutation_check` (when configured)
+  and `findings_check` in the Stage-7 bank, read by Validation.
 
   | Gate | Windows | Linux / macOS |
   |---|---|---|
@@ -110,6 +116,10 @@ contract. Run the Windows (`pwsh …`) **or** the Linux–macOS (`sh …`) form,
   | static_check | `pwsh gates/static_check.ps1` | `sh gates/static_check.sh` |
   | board_check | `pwsh gates/board_check.ps1 [-Ship <KEY>]` | `sh gates/board_check.sh [--ship <KEY>]` |
   | mutation_check | `pwsh gates/mutation_check.ps1 [-Base <frozen-sha>]` | `sh gates/mutation_check.sh [--base <frozen-sha>]` |
+  | retire_check | `pwsh gates/retire_check.ps1 [-Base <frozen-sha>]` | `sh gates/retire_check.sh [--base <frozen-sha>]` |
+  | red_check | `pwsh gates/red_check.ps1 [-Base <frozen-sha>]` | `sh gates/red_check.sh [--base <frozen-sha>]` |
+  | affected_tests | `pwsh gates/affected_tests.ps1 [-List] [-Base <frozen-sha>]` | `sh gates/affected_tests.sh [--list] [--base <frozen-sha>]` |
+  | findings_check | `pwsh gates/findings_check.ps1` | `sh gates/findings_check.sh` |
 
   Every gate takes a config override: `-Config <path>` / `--config <path>` (default
   `gates/gates.config.json`).
@@ -203,10 +213,11 @@ contract. Run the Windows (`pwsh …`) **or** the Linux–macOS (`sh …`) form,
 - **Ship (Stage 7):** run the whole bank, fail-fast, in order:
   ```
   link_check → prose_check → coverage_check → test_edit_ban → structure_check → static_check
-             → suite_green → constitution_lint* → seam_conformance* → qa_import_ban*
-             → board_check → mutation_check → fold_check → suite_green (re-run)
+             → retire_check → suite_green → constitution_lint* → seam_conformance* → qa_import_ban*
+             → board_check → mutation_check → findings_check → fold_check → suite_green (re-run)
   ```
-  (`structure_check --frozen` precedes the trace on the persona route's `--pre-fold` pass only.)
+  (`structure_check --frozen` precedes the trace on the persona route's `--pre-fold` pass only.
+  `red_check` and `affected_tests` are not in the bank: they run at the Stage 5 and 6 exits.)
   - **Windows:** `pwsh gates/run_all.ps1 [baseRef] [-PreFold] [-Mechanical] [-Strict]`
   - **Linux / macOS:** `sh gates/run_all.sh [baseRef] [--pre-fold] [--mechanical] [--strict]`
 
@@ -251,6 +262,10 @@ in a script.
 | `checkCmd` | the lint + type-check + format-check command, from `#TOOL-7`; **mandatory** (`"none"` opts out on the record). |
 | `staticCheck` | `findingRegex` + `baseline` (the ratchet), `fileCmd` + `fileGlobs` (the plugin's per-edit loop; default `paths.code`). |
 | `mutation` | optional: `cmd` (from `#TOOL-8`; `{base}` = the QA-frozen SHA), `scoreRegex`, `minScore`. |
+| `retireCheck` | `retire_check`: `mode` (`warn` default / `strict` / `off`), `file` (default `gates/.retired`), `identRegex`, `tombstoneRegex`, `extraGlobs[]`, `excludeGlobs[]`, `allow[]`. Section absent = "not configured". |
+| `redCheck` | optional, `red_check`: `cmd` (holds `{tests}`), `passRegex` (group 1 = test name), `joiner` (default `\|`), `globs[]` (default `testGlobs`), `allowGreen[]`. |
+| `affectedTests` | optional, `affected_tests`: `cmd` (holds `{tests}`), `joiner` (default `redCheck.joiner`), `globs[]` (default `testGlobs`), `extraStems[]`. |
+| `findings` | `findings_check`: `glob` (default `**/*.findings.md`). |
 | `unitIdRegex` | what a changelog unit-id looks like — Jira key (Mode A) or backlog id (Mode B). Read by fold_check and the stage board; otherwise mode-blind. |
 | `board` | optional stage board: `file` (unset = off), `title`, `store.root` / `store.closed`, `stageLabels`, `columns`, `dispatch` (persona → stage for the plugin hook), `meta`, `epics` (`board/README.md`). Read by `board_check` and `board/*.mjs`. |
 | `proseCheck` | `prose_check` tunables: `mode` (warn / strict / off), `maxParaShare`, `maxParaWords`, `minWords`, `excludeGlobs[]` (see above). |
@@ -308,6 +323,66 @@ go straight back to the agent; the edit stands. The gate is the proof, the hook 
 | JVM | `gradle check` (Error Prone, SpotBugs, Checkstyle) | — | `gradle pitest` |
 | Go | `golangci-lint run` | `golangci-lint run {file}` | `go-mutesting ./...` |
 | Rust | `cargo clippy -- -D warnings && cargo fmt --check` | — (crate-level) | `git diff {base} > mut.diff && cargo mutants --in-diff mut.diff` |
+
+## Review gates
+
+Four gates move grep work out of Stage 7 Validation, so its budget goes to conformance and intent.
+- All four: `.ps1` + `.sh` twins, exit 0 / 1 / 2, `PASS|FAIL|WARN <gate>:` lines.
+- `{base}` is `--base` / `-Base`, else `gates/.frozen`, else `baseRef`.
+- Globs are the bank's dialect (`**` spans directories, `*` does not), matched by git: `git grep -w`,
+  never a loop over the tree.
+- A `cmd` is one line, run from the project root under `sh -c` / `cmd /c`, with `{tests}` filled in.
+  Quote `{tests}` where the runner's filter needs it (`--filter "FullyQualifiedName~{tests}"`).
+
+**`retire_check`** — a retired name must not survive in the spec, tests or docs.
+- Retired names: `gates/.retired` (`retireCheck.file`), one `old -> new` per line (`old` alone is fine;
+  `#` comments and blank lines are skipped); plus auto-derived names.
+- Auto-derived: a token matching `identRegex` that is in a removed line of `git diff {base} -- paths.code`,
+  is in `paths.code` at `{base}`, and has no whole-word occurrence in `paths.code` now (HEAD plus
+  uncommitted work). Default `identRegex`: CamelCase and snake_case tokens of 4 or more characters.
+- Hit: a whole-word occurrence in `paths.spec`, `testGlobs` or `extraGlobs`, minus `excludeGlobs`, minus
+  `allow` names, minus lines matching `tombstoneRegex`. Default `tombstoneRegex`: a lifecycle marker,
+  `[REMOVED 2026-06-24 ...]` (also DEPRECATED, SUPERSEDED, MOVED; `lifecycle-states.md`).
+- Both regexes are `git grep -E` syntax (no `\d`; an invalid one is exit 2).
+- Each hit prints `file:line: name`, plus ` -> new` when declared.
+- `mode`: `warn` (default; hits are WARN lines, exit 0), `strict` (hits FAIL), `off`.
+- Keep `gates/.retired` with the Orchestrator: the Engineer cannot edit the gate dir. Or point `file`
+  at a path the Engineer may write.
+
+**`red_check`** — QA's new tests are red on the frozen tree. Run right after `freeze`.
+- Test files: added or modified between the branch point (merge-base of `baseRef` and the frozen SHA) and
+  the frozen SHA, under `redCheck.globs` (default `testGlobs`; list test source only if `testGlobs` holds
+  runner config).
+- `{tests}`: their file stems (name without the last extension), sorted, joined by `joiner`.
+- A line of the output matching `passRegex` is a passed test: group 1 is its name. Any passed test that
+  no `allowGreen` entry matches FAILs the gate and is listed. Route it to QA (Stage 5).
+- `allowGreen`: globs (`*`, `?`) over the whole test name, for regression pins; none = exact name.
+- The frozen SHA must be known (`--base` or `.frozen`) and `paths.code` must equal it, else exit 2.
+- The exit code of `cmd` is ignored. Unset `cmd` = "not configured".
+
+**`affected_tests`** — the unit's own tests, picked by the gate.
+- Keys: the file stems of the `paths.code` files changed vs `{base}` (tracked, deleted and untracked),
+  plus `extraStems`.
+- Affected: the test files under `globs` (default `testGlobs`) changed since the branch point, plus
+  every one with a whole-word hit of a key.
+- `--list` prints `key: <stem>` and `test: <path>` lines and exits 0. Otherwise `cmd` runs with
+  `{tests}` and its output is printed; it exits 0 when `cmd` does, else 1.
+- Add the project's always-run category to `cmd`. Unset `cmd` = "not configured".
+
+**`findings_check`** — a Validation finding always has a disposition.
+- File: `findings.glob` (default `**/*.findings.md`), one finding per line:
+
+  ```
+  F<n> [HIGH|MED|LOW|INFO] <file:line> <claim> | <disposition>
+  ```
+
+- A line is a finding when it starts `F<n> [`. Other lines are prose and ignored.
+- Disposition: the text after the last ` | ` on the line, exactly one of
+  - `fixed <sha>`: 7 to 40 hex digits, the fix commit;
+  - `defer <evidence>`: non-empty text; out-of-range findings only.
+- FAIL: no ` | `, any other word (accepted, waived, wontfix), a bad sha, empty evidence, or a severity
+  outside the four.
+- No findings files = PASS.
 
 ## Generic vs project-specific — the split (C2)
 

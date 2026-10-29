@@ -82,6 +82,7 @@ Green boxes close on a gate; amber boxes close on a recorded human decision.
 | `qa_import_ban` — QA tests import no production internals | Gate (project rules) | The structural half of QA blindness, provable from the test files on any host. Fails with no rules, so it cannot pass silently. |
 | `coverage_check` — every clause has at least one tagged test | Gate | Tags are text; coverage is set membership. |
 | Suite runs red as expected; tests compile | Human (Orchestrator) | "Red for the right reason" needs reading the failures. |
+| `red_check` — the tests QA added or changed are red on the frozen tree (optional) | Gate | Red-first was required and never verified: a test that passes without the implementation freezes and reaches Validation. One run of the new tests routes it to QA. |
 | `freeze` — records the QA-frozen SHA in `gates/.frozen` and prints the `frozen:` line | Gate helper | Every later edit-ban check needs a base fixed at this moment. The `frozen:` line on the item is authoritative; the file is a mirror. |
 
 ### Stage 6 — Engineer (persona route)
@@ -93,16 +94,19 @@ Green boxes close on a gate; amber boxes close on a recorded human decision.
 | `structure_check --frozen` — the approved diagram did not move | Gate | As the edit ban, for the structure shard. A deviation is `[NEEDS-PO:structure]`, never an edit. |
 | Per-edit lint feedback — `staticCheck.fileCmd` on each file the agent writes, findings returned at once | Hook | The fastest loop: the agent fixes a finding while the file is in context. Never the proof; `static_check` is. |
 | `static_check` — `checkCmd` passes, or findings stay at or under the ratchet baseline | Gate | Static analysis catches what no test was written for. Unset `checkCmd` is exit 2; `"none"` is an opt-out on the record. |
+| `retire_check` — no retired name survives in the spec, tests or docs | Gate | A retired name left in a table cell or test title is text a regex finds; Validation should not spend a round on it. |
+| `affected_tests` — the unit's own tests, picked from changed code and test files | Gate helper | "Own tests" under-selected when left to judgment. The key is a file stem and a whole-word hit: text, not opinion. |
 | `suite_green` — `suiteCmd` exits 0 | Gate | The suite is the project's own oracle. An unset `suiteCmd` is exit 2, never a skip. |
 
 ### Stage 7 — Ship and fold
 
 | Check | Kind | Why this kind |
 |---|---|---|
-| `run_all --pre-fold` — link → prose → coverage → test_edit_ban\* → structure → static → suite → constitution_lint† → seam_conformance† → qa_import_ban† → board_check → mutation‡ (fold_check skipped) | Gate helper running gates | One fail-fast bank, so nothing is forgotten. \*Persona route only. †Only when the project copied the template and wrote rules. ‡Only when `mutation.cmd` is set. |
+| `run_all --pre-fold` — link → prose → coverage → test_edit_ban\* → structure → static → retire_check → suite → constitution_lint† → seam_conformance† → qa_import_ban† → board_check → mutation‡ → findings_check (fold_check skipped) | Gate helper running gates | One fail-fast bank, so nothing is forgotten. \*Persona route only. †Only when the project copied the template and wrote rules. ‡Only when `mutation.cmd` is set. |
 | `constitution_lint` / `seam_conformance` — the project's own principles and seams | Gate (project rules) | Project rules as rows: regex over the tree, or `kind: command` to run a real architecture checker. One engine, no per-project script edits. |
 | `board_check` — the stage board and the Mode B backlog agree (optional; `--ship <KEY>` at record-ship) | Gate | A second store drifts within a day; `board.mjs done` closes both in one run and the gate catches every other path. |
 | `mutation_check` — the suite kills enough planted faults (optional) | Gate | Red-first proves tests fail without code, not that they catch wrong code. Survivors in changed code are Validation findings, class `test`, routed to QA. |
+| `findings_check` — every Validation finding ends `fixed <sha>` or `defer <evidence>` | Gate | "Accepted" in-range findings shipped because nothing read the dispositions. A line grammar does. |
 | Fresh Validation — four lenses, one verdict, against the full diff, spec, structure shard and constitution | Human / Validation | **Green is necessary, not sufficient.** A context that did not build the thing checks intent. |
 | Classify and route Validation's findings (spec / code / test / ...), decline cap 3 | Human (Orchestrator) | Which layer is wrong is judgement; the routing table makes it repeatable. |
 | Fold, then authoritative `run_all` (post-fold) — adds `fold_check`: every changed clause carries a resolving provenance pin; suite re-run | Gate | Pins are text that must resolve, and exist only after the fold — hence two passes. |

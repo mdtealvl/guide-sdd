@@ -1,6 +1,6 @@
 # GUIDE SDD — Gated, Unified, Intent-Driven Engineering
 
-> **v1.17.1 — 2026-10-20.** A reusable, token-efficient, spec-first / persona-split development
+> **v1.18.0 — 2026-10-29.** A reusable, token-efficient, spec-first / persona-split development
 > method that drops into large, multi-developer projects worked by humans **and** AI agents. It
 > merges two mature in-house practices (Mistwright's *How We Work*, Polars' *How To Develop*) with
 > the published SOTA into one copyable **spine** + a small, indexed **per-project surface**.
@@ -477,6 +477,16 @@ No invariant change; still ten.
 - **Persona guard** (closes #16): a sub-agent in its own git worktree is guarded and swept against that
   worktree (the checkout holding its `cwd`), not the session's primary checkout.
 - **On update:** nothing to do; set `linkCheck.skipGlobs` to drop a link workaround.
+Full record in `constitution.changelog.md`.
+
+### v1.18.0 Amendment — review gates: retire_check, red_check, affected_tests, findings ledger (2026-10-29)
+
+No invariant change; still ten.
+- **`retire_check`** (closes #18): a name retired in the unit, declared in `gates/.retired` or removed from `paths.code`, must not survive in the spec, tests or docs. `mode` warn by default.
+- **`red_check`** (closes #19): right after `freeze`, the tests QA added run on the frozen tree; one that passes (and is not `redCheck.allowGreen`) routes back to QA.
+- **`affected_tests`** (closes #20): the unit's own tests are picked from the changed code files' stems and the changed tests; `--list` prints them, else `affectedTests.cmd` runs them.
+- **`findings_check`** (closes #21): `<unit>.findings.md` lines end `| fixed <sha>` or `| defer <evidence>`. `run_all` runs it and `retire_check`. A fix round is followed by a delta re-review.
+- **On update:** the config template gains `retireCheck` (warn), `redCheck`, `affectedTests` and `findings`; set `redCheck.cmd` / `affectedTests.cmd` to use those two.
 Full record in `constitution.changelog.md`.
 
 ## Map to the source practices

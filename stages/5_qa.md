@@ -86,6 +86,7 @@ ban holds for the Engineer regardless.
       (`harmless`/`reviewed`/`blocking`); any `blocking` gap surfaced.
 - [ ] No production internals imported beyond the contracted surface (`qa_import_ban` passes).
 - [ ] Tests red + compiling. No production code read or written.
+- [ ] `red_check` PASS after the freeze (when configured): no new test is green before the implementation.
 - [ ] Ledger: reads recorded, test-body pins written for the Engineer, the slice's `tokens:` line on the item.
 
 ---
@@ -99,6 +100,11 @@ ban holds for the Engineer regardless.
   `frozen: <sha>` line — **record it on the changelog item** (the item's copy is authoritative; the file
   is a mirror), then commit the marker. That SHA is the base every later `test_edit_ban` **and
   `structure_check --frozen`** diffs against.
+- **Red check** (Orchestrator, right after the freeze commit; when `redCheck.cmd` is set):
+  `pwsh gates/red_check.ps1` / `sh gates/red_check.sh`. It runs the tests QA added or changed on the frozen
+  tree. A test that **passes** without the implementation (and is not a `redCheck.allowGreen` regression
+  pin) FAILs the gate: **the item routes back to QA**, which fixes or replaces the test and re-freezes.
+  Never to the Engineer, never to Validation.
 Tests are now **frozen** — and so is the PM-approved structure shard — the Engineer can edit neither,
 nor the gate config.
 ### Next
