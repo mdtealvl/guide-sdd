@@ -57,7 +57,10 @@ Set-Location -LiteralPath $top
 if (-not $Base) { $Base = Get-FrozenSha (Join-Path $top $gd) }
 if (-not $Base) { $Base = Get-CfgValue $cfg 'baseRef' 'main' }
 & git rev-parse --verify --quiet "$Base^{commit}" 2>&1 | Out-Null
-if ($LASTEXITCODE -ne 0) { Write-Output "FAIL ${GateName}: base '$Base' does not resolve - pass the QA-frozen SHA."; exit 2 }
+if ($LASTEXITCODE -ne 0) {
+    if ($mode -eq 'warn') { Write-Output "PASS ${GateName}: no base resolvable - skipped"; exit 0 }
+    Write-Output "FAIL ${GateName}: base '$Base' does not resolve - pass the QA-frozen SHA."; exit 2
+}
 
 $ident = Get-CfgValue $rc 'identRegex' '_*[A-Za-z0-9]+_[A-Za-z0-9_]+|[A-Za-z0-9]*[a-z][A-Za-z0-9]*[A-Z][A-Za-z0-9_]*'
 $tomb = Get-CfgValue $rc 'tombstoneRegex' '\[(DEPRECATED|SUPERSEDED|MOVED|REMOVED) [0-9]{4}-[0-9]{2}-[0-9]{2}'

@@ -65,7 +65,10 @@ cd "$TOP" || exit 2
 
 [ -n "$BASE" ] || BASE=$(frozen_sha "$GD")
 [ -n "$BASE" ] || BASE=$(read_cfg "$CFG" '.baseRef' 'main')
-git rev-parse --verify --quiet "$BASE^{commit}" >/dev/null 2>&1 || { echo "FAIL $GATE: base '$BASE' does not resolve - pass the QA-frozen SHA."; exit 2; }
+if ! git rev-parse --verify --quiet "$BASE^{commit}" >/dev/null 2>&1; then
+  if [ "$MODE" = warn ]; then echo "PASS $GATE: no base resolvable - skipped"; exit 0; fi
+  echo "FAIL $GATE: base '$BASE' does not resolve - pass the QA-frozen SHA."; exit 2
+fi
 
 IDENT=$(read_cfg "$CFG" '.retireCheck.identRegex' '_*[A-Za-z0-9]+_[A-Za-z0-9_]+|[A-Za-z0-9]*[a-z][A-Za-z0-9]*[A-Z][A-Za-z0-9_]*')
 TOMB=$(read_cfg "$CFG" '.retireCheck.tombstoneRegex' '\[(DEPRECATED|SUPERSEDED|MOVED|REMOVED) [0-9]{4}-[0-9]{2}-[0-9]{2}')

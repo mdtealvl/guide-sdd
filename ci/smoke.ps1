@@ -444,6 +444,17 @@ try {
         Names 'retire_check (unset)' 'not configured'
     }
 
+    RtCfg { param($o) $o.baseRef = 'no-such-ref'; $o.retireCheck.mode = 'warn' }
+    InRt {
+        Expect 0 'retire_check warn mode: an unresolvable base is skipped' @('gates/retire_check.ps1', '-Config', 'rt.json')
+        Names 'retire_check (no base)' 'PASS retire_check: no base resolvable - skipped'
+    }
+    RtCfg { param($o) $o.baseRef = 'no-such-ref' }
+    InRt {
+        Expect 1 'retire_check strict mode: an unresolvable base is exit 2' @('gates/retire_check.ps1', '-Config', 'rt.json')
+        Rc2 'retire_check (strict, no base)'
+    }
+
     # findings_check (#21)
     RtCfg $null
     W 'u.findings.md' "# unit findings`nprose is ignored`nF1 [LOW] a.cs:3 stale name | fixed abc1234`nF2 [HIGH] b.cs:9 a | b claim | defer out of range: tracked in X-9`n"

@@ -477,6 +477,15 @@ expect 0 "retire_check PASS: not configured" in_rt sh gates/retire_check.sh --co
 names "retire_check (unset)" "not configured"
 twin_rt "retire_check (unset)" "$LAST_OUT" "$LAST_RC" gates/retire_check.ps1 -Config rt.json
 
+rt_cfg '.baseRef = "no-such-ref" | .retireCheck.mode = "warn"'
+expect 0 "retire_check warn mode: an unresolvable base is skipped" in_rt sh gates/retire_check.sh --config rt.json
+names "retire_check (no base)" "PASS retire_check: no base resolvable - skipped"
+twin_rt "retire_check (no base)" "$LAST_OUT" "$LAST_RC" gates/retire_check.ps1 -Config rt.json
+rt_cfg '.baseRef = "no-such-ref"'
+expect 1 "retire_check strict mode: an unresolvable base is exit 2" in_rt sh gates/retire_check.sh --config rt.json
+rc2 "retire_check (strict, no base)"
+twin_rt "retire_check (strict, no base)" "$LAST_OUT" "$LAST_RC" gates/retire_check.ps1 -Config rt.json
+
 # findings_check (#21)
 rt_cfg '.'
 printf '# unit findings\nprose is ignored\nF1 [LOW] a.cs:3 stale name | fixed abc1234\nF2 [HIGH] b.cs:9 a | b claim | defer out of range: tracked in X-9\n' > "$RT/u.findings.md"
