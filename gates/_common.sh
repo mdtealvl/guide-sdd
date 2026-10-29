@@ -203,3 +203,53 @@ expand_globs() {
     | grep -E "$_alt" \
     | sort -u
 }
+
+# cfg_list <config> <jq-path> — a config value that is a string or an array, one item per line
+# (CRs dropped, blanks skipped); nothing when null/absent.
+cfg_list() {
+  jq -r "(($2) // empty) | if type == \"array\" then .[] else . end" "$1" 2>/dev/null | tr -d '\r' | sed '/^$/d'
+}
+
+# glob_specs [exclude] — globs on stdin, one per line, as git pathspecs for `eval git ... -- $specs`:
+# each single-quoted with :(glob) magic (** spans directories, * does not - the bank's dialect), or
+# :(exclude,glob) with the argument. A glob holding a single quote is skipped.
+glob_specs() {
+  _mag=":(glob)"; [ "${1:-}" = "exclude" ] && _mag=":(exclude,glob)"
+  while IFS= read -r _g; do
+    case "$_g" in ''|*"'"*) continue ;; esac
+    printf " '%s%s'" "$_mag" "$_g"
+  done
+}
+
+# file_stem <path> — the file name without its last extension (WriterIntake.cs -> WriterIntake).
+file_stem() {
+  _b=${1##*/}
+  case "$_b" in ?*.*) _b=${_b%.*} ;; esac
+  printf '%s' "$_b"
+}
+
+# frozen_sha <gate-dir> — the sha= line of <gate-dir>/.frozen, if any.
+frozen_sha() {
+  [ -f "$1/.frozen" ] && sed -n 's/^sha=\([0-9a-fA-F]*\).*/\1/p' "$1/.frozen" | head -1
+}
+
+# capture_group1 <regex> — stdin lines: for each line the regex matches, print its capture group 1
+# (the first match; lines without a match print nothing). Control characters stand in for the sed
+# delimiter and the group markers.
+capture_group1() {
+  _d=$(printf '\003'); _m1=$(printf '\001'); _m2=$(printf '\002')
+  sed -n -E "s${_d}$(to_ere "$1")${_d}${_m1}\\1${_m2}${_d}p" \
+    | sed -e "s/^[^${_m1}]*${_m1}//" -e "s/${_m2}.*\$//"
+}
+
+# fill_tests <cmd> <tests> — <cmd> with every {tests} replaced by <tests>.
+fill_tests() {
+  _s=$1; _o=""
+  while :; do
+    case "$_s" in
+      *'{tests}'*) _o="$_o${_s%%'{tests}'*}$2"; _s=${_s#*'{tests}'} ;;
+      *) _o="$_o$_s"; break ;;
+    esac
+  done
+  printf '%s' "$_o"
+}

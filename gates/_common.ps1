@@ -234,3 +234,44 @@ function Get-RawText {
     if ($v -is [array] -or $v -is [System.Management.Automation.PSCustomObject]) { return ($v | ConvertTo-Json -Compress) }
     return [string]::Format([Globalization.CultureInfo]::InvariantCulture, '{0}', $v)
 }
+
+function Get-CfgList {
+    # A config value that is a string or an array, as a string array (blanks skipped); the sh twin's cfg_list.
+    param($Obj, [string]$Name)
+    $v = Get-CfgValue $Obj $Name $null
+    if ($null -eq $v) { return @() }
+    return @(@($v) | ForEach-Object { "$_".Trim() } | Where-Object { $_ })
+}
+
+function Get-GlobSpecs {
+    # Globs as git pathspecs (:(glob) magic: ** spans directories, * does not); the sh twin's glob_specs.
+    param([string[]]$Globs, [switch]$Exclude)
+    $mag = if ($Exclude) { ':(exclude,glob)' } else { ':(glob)' }
+    return @($Globs | Where-Object { $_ -and -not $_.Contains("'") } | ForEach-Object { $mag + ($_ -replace '\\', '/') })
+}
+
+function Get-FileStem {
+    # The file name without its last extension; the sh twin's file_stem.
+    param([string]$Path)
+    $b = ($Path -replace '\\', '/')
+    $b = $b.Substring($b.LastIndexOf('/') + 1)
+    $i = $b.LastIndexOf('.')
+    if ($i -gt 0) { $b = $b.Substring(0, $i) }
+    return $b
+}
+
+function Get-FrozenSha {
+    param([string]$GateDir)
+    $p = Join-Path $GateDir '.frozen'
+    if (-not (Test-Path -LiteralPath $p)) { return '' }
+    $line = (Get-Content -LiteralPath $p | Where-Object { $_ -match '^sha=([0-9a-fA-F]+)' } | Select-Object -First 1)
+    if ($line) { return [regex]::Match($line, '^sha=([0-9a-fA-F]+)').Groups[1].Value }
+    return ''
+}
+
+function Write-LfFile {
+    # UTF-8 without BOM, LF endings: what `git grep -f` reads.
+    param([string]$Path, [string[]]$Lines)
+    $t = if ($Lines.Count -gt 0) { ($Lines -join "`n") + "`n" } else { '' }
+    [System.IO.File]::WriteAllText($Path, $t, [System.Text.UTF8Encoding]::new($false))
+}
